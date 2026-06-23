@@ -141,8 +141,11 @@ final class Session: ObservableObject, Identifiable {
         // replace it instead of adding a new tab.
         if let idx = tabs.firstIndex(where: { $0.id == activeTabID }),
            isTabReplaceable(tabs[idx]) {
-            TerminalStore.shared.close(tabs[idx].id)
-            tabs[idx] = Tab(id: tabs[idx].id, kind: .file, title: (abs as NSString).lastPathComponent, path: abs)
+            let oldID = tabs[idx].id
+            TerminalStore.shared.close(oldID)
+            let newTab = Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs)
+            tabs[idx] = newTab
+            activeTabID = newTab.id
         } else {
             addTab(Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs))
         }
