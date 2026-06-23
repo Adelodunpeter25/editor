@@ -103,7 +103,7 @@ final class SidebarViewController: NSViewController {
         filesModeSeg.selectedSegment = max(0, min(2, UserDefaults.standard.integer(forKey: "rightMode")))
         filesModeSeg.target = self
         filesModeSeg.action = #selector(filesModeChanged)
-        filesModeSeg.controlSize = .small
+        filesModeSeg.controlSize = .regular
         filesModeSeg.segmentStyle = .rounded
         filesModeSeg.toolTip = "Files tree / Changes (git)"
         filesModeSeg.focusRingType = .none
@@ -129,12 +129,12 @@ final class SidebarViewController: NSViewController {
         pane.addSubview(actions)
         pane.addSubview(filesContainer)
         NSLayoutConstraint.activate([
-            filesModeSeg.topAnchor.constraint(equalTo: pane.topAnchor, constant: 8),
+            filesModeSeg.topAnchor.constraint(equalTo: pane.topAnchor, constant: 12),
             filesModeSeg.leadingAnchor.constraint(equalTo: pane.leadingAnchor, constant: 10),
             actions.centerYAnchor.constraint(equalTo: filesModeSeg.centerYAnchor),
             actions.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -8),
             actions.leadingAnchor.constraint(greaterThanOrEqualTo: filesModeSeg.trailingAnchor, constant: 8),
-            filesContainer.topAnchor.constraint(equalTo: filesModeSeg.bottomAnchor, constant: 6),
+            filesContainer.topAnchor.constraint(equalTo: filesModeSeg.bottomAnchor, constant: 10),
             filesContainer.leadingAnchor.constraint(equalTo: pane.leadingAnchor),
             filesContainer.trailingAnchor.constraint(equalTo: pane.trailingAnchor),
             filesContainer.bottomAnchor.constraint(equalTo: pane.bottomAnchor),
