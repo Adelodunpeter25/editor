@@ -40,9 +40,12 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         // and the Files/Changes toggle behind it.
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.minSize = NSSize(width: 900, height: 600)
-        window.setContentSize(NSSize(width: 1100, height: 720))
         window.setFrameAutosaveName("EditorMainWindow")
-        if window.frame.origin == .zero { window.center() }
+        let restored = window.setFrameUsingName("EditorMainWindow")
+        if !restored {
+            window.setContentSize(NSSize(width: 1100, height: 720))
+            window.center()
+        }
         super.init(window: window)
         window.delegate = self
 
