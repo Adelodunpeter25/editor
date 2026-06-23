@@ -94,6 +94,7 @@ final class SidebarViewController: NSViewController {
     private var sidebarMode: SidebarMode { SidebarMode(rawValue: filesModeSeg.selectedSegment) ?? .files }
     private var changesMode: Bool { sidebarMode == .changes }
     private var fileActionsBar: NSStackView?   // new file / new folder / collapse-all (Files mode only)
+    private var sidebarEmptyView: NSView?    // "Open Folder" prompt when no project is open
 
     init(model: AppModel) {
         self.model = model
@@ -165,17 +166,18 @@ final class SidebarViewController: NSViewController {
         filesModeSeg.controlSize = .small
         filesModeSeg.segmentStyle = .rounded
         filesModeSeg.toolTip = "Files tree / Changes (git)"
+        filesModeSeg.focusRingType = .none
         filesModeSeg.translatesAutoresizingMaskIntoConstraints = false
         filesContainer.translatesAutoresizingMaskIntoConstraints = false
 
         // Tree toolbar: new file / new folder / collapse-all (VS Code's Explorer actions). Files mode only.
         let iconSize: CGFloat = 13
         let newFile = ClosureButton(symbol: "doc.badge.plus", pointSize: iconSize) { [weak self] in self?.treeVC?.beginNewFile() }
-        newFile.toolTip = "New file"
+        newFile.toolTip = "New file"; newFile.focusRingType = .none
         let newFolder = ClosureButton(symbol: "folder.badge.plus", pointSize: iconSize) { [weak self] in self?.treeVC?.beginNewFolder() }
-        newFolder.toolTip = "New folder"
+        newFolder.toolTip = "New folder"; newFolder.focusRingType = .none
         let collapse = ClosureButton(symbol: "arrow.down.right.and.arrow.up.left", pointSize: iconSize) { [weak self] in self?.treeVC?.collapseAll() }
-        collapse.toolTip = "Collapse all folders"
+        collapse.toolTip = "Collapse all folders"; collapse.focusRingType = .none
         let actions = NSStackView(views: [newFile, newFolder, collapse])
         actions.orientation = .horizontal
         actions.spacing = 8
@@ -207,7 +209,12 @@ final class SidebarViewController: NSViewController {
 
     /// Rebuild the tree + changes VCs when the active session changes, then show the one for the mode.
     private func syncFileTree() {
-        guard let session = model.activeSession else { teardownSidebarVCs(); currentRepo = nil; return }
+        guard let session = model.activeSession else {
+            teardownSidebarVCs(); currentRepo = nil
+            showSidebarEmpty()
+            return
+        }
+        hideSidebarEmpty()
         if currentRepo != session.url {
             teardownSidebarVCs()
             currentRepo = session.url
@@ -256,6 +263,43 @@ final class SidebarViewController: NSViewController {
         if sidebarMode == .files { lastRevealedPath = nil; revealActiveFile() }   // entering Files → reveal current file
         if sidebarMode == .search { DispatchQueue.main.async { [weak self] in self?.searchVC?.focusField() } }
     }
+
+    private func showSidebarEmpty() {
+        guard sidebarEmptyView == nil else { return }
+        let label = NSTextField(labelWithString: "No project open")
+        label.font = .systemFont(ofSize: 12)
+        label.textColor = .tertiaryLabelColor
+        label.alignment = .center
+
+        let btn = PointerButton()
+        btn.title = "Open Folder…"
+        btn.bezelStyle = .rounded
+        btn.focusRingType = .none
+        btn.target = self
+        btn.action = #selector(openRepoFromSidebar)
+
+        let stack = NSStackView(views: [label, btn])
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        filesContainer.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: filesContainer.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: filesContainer.centerYAnchor),
+        ])
+        sidebarEmptyView = stack
+        fileActionsBar?.isHidden = true
+        filesModeSeg.isHidden = true
+    }
+
+    private func hideSidebarEmpty() {
+        sidebarEmptyView?.removeFromSuperview()
+        sidebarEmptyView = nil
+        filesModeSeg.isHidden = false
+    }
+
+    @objc private func openRepoFromSidebar() { openRepo() }
 
     private func teardownSidebarVCs() {
         store?.stop(); store = nil
