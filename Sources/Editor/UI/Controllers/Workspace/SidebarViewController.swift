@@ -11,6 +11,8 @@ final class SidebarViewController: NSViewController {
     private let filesContainer = NSView()
     private var treeVC: FileTreeViewController?
     private var changesVC: ChangesViewController?
+    private var historyVC: GitHistoryViewController?
+    private var changesSplit: NSSplitView?        // vertical split: changes on top, history below
     private var searchVC: SearchViewController?
     private var store: RepoStore?            // one shared git poller for the tree + Changes
     private var branchBridge: AnyCancellable?   // store.branch → session.gitBranch
@@ -169,6 +171,8 @@ final class SidebarViewController: NSViewController {
             let changes = ChangesViewController(store: store,
                 onOpenDiff: { [weak self] path in self?.model.activeSession?.openDiff(path) },
                 onOpenFile: { [weak self] path in self?.model.activeSession?.openFile(path) })
+            let history = GitHistoryViewController(repo: session.url,
+                onOpenDiff: { [weak self] path in self?.model.activeSession?.openDiff(path) })
             let search = SearchViewController(repo: session.url,
                 onOpen: { [weak self] rel, line in self?.openSearchResult(rel, line) })
             search.onOpenAsTab = { [weak self] query, options in
@@ -176,8 +180,8 @@ final class SidebarViewController: NSViewController {
                 let title = query.isEmpty ? "Search" : "Search: \(query)"
                 self?.model.activeSession?.addTab(Tab(kind: .search, title: title))
             }
-            addChild(tree); addChild(changes); addChild(search)
-            treeVC = tree; changesVC = changes; searchVC = search; self.store = store
+            addChild(tree); addChild(changes); addChild(history); addChild(search)
+            treeVC = tree; changesVC = changes; historyVC = history; searchVC = search; self.store = store
             branchBridge = store.$branch.sink { [weak session] in session?.gitBranch = $0 }
         }
         showSidebarContent()
@@ -185,20 +189,42 @@ final class SidebarViewController: NSViewController {
 
     private func showSidebarContent() {
         fileActionsBar?.isHidden = sidebarMode != .files
-        guard let treeVC, let changesVC, let searchVC, let store else { return }
-        let panes: [(SidebarMode, NSViewController)] = [(.files, treeVC), (.changes, changesVC), (.search, searchVC)]
-        for (mode, vc) in panes where mode != sidebarMode && vc.isViewLoaded { vc.view.removeFromSuperview() }
-        let show = panes.first { $0.0 == sidebarMode }!.1
-        if show.view.superview == nil {
-            show.view.translatesAutoresizingMaskIntoConstraints = false
-            filesContainer.addSubview(show.view)
-            NSLayoutConstraint.activate([
-                show.view.topAnchor.constraint(equalTo: filesContainer.topAnchor),
-                show.view.bottomAnchor.constraint(equalTo: filesContainer.bottomAnchor),
-                show.view.leadingAnchor.constraint(equalTo: filesContainer.leadingAnchor),
-                show.view.trailingAnchor.constraint(equalTo: filesContainer.trailingAnchor),
-            ])
+        guard let treeVC, let changesVC, let historyVC, let searchVC, let store else { return }
+
+        // Remove all current content
+        changesSplit?.removeFromSuperview()
+        changesSplit = nil
+        for vc in [treeVC, changesVC, historyVC, searchVC] where vc.isViewLoaded {
+            vc.view.removeFromSuperview()
         }
+
+        let showView: NSView
+        if sidebarMode == .changes {
+            // Changes mode: vertical split with changes on top, history below
+            let split = NSSplitView()
+            split.isVertical = false
+            split.dividerStyle = .thin
+            split.addArrangedSubview(changesVC.view)
+            split.addArrangedSubview(historyVC.view)
+            split.setHoldingPriority(.defaultLow, forSubviewAt: 0)
+            split.setHoldingPriority(.defaultLow, forSubviewAt: 1)
+            changesSplit = split
+            showView = split
+        } else if sidebarMode == .search {
+            showView = searchVC.view
+        } else {
+            showView = treeVC.view
+        }
+
+        showView.translatesAutoresizingMaskIntoConstraints = false
+        filesContainer.addSubview(showView)
+        NSLayoutConstraint.activate([
+            showView.topAnchor.constraint(equalTo: filesContainer.topAnchor),
+            showView.bottomAnchor.constraint(equalTo: filesContainer.bottomAnchor),
+            showView.leadingAnchor.constraint(equalTo: filesContainer.leadingAnchor),
+            showView.trailingAnchor.constraint(equalTo: filesContainer.trailingAnchor),
+        ])
+
         store.start(tree: sidebarMode == .files, changes: sidebarMode == .changes)
         if sidebarMode == .files { lastRevealedPath = nil; revealActiveFile() }
         if sidebarMode == .search { DispatchQueue.main.async { [weak self] in self?.searchVC?.focusField() } }
@@ -247,8 +273,10 @@ final class SidebarViewController: NSViewController {
 
     private func teardownSidebarVCs() {
         store?.stop(); store = nil
+        changesSplit?.removeFromSuperview(); changesSplit = nil
         treeVC?.view.removeFromSuperview(); treeVC?.removeFromParent(); treeVC = nil
         changesVC?.view.removeFromSuperview(); changesVC?.removeFromParent(); changesVC = nil
+        historyVC?.view.removeFromSuperview(); historyVC?.removeFromParent(); historyVC = nil
         if let sv = searchVC { if sv.isViewLoaded { sv.view.removeFromSuperview() }; sv.removeFromParent() }
         searchVC = nil
     }

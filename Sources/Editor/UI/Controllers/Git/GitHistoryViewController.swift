@@ -1,17 +1,25 @@
 import AppKit
 
-/// A bottom panel showing git commit history for the active repo. Looks like VS Code's Timeline —
-/// a table with hash, message, author, and relative date. Click a commit to see its changed files.
+/// Git commit history shown below the Changes list in the sidebar. A vertical split: commit list on
+/// top, changed files for the selected commit below. Loads progressively (50 at a time, more on scroll).
 final class GitHistoryViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
     private let repo: String
     private var entries: [Git.LogEntry] = []
-    private let table = NSTableView()
-    private let scroll = NSScrollView()
-    private var onSelectCommit: ((Git.LogEntry) -> Void)?
+    private var selectedFiles: [String] = []
+    private let onOpenDiff: (String) -> Void
 
-    init(repo: String, onSelectCommit: ((Git.LogEntry) -> Void)? = nil) {
+    private let commitTable = NSTableView()
+    private let commitScroll = NSScrollView()
+    private let filesTable = NSTableView()
+    private let filesScroll = NSScrollView()
+    private let split = NSSplitView()
+
+    private var batchSize = 50
+    private var allLoaded = false
+
+    init(repo: String, onOpenDiff: @escaping (String) -> Void) {
         self.repo = repo
-        self.onSelectCommit = onSelectCommit
+        self.onOpenDiff = onOpenDiff
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -19,172 +27,205 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     required init?(coder: NSCoder) { fatalError() }
 
     override func loadView() {
-        let root = NSView()
-        root.wantsLayer = true
-        root.layer?.backgroundColor = NSColor(white: 0.10, alpha: 1).cgColor
-
         // Header
-        let header = NSStackView()
-        header.orientation = .horizontal
-        header.spacing = 8
-        header.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+        let header = NSTextField(labelWithString: "HISTORY")
+        header.font = .systemFont(ofSize: 11, weight: .semibold)
+        header.textColor = .secondaryLabelColor
         header.translatesAutoresizingMaskIntoConstraints = false
 
-        let titleLabel = NSTextField(labelWithString: "GIT HISTORY")
-        titleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
-        titleLabel.textColor = .secondaryLabelColor
+        // Commit table
+        let col = NSTableColumn(identifier: .init("commit"))
+        col.resizingMask = .autoresizingMask
+        commitTable.addTableColumn(col)
+        commitTable.headerView = nil
+        commitTable.backgroundColor = Theme.sidebarBg
+        commitTable.rowHeight = 36
+        commitTable.intercellSpacing = .zero
+        commitTable.selectionHighlightStyle = .regular
+        commitTable.dataSource = self
+        commitTable.delegate = self
+        commitTable.target = self
+        commitTable.action = #selector(commitClicked)
 
-        let refreshBtn = PointerButton()
-        refreshBtn.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
-        refreshBtn.isBordered = false
-        refreshBtn.contentTintColor = .secondaryLabelColor
-        refreshBtn.target = self
-        refreshBtn.action = #selector(refresh)
-        refreshBtn.toolTip = "Refresh"
-        refreshBtn.focusRingType = .none
+        commitScroll.documentView = commitTable
+        commitScroll.hasVerticalScroller = true
+        commitScroll.drawsBackground = true
+        commitScroll.backgroundColor = Theme.sidebarBg
 
-        header.addArrangedSubview(titleLabel)
-        header.addArrangedSubview(NSView()) // spacer
-        header.addArrangedSubview(refreshBtn)
+        // Files table (shown when a commit is selected)
+        let filesCol = NSTableColumn(identifier: .init("file"))
+        filesCol.resizingMask = .autoresizingMask
+        filesTable.addTableColumn(filesCol)
+        filesTable.headerView = nil
+        filesTable.backgroundColor = Theme.sidebarBg
+        filesTable.rowHeight = 22
+        filesTable.intercellSpacing = .zero
+        filesTable.selectionHighlightStyle = .regular
+        filesTable.dataSource = self
+        filesTable.delegate = self
+        filesTable.target = self
+        filesTable.doubleAction = #selector(fileDoubleClicked)
 
-        // Table
-        let hashCol = NSTableColumn(identifier: .init("hash"))
-        hashCol.title = "Hash"; hashCol.width = 70; hashCol.minWidth = 50
-        let msgCol = NSTableColumn(identifier: .init("message"))
-        msgCol.title = "Message"; msgCol.width = 300; msgCol.minWidth = 100
-        let authorCol = NSTableColumn(identifier: .init("author"))
-        authorCol.title = "Author"; authorCol.width = 120; authorCol.minWidth = 60
-        let dateCol = NSTableColumn(identifier: .init("date"))
-        dateCol.title = "Date"; dateCol.width = 100; dateCol.minWidth = 60
+        filesScroll.documentView = filesTable
+        filesScroll.hasVerticalScroller = true
+        filesScroll.drawsBackground = true
+        filesScroll.backgroundColor = Theme.sidebarBg
 
-        table.addTableColumn(hashCol)
-        table.addTableColumn(msgCol)
-        table.addTableColumn(authorCol)
-        table.addTableColumn(dateCol)
-        table.headerView = nil
-        table.backgroundColor = NSColor(white: 0.10, alpha: 1)
-        table.rowHeight = 22
-        table.intercellSpacing = NSSize(width: 8, height: 0)
-        table.selectionHighlightStyle = .regular
-        table.dataSource = self
-        table.delegate = self
-        table.target = self
-        table.action = #selector(rowClicked)
-        table.gridStyleMask = []
+        // Split: commits on top, files below
+        split.isVertical = false
+        split.dividerStyle = .thin
+        split.addArrangedSubview(commitScroll)
+        split.addArrangedSubview(filesScroll)
+        split.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
+        split.setHoldingPriority(.defaultLow, forSubviewAt: 1)
+        split.translatesAutoresizingMaskIntoConstraints = false
 
-        scroll.documentView = table
-        scroll.hasVerticalScroller = true
-        scroll.drawsBackground = true
-        scroll.backgroundColor = NSColor(white: 0.10, alpha: 1)
-        scroll.translatesAutoresizingMaskIntoConstraints = false
-
-        // Divider at top
-        let divider = NSView()
-        divider.wantsLayer = true
-        divider.layer?.backgroundColor = NSColor(white: 0.20, alpha: 1).cgColor
-        divider.translatesAutoresizingMaskIntoConstraints = false
-
-        root.addSubview(divider)
+        let root = NSView()
+        root.wantsLayer = true
+        root.layer?.backgroundColor = Theme.sidebarBg.cgColor
         root.addSubview(header)
-        root.addSubview(scroll)
+        root.addSubview(split)
         NSLayoutConstraint.activate([
-            divider.topAnchor.constraint(equalTo: root.topAnchor),
-            divider.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            divider.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            divider.heightAnchor.constraint(equalToConstant: 1),
-            header.topAnchor.constraint(equalTo: divider.bottomAnchor),
-            header.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            header.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            scroll.topAnchor.constraint(equalTo: header.bottomAnchor),
-            scroll.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            header.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
+            header.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10),
+            split.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 6),
+            split.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            split.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            split.bottomAnchor.constraint(equalTo: root.bottomAnchor),
         ])
         self.view = root
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        loadHistory()
+        loadMore()
+
+        // Progressive loading: detect when scrolled near the bottom
+        NotificationCenter.default.addObserver(self, selector: #selector(scrolled),
+            name: NSView.boundsDidChangeNotification, object: commitScroll.contentView)
+        commitScroll.contentView.postsBoundsChangedNotifications = true
     }
 
-    @objc private func refresh() { loadHistory() }
+    // MARK: - Loading
 
-    private func loadHistory() {
-        let repo = self.repo
+    private func loadMore() {
+        guard !allLoaded else { return }
+        let repo = self.repo, offset = entries.count, batch = batchSize
         DispatchQueue.global().async { [weak self] in
-            let log = Git.log(repo)
+            let log = Git.log(repo, limit: offset + batch)
             DispatchQueue.main.async {
                 guard let self else { return }
+                if log.count <= self.entries.count { self.allLoaded = true; return }
                 self.entries = log
-                self.table.reloadData()
+                self.commitTable.reloadData()
+                if log.count < offset + batch { self.allLoaded = true }
             }
         }
     }
 
-    @objc private func rowClicked() {
-        let row = table.clickedRow
+    func refresh() {
+        entries = []
+        allLoaded = false
+        selectedFiles = []
+        filesTable.reloadData()
+        loadMore()
+    }
+
+    @objc private func scrolled() {
+        let clip = commitScroll.contentView
+        let docH = commitScroll.documentView?.frame.height ?? 0
+        let visibleBottom = clip.bounds.origin.y + clip.bounds.height
+        if visibleBottom > docH - 100 { loadMore() }
+    }
+
+    @objc private func commitClicked() {
+        let row = commitTable.clickedRow
         guard row >= 0, row < entries.count else { return }
-        onSelectCommit?(entries[row])
+        let entry = entries[row]
+        let repo = self.repo
+        DispatchQueue.global().async { [weak self] in
+            let files = Git.commitFiles(repo, hash: entry.fullHash)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.selectedFiles = files
+                self.filesTable.reloadData()
+            }
+        }
+    }
+
+    @objc private func fileDoubleClicked() {
+        let row = filesTable.clickedRow
+        guard row >= 0, row < selectedFiles.count else { return }
+        onOpenDiff(selectedFiles[row])
     }
 
     // MARK: - DataSource
 
-    func numberOfRows(in tableView: NSTableView) -> Int { entries.count }
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        tableView === commitTable ? entries.count : selectedFiles.count
+    }
 
     // MARK: - Delegate
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard row < entries.count else { return nil }
-        let entry = entries[row]
-        let id = tableColumn?.identifier ?? NSUserInterfaceItemIdentifier("cell")
-        let cell = (tableView.makeView(withIdentifier: id, owner: self) as? NSTableCellView) ?? {
-            let c = NSTableCellView()
-            c.identifier = id
-            let tf = NSTextField(labelWithString: "")
-            tf.font = AppFont.mono(size: 12)
-            tf.lineBreakMode = .byTruncatingTail
-            tf.translatesAutoresizingMaskIntoConstraints = false
-            c.addSubview(tf)
-            c.textField = tf
-            NSLayoutConstraint.activate([
-                tf.leadingAnchor.constraint(equalTo: c.leadingAnchor),
-                tf.trailingAnchor.constraint(equalTo: c.trailingAnchor),
-                tf.centerYAnchor.constraint(equalTo: c.centerYAnchor),
-            ])
-            return c
-        }()
-
-        switch tableColumn?.identifier.rawValue {
-        case "hash":
-            cell.textField?.stringValue = entry.hash
-            cell.textField?.textColor = NSColor(srgbRed: 0.45, green: 0.62, blue: 0.96, alpha: 1)
-        case "message":
-            cell.textField?.stringValue = entry.message
-            cell.textField?.textColor = Theme.textSecondary
-        case "author":
-            cell.textField?.stringValue = entry.author
-            cell.textField?.textColor = Theme.textMuted
-        case "date":
-            cell.textField?.stringValue = entry.date
-            cell.textField?.textColor = Theme.textDim
-        default: break
+        if tableView === commitTable {
+            return makeCommitCell(row)
+        } else {
+            return makeFileCell(row)
         }
-        return cell
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        return GitHistoryRowView()
+        return HistoryRowView()
+    }
+
+    private func makeCommitCell(_ row: Int) -> NSView {
+        guard row < entries.count else { return NSView() }
+        let entry = entries[row]
+
+        let msg = NSTextField(labelWithString: entry.message)
+        msg.font = .systemFont(ofSize: 12)
+        msg.textColor = Theme.textPrimary
+        msg.lineBreakMode = .byTruncatingTail
+
+        let detail = NSTextField(labelWithString: "\(entry.hash)  \(entry.author)  \(entry.date)")
+        detail.font = .systemFont(ofSize: 10)
+        detail.textColor = Theme.textDim
+        detail.lineBreakMode = .byTruncatingTail
+
+        let stack = NSStackView(views: [msg, detail])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 2
+        stack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+        return stack
+    }
+
+    private func makeFileCell(_ row: Int) -> NSView {
+        guard row < selectedFiles.count else { return NSView() }
+        let file = selectedFiles[row]
+
+        let icon = NSImageView()
+        icon.image = FileIcon.icon(forFilename: (file as NSString).lastPathComponent, size: 11)
+        icon.contentTintColor = Theme.textMuted
+        icon.setContentHuggingPriority(.required, for: .horizontal)
+
+        let label = NSTextField(labelWithString: file)
+        label.font = .systemFont(ofSize: 11)
+        label.textColor = Theme.textSecondary
+        label.lineBreakMode = .byTruncatingMiddle
+
+        let stack = NSStackView(views: [icon, label])
+        stack.orientation = .horizontal
+        stack.spacing = 5
+        stack.edgeInsets = NSEdgeInsets(top: 2, left: 12, bottom: 2, right: 8)
+        return stack
     }
 }
 
-/// Custom row view with subtle selection (no blue).
-private final class GitHistoryRowView: NSTableRowView {
-    override var isEmphasized: Bool {
-        get { false }
-        set {}
-    }
+/// Subtle selection row (no blue).
+private final class HistoryRowView: NSTableRowView {
+    override var isEmphasized: Bool { get { false } set {} }
     override func drawSelection(in dirtyRect: NSRect) {
         Theme.activeRowBg.setFill()
         bounds.fill()
