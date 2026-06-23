@@ -88,7 +88,7 @@ final class TMGrammar: Decodable {
 // MARK: - Theme (atom-one-dark palette; longest-scope-prefix wins)
 
 enum TMTheme {
-    static let background = NSColor(srgbRed: 0.157, green: 0.173, blue: 0.204, alpha: 1) // #282C34
+    static let background = NSColor(white: 0.11, alpha: 1)   // matches the content area
     static let base       = NSColor(srgbRed: 0.671, green: 0.698, blue: 0.749, alpha: 1) // #ABB2BF
 
     private static func c(_ hex: UInt32) -> NSColor {

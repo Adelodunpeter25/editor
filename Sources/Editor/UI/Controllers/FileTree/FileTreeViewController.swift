@@ -59,7 +59,7 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource, N
         outline.rowHeight = settings.fontSize + 9
         outline.indentationPerLevel = 12
         outline.autoresizesOutlineColumn = false
-        outline.selectionHighlightStyle = .none
+        outline.selectionHighlightStyle = .regular
         outline.backgroundColor = Theme.sidebarBg
         outline.dataSource = self
         outline.delegate = self
@@ -332,7 +332,8 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource, N
     }
 }
 
-/// Custom row view that draws vertical indentation guide lines at each level.
+/// Custom row view that draws vertical indentation guide lines at each level and a subtle
+/// transparent selection highlight instead of the system blue.
 private final class TreeIndentRowView: NSTableRowView {
     private let indentLevel: Int
     private let indentWidth: CGFloat
@@ -347,14 +348,23 @@ private final class TreeIndentRowView: NSTableRowView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
 
+    override var isEmphasized: Bool {
+        get { false }   // prevents the bright blue "first responder" highlight
+        set {}
+    }
+
+    override func drawSelection(in dirtyRect: NSRect) {
+        Theme.activeRowBg.setFill()
+        bounds.fill()
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard indentLevel > 0 else { return }
         Self.lineColor.setStroke()
         let path = NSBezierPath()
         path.lineWidth = 1
-        // Draw a vertical line at each indent level (offset to align with the disclosure triangle)
-        let baseOffset: CGFloat = 8  // accounts for the outline's own left margin
+        let baseOffset: CGFloat = 8
         for level in 0..<indentLevel {
             let x = baseOffset + CGFloat(level) * indentWidth + indentWidth / 2
             path.move(to: NSPoint(x: x, y: 0))
