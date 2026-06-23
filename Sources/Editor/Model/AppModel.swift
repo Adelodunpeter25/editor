@@ -77,7 +77,7 @@ final class AppModel: ObservableObject {
                     url: s.url,
                     tabs: persistable.map {
                         PersistedTab(kind: $0.kind.rawValue, title: $0.title,
-                                     path: $0.path)
+                                     path: $0.path, pinned: $0.pinned ? true : nil)
                     },
                     activeTabIndex: persistable.firstIndex { $0.id == s.activeTabID }
                 )
@@ -93,7 +93,7 @@ final class AppModel: ObservableObject {
             guard FileManager.default.fileExists(atPath: ps.url) else { continue }   // repo gone → drop
             let tabs = ps.tabs.compactMap { pt -> Tab? in
                 guard let kind = TabKind(rawValue: pt.kind) else { return nil }
-                return Tab(kind: kind, title: pt.title, path: pt.path)
+                return Tab(kind: kind, title: pt.title, path: pt.path, pinned: pt.pinned ?? false)
             }
             let activeID = ps.activeTabIndex.flatMap { tabs.indices.contains($0) ? tabs[$0].id : nil }
             let session = Session(url: ps.url, tabs: tabs, activeTabID: activeID)

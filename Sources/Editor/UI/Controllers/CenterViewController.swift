@@ -136,6 +136,9 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
             guard let session = self?.model.activeSession, let tab = session.tabs.first(where: { $0.id == id }) else { return }
             if UnsavedGuard.confirmClose(tab) { session.closeTab(id) }
         }
+        tabBar.onPin         = { [weak self] id in self?.model.activeSession?.togglePin(id) }
+        tabBar.onCloseOthers = { [weak self] id in self?.model.activeSession?.closeOthers(id) }
+        tabBar.onCloseAll    = { [weak self] in self?.model.activeSession?.closeAll() }
         tabBar.onNewTerminal = { [weak self] in
             self?.model.activeSession?.addTab(Tab(kind: .terminal, title: "Terminal"))
         }

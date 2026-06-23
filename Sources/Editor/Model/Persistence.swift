@@ -7,6 +7,7 @@ struct PersistedTab: Codable {
     var kind: String
     var title: String
     var path: String?
+    var pinned: Bool?
 }
 
 struct PersistedSession: Codable {

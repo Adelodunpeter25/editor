@@ -11,6 +11,7 @@ struct Tab: Identifiable, Equatable {
     var title: String
     var path: String?             // absolute file path (for .file / .diff)
     var dirty: Bool               // unsaved edits (for .file)
+    var pinned: Bool              // pinned tabs stick to the left and survive "close others"
     var shown: Bool               // lazy-spawn gate: process isn't started until first viewed
     var exited: Bool              // transient: the terminal process ended (→ "Session ended" bar); not persisted
 
@@ -19,6 +20,7 @@ struct Tab: Identifiable, Equatable {
          title: String,
          path: String? = nil,
          dirty: Bool = false,
+         pinned: Bool = false,
          shown: Bool = false,
          exited: Bool = false) {
         self.id = id
@@ -26,6 +28,7 @@ struct Tab: Identifiable, Equatable {
         self.title = title
         self.path = path
         self.dirty = dirty
+        self.pinned = pinned
         self.shown = shown
         self.exited = exited
     }

@@ -59,9 +59,31 @@ final class Session: ObservableObject, Identifiable {
         TerminalStore.shared.close(id)   // kill the PTY if this tab had one
         tabs.remove(at: idx)
         if activeTabID == id {
-            // activate the neighbour that slid into this slot, else the last tab, else nothing
             activeTabID = tabs.indices.contains(idx) ? tabs[idx].id : (tabs.last?.id ?? "")
         }
+    }
+
+    func togglePin(_ id: String) {
+        guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+        tabs[idx].pinned.toggle()
+        // Move pinned tabs to the left, unpinned to the right of pinned group
+        let pinned = tabs.filter { $0.pinned }
+        let unpinned = tabs.filter { !$0.pinned }
+        tabs = pinned + unpinned
+    }
+
+    func closeOthers(_ id: String) {
+        let toClose = tabs.filter { $0.id != id && !$0.pinned }
+        for tab in toClose { TerminalStore.shared.close(tab.id) }
+        tabs.removeAll { $0.id != id && !$0.pinned }
+        activeTabID = id
+    }
+
+    func closeAll() {
+        let toClose = tabs.filter { !$0.pinned }
+        for tab in toClose { TerminalStore.shared.close(tab.id) }
+        tabs.removeAll { !$0.pinned }
+        activeTabID = tabs.first?.id ?? ""
     }
 
     /// Kill every PTY this session owns (called when the session itself closes).
@@ -129,7 +151,7 @@ final class Session: ObservableObject, Identifiable {
         if let existing = tabs.first(where: { $0.kind == .diff && $0.path == path }) {
             activate(existing.id); return
         }
-        addTab(Tab(kind: .diff, title: (path as NSString).lastPathComponent, path: path))
+        addTab(Tab(kind: .diff, title: "Diff - \((path as NSString).lastPathComponent)", path: path))
     }
 
     // MARK: - File-tree sync (rename / delete reflected in open tabs)

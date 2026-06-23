@@ -10,6 +10,9 @@ extension NSPasteboard.PasteboardType {
 final class TabBarView: NSView {
     var onSelect: ((String) -> Void)?
     var onClose: ((String) -> Void)?
+    var onPin: ((String) -> Void)?
+    var onCloseOthers: ((String) -> Void)?
+    var onCloseAll: (() -> Void)?
     var onNewTerminal: (() -> Void)?
     /// Reorder: move `dragged` to just before `beforeID` (nil = move to the end).
     var onReorder: ((_ dragged: String, _ beforeID: String?) -> Void)?
@@ -91,10 +94,14 @@ final class TabBarView: NSView {
                 title: tab.title,
                 kind: tab.kind,
                 dirty: tab.dirty,
+                pinned: tab.pinned,
                 isActive: tab.id == activeTabID,
                 copyPaths: Self.copyPaths(for: tab, repo: session.url),
                 onSelect: { [weak self] in self?.onSelect?(tab.id) },
-                onClose: { [weak self] in self?.onClose?(tab.id) }
+                onClose: { [weak self] in self?.onClose?(tab.id) },
+                onPin: { [weak self] in self?.onPin?(tab.id) },
+                onCloseOthers: { [weak self] in self?.onCloseOthers?(tab.id) },
+                onCloseAll: { [weak self] in self?.onCloseAll?() }
             )
             chips.addArrangedSubview(chip)
         }
@@ -150,19 +157,28 @@ final class TabBarView: NSView {
 /// close button) is click-to-select and drag-to-reorder. Active chip is highlighted.
 final class TabChipView: PointerView, NSDraggingSource {
     let tabID: String
+    private let pinned: Bool
     private let onSelect: () -> Void
     private let onClose: () -> Void
-    private let copyPaths: (absolute: String, relative: String)?   // file tabs only → right-click copy
+    private let onPin: () -> Void
+    private let onCloseOthers: () -> Void
+    private let onCloseAll: () -> Void
+    private let copyPaths: (absolute: String, relative: String)?
     private let closeButton = PointerButton()
     private var mouseDownAt: NSPoint = .zero
     private var didDrag = false
 
-    init(tabID: String, title: String, kind: TabKind, dirty: Bool, isActive: Bool,
+    init(tabID: String, title: String, kind: TabKind, dirty: Bool, pinned: Bool, isActive: Bool,
          copyPaths: (absolute: String, relative: String)? = nil,
-         onSelect: @escaping () -> Void, onClose: @escaping () -> Void) {
+         onSelect: @escaping () -> Void, onClose: @escaping () -> Void,
+         onPin: @escaping () -> Void, onCloseOthers: @escaping () -> Void, onCloseAll: @escaping () -> Void) {
         self.tabID = tabID
+        self.pinned = pinned
         self.onSelect = onSelect
         self.onClose = onClose
+        self.onPin = onPin
+        self.onCloseOthers = onCloseOthers
+        self.onCloseAll = onCloseAll
         self.copyPaths = copyPaths
         super.init(frame: .zero)
 
@@ -281,19 +297,28 @@ final class TabChipView: PointerView, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .move }
 
-    // Right-click on a file tab → copy its path. Other tab kinds have no menu (yet).
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard copyPaths != nil else { return nil }
         let menu = NSMenu()
-        for (title, sel) in [("Copy Path", #selector(copyAbsolute)), ("Copy Relative Path", #selector(copyRelative))] {
-            let item = NSMenuItem(title: title, action: sel, keyEquivalent: "")
-            item.target = self
-            menu.addItem(item)
+        func item(_ title: String, _ sel: Selector) -> NSMenuItem {
+            let i = NSMenuItem(title: title, action: sel, keyEquivalent: ""); i.target = self; return i
+        }
+        menu.addItem(item(pinned ? "Unpin Tab" : "Pin Tab", #selector(pinTapped)))
+        menu.addItem(.separator())
+        menu.addItem(item("Close", #selector(closeTapped)))
+        menu.addItem(item("Close Others", #selector(closeOthersTapped)))
+        menu.addItem(item("Close All", #selector(closeAllTapped)))
+        if copyPaths != nil {
+            menu.addItem(.separator())
+            menu.addItem(item("Copy Path", #selector(copyAbsolute)))
+            menu.addItem(item("Copy Relative Path", #selector(copyRelative)))
         }
         return menu
     }
+
+    @objc private func pinTapped() { onPin() }
+    @objc private func closeOthersTapped() { onCloseOthers() }
+    @objc private func closeAllTapped() { onCloseAll() }
     @objc private func copyAbsolute() { if let p = copyPaths?.absolute { Clipboard.copy(p) } }
     @objc private func copyRelative() { if let p = copyPaths?.relative { Clipboard.copy(p) } }
-
     @objc private func closeTapped() { onClose() }
 }
