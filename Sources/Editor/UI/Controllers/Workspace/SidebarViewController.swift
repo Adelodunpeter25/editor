@@ -191,16 +191,8 @@ final class SidebarViewController: NSViewController {
         fileActionsBar?.isHidden = sidebarMode != .files
         guard let treeVC, let changesVC, let historyVC, let searchVC, let store else { return }
 
-        // Remove all current content
-        changesSplit?.removeFromSuperview()
-        changesSplit = nil
-        for vc in [treeVC, changesVC, historyVC, searchVC] where vc.isViewLoaded {
-            vc.view.removeFromSuperview()
-        }
-
-        let showView: NSView
-        if sidebarMode == .changes {
-            // Changes mode: vertical split with changes on top, history below
+        // Build the changes split once and reuse it
+        if changesSplit == nil {
             let split = NSSplitView()
             split.isVertical = false
             split.dividerStyle = .thin
@@ -209,25 +201,36 @@ final class SidebarViewController: NSViewController {
             split.setHoldingPriority(.defaultLow, forSubviewAt: 0)
             split.setHoldingPriority(.defaultLow, forSubviewAt: 1)
             changesSplit = split
-            showView = split
-        } else if sidebarMode == .search {
-            showView = searchVC.view
-        } else {
-            showView = treeVC.view
         }
 
-        showView.translatesAutoresizingMaskIntoConstraints = false
-        filesContainer.addSubview(showView)
-        NSLayoutConstraint.activate([
-            showView.topAnchor.constraint(equalTo: filesContainer.topAnchor),
-            showView.bottomAnchor.constraint(equalTo: filesContainer.bottomAnchor),
-            showView.leadingAnchor.constraint(equalTo: filesContainer.leadingAnchor),
-            showView.trailingAnchor.constraint(equalTo: filesContainer.trailingAnchor),
-        ])
+        // Show the correct pane, hide the others
+        let panes: [(SidebarMode, NSView)] = [
+            (.files, treeVC.view),
+            (.changes, changesSplit!),
+            (.search, searchVC.view),
+        ]
+        for (mode, paneView) in panes {
+            if mode == sidebarMode {
+                if paneView.superview == nil {
+                    paneView.translatesAutoresizingMaskIntoConstraints = false
+                    filesContainer.addSubview(paneView)
+                    NSLayoutConstraint.activate([
+                        paneView.topAnchor.constraint(equalTo: filesContainer.topAnchor),
+                        paneView.bottomAnchor.constraint(equalTo: filesContainer.bottomAnchor),
+                        paneView.leadingAnchor.constraint(equalTo: filesContainer.leadingAnchor),
+                        paneView.trailingAnchor.constraint(equalTo: filesContainer.trailingAnchor),
+                    ])
+                }
+                paneView.isHidden = false
+            } else {
+                paneView.isHidden = true
+            }
+        }
 
         store.start(tree: sidebarMode == .files, changes: sidebarMode == .changes)
         if sidebarMode == .files { lastRevealedPath = nil; revealActiveFile() }
         if sidebarMode == .search { DispatchQueue.main.async { [weak self] in self?.searchVC?.focusField() } }
+        if sidebarMode == .changes { historyVC.loadIfNeeded() }
     }
 
     // MARK: - Empty state

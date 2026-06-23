@@ -98,12 +98,16 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        loadMore()
 
         // Progressive loading: detect when scrolled near the bottom
         NotificationCenter.default.addObserver(self, selector: #selector(scrolled),
             name: NSView.boundsDidChangeNotification, object: commitScroll.contentView)
         commitScroll.contentView.postsBoundsChangedNotifications = true
+    }
+
+    /// Called by the sidebar when the Changes tab becomes visible. Loads history if not yet loaded.
+    func loadIfNeeded() {
+        if entries.isEmpty { loadMore() }
     }
 
     // MARK: - Loading
