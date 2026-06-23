@@ -137,7 +137,21 @@ final class Session: ObservableObject, Identifiable {
         if let existing = tabs.first(where: { $0.kind == .file && $0.path == abs }) {
             activate(existing.id); return
         }
-        addTab(Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs))
+        // If the active tab is replaceable (not dirty, not pinned, file tab opened < 10 min ago),
+        // replace it instead of adding a new tab.
+        if let idx = tabs.firstIndex(where: { $0.id == activeTabID }),
+           isTabReplaceable(tabs[idx]) {
+            TerminalStore.shared.close(tabs[idx].id)
+            tabs[idx] = Tab(id: tabs[idx].id, kind: .file, title: (abs as NSString).lastPathComponent, path: abs)
+        } else {
+            addTab(Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs))
+        }
+    }
+
+    /// A tab is replaceable if it's a file tab, not dirty, not pinned, and was opened < 10 minutes ago.
+    private func isTabReplaceable(_ tab: Tab) -> Bool {
+        guard tab.kind == .file, !tab.dirty, !tab.pinned else { return false }
+        return Date().timeIntervalSince(tab.createdAt) < 600  // 10 minutes
     }
 
     /// Open (or focus, if already open) the project Search tab for this session.

@@ -14,6 +14,7 @@ struct Tab: Identifiable, Equatable {
     var pinned: Bool              // pinned tabs stick to the left and survive "close others"
     var shown: Bool               // lazy-spawn gate: process isn't started until first viewed
     var exited: Bool              // transient: the terminal process ended (→ "Session ended" bar); not persisted
+    var createdAt: Date           // when the tab was opened (used for auto-replacement logic)
 
     init(id: String = UUID().uuidString,
          kind: TabKind,
@@ -22,7 +23,8 @@ struct Tab: Identifiable, Equatable {
          dirty: Bool = false,
          pinned: Bool = false,
          shown: Bool = false,
-         exited: Bool = false) {
+         exited: Bool = false,
+         createdAt: Date = Date()) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -31,5 +33,6 @@ struct Tab: Identifiable, Equatable {
         self.pinned = pinned
         self.shown = shown
         self.exited = exited
+        self.createdAt = createdAt
     }
 }

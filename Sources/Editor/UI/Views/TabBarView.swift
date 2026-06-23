@@ -157,13 +157,13 @@ final class TabBarView: NSView {
 /// close button) is click-to-select and drag-to-reorder. Active chip is highlighted.
 final class TabChipView: PointerView, NSDraggingSource {
     let tabID: String
-    private let pinned: Bool
-    private let onSelect: () -> Void
-    private let onClose: () -> Void
-    private let onPin: () -> Void
-    private let onCloseOthers: () -> Void
-    private let onCloseAll: () -> Void
-    private let copyPaths: (absolute: String, relative: String)?
+    let pinned: Bool
+    let onSelect: () -> Void
+    let onClose: () -> Void
+    let onPin: () -> Void
+    let onCloseOthers: () -> Void
+    let onCloseAll: () -> Void
+    let copyPaths: (absolute: String, relative: String)?
     private let closeButton = PointerButton()
     private var mouseDownAt: NSPoint = .zero
     private var didDrag = false
@@ -297,28 +297,5 @@ final class TabChipView: PointerView, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .move }
 
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let menu = NSMenu()
-        func item(_ title: String, _ sel: Selector) -> NSMenuItem {
-            let i = NSMenuItem(title: title, action: sel, keyEquivalent: ""); i.target = self; return i
-        }
-        menu.addItem(item(pinned ? "Unpin Tab" : "Pin Tab", #selector(pinTapped)))
-        menu.addItem(.separator())
-        menu.addItem(item("Close", #selector(closeTapped)))
-        menu.addItem(item("Close Others", #selector(closeOthersTapped)))
-        menu.addItem(item("Close All", #selector(closeAllTapped)))
-        if copyPaths != nil {
-            menu.addItem(.separator())
-            menu.addItem(item("Copy Path", #selector(copyAbsolute)))
-            menu.addItem(item("Copy Relative Path", #selector(copyRelative)))
-        }
-        return menu
-    }
-
-    @objc private func pinTapped() { onPin() }
-    @objc private func closeOthersTapped() { onCloseOthers() }
-    @objc private func closeAllTapped() { onCloseAll() }
-    @objc private func copyAbsolute() { if let p = copyPaths?.absolute { Clipboard.copy(p) } }
-    @objc private func copyRelative() { if let p = copyPaths?.relative { Clipboard.copy(p) } }
-    @objc private func closeTapped() { onClose() }
+    @objc func closeTapped() { onClose() }
 }
