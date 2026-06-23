@@ -16,6 +16,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
 
     private var batchSize = 50
     private var allLoaded = false
+    private var didSizeSplit = false
 
     init(repo: String, onOpenDiff: @escaping (String) -> Void) {
         self.repo = repo
@@ -39,7 +40,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         commitTable.addTableColumn(col)
         commitTable.headerView = nil
         commitTable.backgroundColor = Theme.sidebarBg
-        commitTable.rowHeight = 26
+        commitTable.rowHeight = 36
         commitTable.intercellSpacing = .zero
         commitTable.selectionHighlightStyle = .regular
         commitTable.dataSource = self
@@ -74,6 +75,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         // Split: commits on top, files below
         split.isVertical = false
         split.dividerStyle = .thin
+        split.delegate = self
         split.addArrangedSubview(commitScroll)
         split.addArrangedSubview(filesScroll)
         split.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
@@ -103,6 +105,15 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         NotificationCenter.default.addObserver(self, selector: #selector(scrolled),
             name: NSView.boundsDidChangeNotification, object: commitScroll.contentView)
         commitScroll.contentView.postsBoundsChangedNotifications = true
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        if !didSizeSplit, split.bounds.height > 100 {
+            didSizeSplit = true
+            let targetY = split.bounds.height * 0.65
+            split.setPosition(targetY, ofDividerAt: 0)
+        }
     }
 
     /// Called by the sidebar when the Changes tab becomes visible. Loads history if not yet loaded.
@@ -187,21 +198,21 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         guard row < entries.count else { return NSView() }
         let entry = entries[row]
 
-        let hashLabel = NSTextField(labelWithString: entry.hash)
-        hashLabel.font = AppFont.mono(size: 11)
-        hashLabel.textColor = NSColor(srgbRed: 0.45, green: 0.62, blue: 0.96, alpha: 1)
-        hashLabel.setContentHuggingPriority(.required, for: .horizontal)
-
         let msg = NSTextField(labelWithString: entry.message)
         msg.font = .systemFont(ofSize: 12)
         msg.textColor = Theme.textPrimary
         msg.lineBreakMode = .byTruncatingTail
 
-        let stack = NSStackView(views: [hashLabel, msg])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 8
-        stack.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+        let detail = NSTextField(labelWithString: "\(entry.hash)  \(entry.author)  \(entry.date)")
+        detail.font = .systemFont(ofSize: 10)
+        detail.textColor = Theme.textDim
+        detail.lineBreakMode = .byTruncatingTail
+
+        let stack = NSStackView(views: [msg, detail])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 2
+        stack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
         return stack
     }
 
@@ -233,5 +244,15 @@ private final class HistoryRowView: NSTableRowView {
     override func drawSelection(in dirtyRect: NSRect) {
         Theme.activeRowBg.setFill()
         bounds.fill()
+    }
+}
+
+extension GitHistoryViewController: NSSplitViewDelegate {
+    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
+        return 60
+    }
+
+    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
+        return splitView.bounds.height - 40
     }
 }

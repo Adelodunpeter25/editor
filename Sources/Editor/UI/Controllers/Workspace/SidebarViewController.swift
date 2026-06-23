@@ -18,6 +18,7 @@ final class SidebarViewController: NSViewController {
     private var branchBridge: AnyCancellable?   // store.branch → session.gitBranch
     private var currentRepo: String?
     private var lastRevealedPath: String?    // dedup auto-reveal of the active file in the tree
+    private var didSizeChangesSplit = false
     private let filesModeSeg: PointerSegmentedControl = {
         let s = PointerSegmentedControl()
         s.segmentCount = 3
@@ -66,6 +67,15 @@ final class SidebarViewController: NSViewController {
 
     @objc private func appResignedActive() { store?.stop() }
     @objc private func appBecameActive() { if model.activeSession != nil { showSidebarContent() } }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        if let changesSplit, !didSizeChangesSplit, changesSplit.bounds.height > 100 {
+            didSizeChangesSplit = true
+            let targetY = changesSplit.bounds.height * 0.6
+            changesSplit.setPosition(targetY, ofDividerAt: 0)
+        }
+    }
 
     private func refresh() {
         syncFileTree()
@@ -196,6 +206,7 @@ final class SidebarViewController: NSViewController {
             let split = NSSplitView()
             split.isVertical = false
             split.dividerStyle = .thin
+            split.delegate = self
             split.addArrangedSubview(changesVC.view)
             split.addArrangedSubview(historyVC.view)
             split.setHoldingPriority(.defaultLow, forSubviewAt: 0)
@@ -282,6 +293,7 @@ final class SidebarViewController: NSViewController {
         historyVC?.view.removeFromSuperview(); historyVC?.removeFromParent(); historyVC = nil
         if let sv = searchVC { if sv.isViewLoaded { sv.view.removeFromSuperview() }; sv.removeFromParent() }
         searchVC = nil
+        didSizeChangesSplit = false
     }
 
     private func openSearchResult(_ rel: String, _ line: Int) {
@@ -312,5 +324,21 @@ final class SidebarViewController: NSViewController {
         label.font = .systemFont(ofSize: 11, weight: .semibold)
         label.textColor = .secondaryLabelColor
         return label
+    }
+}
+
+extension SidebarViewController: NSSplitViewDelegate {
+    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
+        if splitView === changesSplit {
+            return 80
+        }
+        return proposedMinimumPosition
+    }
+
+    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
+        if splitView === changesSplit {
+            return splitView.bounds.height - 80
+        }
+        return proposedMaximumPosition
     }
 }
