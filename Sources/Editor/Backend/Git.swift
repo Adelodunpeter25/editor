@@ -217,35 +217,54 @@ enum Git {
     }
 
     private static func gitFiles(_ repo: String, _ expand: Bool) -> [FileEntry] {
-        // Changed-file status map.
-        var status: [String: GitStatus] = [:]
-        let toks = nulSplit(bytes(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]))
-        var i = 0
-        while i < toks.count {
-            let tok = toks[i]
-            if tok.count >= 3 {
-                let xy = String(tok.prefix(2))
-                let path = String(tok.dropFirst(3))
-                let cat = category(xy)
-                if cat != .none { status[path] = cat }
-                if xy.contains("R") || xy.contains("C") { i += 1 }
+        // Run status + ls-files in parallel for faster startup
+        var statusMap: [String: GitStatus] = [:]
+        var lsData = Data()
+        var ignoredData = Data()
+
+        let group = DispatchGroup()
+        group.enter()
+        DispatchQueue.global().async {
+            let toks = nulSplit(bytes(repo, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]))
+            var i = 0
+            while i < toks.count {
+                let tok = toks[i]
+                if tok.count >= 3 {
+                    let xy = String(tok.prefix(2))
+                    let path = String(tok.dropFirst(3))
+                    let cat = category(xy)
+                    if cat != .none { statusMap[path] = cat }
+                    if xy.contains("R") || xy.contains("C") { i += 1 }
+                }
+                i += 1
             }
-            i += 1
+            group.leave()
         }
+        group.enter()
+        DispatchQueue.global().async {
+            lsData = Shell.runData(git, ["-C", repo, "ls-files", "-z", "--cached", "--others", "--exclude-standard"])
+            group.leave()
+        }
+        group.enter()
+        DispatchQueue.global().async {
+            let ignoredArgs = expand
+                ? ["-C", repo, "ls-files", "-z", "--others", "--ignored", "--exclude-standard"]
+                : ["-C", repo, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"]
+            ignoredData = Shell.runData(git, ignoredArgs)
+            group.leave()
+        }
+        group.wait()
 
         var entries: [FileEntry] = []
         var seen = Set<String>()
 
-        for path in nulSplit(bytes(repo, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"])) {
-            if status[path] == .deleted { continue }   // deleted files belong in Changes, not the tree
+        for path in nulSplit(lsData) {
+            if statusMap[path] == .deleted { continue }
             if seen.insert(path).inserted {
-                entries.append(FileEntry(path: path, status: status[path] ?? .none, isDir: false))
+                entries.append(FileEntry(path: path, status: statusMap[path] ?? .none, isDir: false))
             }
         }
-        let ignoredArgs = expand
-            ? ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"]
-            : ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"]
-        for raw in nulSplit(bytes(repo, ignoredArgs)) {
+        for raw in nulSplit(ignoredData) {
             let isDir = raw.hasSuffix("/")
             let path = isDir ? String(raw.dropLast()) : raw
             if seen.insert(path).inserted {

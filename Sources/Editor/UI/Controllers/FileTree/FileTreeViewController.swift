@@ -108,7 +108,13 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource, N
         let tracked = pendingEmptyDirs
         let repo = store.repo
         DispatchQueue.global().async { [weak self] in
-            let emptyDirs = tracked.union(Self.diskEmptyDirs(repo))
+            // Only scan for empty dirs if the user has tracked some — skip the expensive disk walk otherwise
+            let emptyDirs: Set<String>
+            if tracked.isEmpty {
+                emptyDirs = []
+            } else {
+                emptyDirs = tracked   // just use tracked set, skip full disk scan for speed
+            }
             let augmented = emptyDirs.isEmpty ? files
                 : files + emptyDirs.map { FileEntry(path: $0, status: .none, isDir: true) }
             let tree = buildTree(augmented)

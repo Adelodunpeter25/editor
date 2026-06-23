@@ -85,7 +85,10 @@ final class RepoStore: ObservableObject {
         let repo = self.repo, expand = settings.expandIgnored, prev = treeSig
         DispatchQueue.global().async { [weak self] in
             let files = Git.repoFiles(repo, expandIgnored: expand)
-            let sig = files.map { "\($0.path)|\($0.status.rawValue)|\($0.isDir)" }.joined(separator: "\n")
+            // Use a fast hash instead of joining all paths into a massive string
+            var hasher = Hasher()
+            for f in files { hasher.combine(f.path); hasher.combine(f.status.rawValue); hasher.combine(f.isDir) }
+            let sig = String(hasher.finalize())
             guard sig != prev else { return }   // unchanged → skip the publish (and the tree rebuild)
             DispatchQueue.main.async {
                 guard let self, sig != self.treeSig else { return }
