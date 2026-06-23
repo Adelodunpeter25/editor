@@ -208,6 +208,35 @@ enum Git {
         }
     }
 
+    /// Commit history entry.
+    struct LogEntry {
+        let hash: String       // short sha
+        let fullHash: String   // full sha
+        let message: String    // first line of commit message
+        let author: String
+        let date: String       // relative date (e.g. "2 hours ago")
+    }
+
+    /// Recent commit log (default 100 entries). Runs `git log` with a compact format.
+    static func log(_ repo: String, limit: Int = 100) -> [LogEntry] {
+        guard isRepo(repo) else { return [] }
+        let sep = "\u{1F}"  // unit separator
+        let format = "%h\(sep)%H\(sep)%s\(sep)%an\(sep)%ar"
+        let output = Shell.run(git, ["-C", repo, "log", "--pretty=format:\(format)", "-\(limit)"])
+        guard !output.isEmpty else { return [] }
+        return output.components(separatedBy: "\n").compactMap { line in
+            let parts = line.components(separatedBy: sep)
+            guard parts.count >= 5 else { return nil }
+            return LogEntry(hash: parts[0], fullHash: parts[1], message: parts[2], author: parts[3], date: parts[4])
+        }
+    }
+
+    /// Files changed in a specific commit.
+    static func commitFiles(_ repo: String, hash: String) -> [String] {
+        let output = Shell.run(git, ["-C", repo, "diff-tree", "--no-commit-id", "--name-only", "-r", hash])
+        return output.components(separatedBy: "\n").filter { !$0.isEmpty }
+    }
+
     /// (oldText, newText) for a path. Either side may be "" (new file → empty old; deleted → empty new).
     static func versions(_ repo: String, _ path: String) -> (old: String, new: String) {
         let old = String(data: Shell.runData(git, ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8) ?? ""

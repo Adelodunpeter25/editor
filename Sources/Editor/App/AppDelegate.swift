@@ -256,11 +256,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let term = viewMenu.addItem(withTitle: "Toggle Terminal", action: #selector(toggleQuickTerminal), keyEquivalent: "`")
         term.keyEquivalentModifierMask = [.control]
         term.target = self
+        let history = viewMenu.addItem(withTitle: "Toggle Git History", action: #selector(toggleGitHistory), keyEquivalent: "y")
+        history.keyEquivalentModifierMask = [.command, .shift]
+        history.target = self
 
         NSApp.mainMenu = mainMenu
     }
 
     @objc private func toggleQuickTerminal() { QuickTerminalHook.toggle?() }
+    @objc private func toggleGitHistory() { CenterViewController.toggleHistoryHook?() }
     @objc private func newFileItem() { NewItemHook.newFile?() }
     @objc private func newTerminalItem() { NewItemHook.newTerminal?() }
 

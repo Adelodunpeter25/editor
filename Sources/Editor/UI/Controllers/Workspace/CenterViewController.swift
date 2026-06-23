@@ -32,6 +32,8 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     private var contentPaths: [String: String] = [:]          // path each content view was built for (rename detect)
     private var lastActiveTabID: String?                       // focus a tab's editor only when it newly becomes active
     private var pendingReveal: [String: Int] = [:]            // tabID → line to jump to once its editor is built (search hit)
+    private var historyVC: GitHistoryViewController?
+    private var historyVisible = false
 
     private let statusBar: StatusBarView
 
@@ -162,6 +164,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         CenterViewController.current = self
+        CenterViewController.toggleHistoryHook = { [weak self] in self?.toggleHistory() }
         TerminalLifecycle.rebuild = { [weak self] tabID in self?.rebuildTerminal(tabID) }
         // Let the unsaved-changes guard save any (already-mounted) editor tab by id, without it needing
         // to know about view controllers. A dirty tab has always been viewed, so its editor exists here.
@@ -402,6 +405,47 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
             contentVCs[id] = nil
             contentPaths[id] = nil
         }
+    }
+
+    // MARK: - Git History panel (bottom split)
+
+    /// Global hook so the menu can toggle the history panel.
+    static var toggleHistoryHook: (() -> Void)?
+
+    /// Toggle the git history panel below the editor (like VS Code's Timeline panel).
+    func toggleHistory() {
+        guard let session = model.activeSession else { return }
+        if historyVisible {
+            hideHistory()
+        } else {
+            showHistory(repo: session.url)
+        }
+    }
+
+    private func showHistory(repo: String) {
+        guard !historyVisible else { return }
+        historyVisible = true
+        let vc = GitHistoryViewController(repo: repo) { [weak self] entry in
+            // Could open diff for that commit in the future
+            _ = entry
+        }
+        addChild(vc)
+        historyVC = vc
+        vc.view.translatesAutoresizingMaskIntoConstraints = false
+        centerSplit.addArrangedSubview(vc.view)
+        // Set initial height to ~30% of the split
+        let total = centerSplit.bounds.height
+        if total > 200 {
+            centerSplit.setPosition(total * 0.65, ofDividerAt: centerSplit.arrangedSubviews.count - 2)
+        }
+    }
+
+    private func hideHistory() {
+        guard historyVisible, let vc = historyVC else { return }
+        historyVisible = false
+        vc.view.removeFromSuperview()
+        vc.removeFromParent()
+        historyVC = nil
     }
 
     // MARK: - Quick-terminal bottom dock (VS Code-style panel under the editor)
