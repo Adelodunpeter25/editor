@@ -23,11 +23,12 @@ extension FileTreeViewController {
         }
         let copy = [item("Copy Path", #selector(ctxCopyPath)), item("Copy Relative Path", #selector(ctxCopyRelative))]
         let edit = [item("Rename", #selector(ctxRename)), item("Delete", #selector(ctxDelete))]
+        let reveal = [item("Reveal in Finder", #selector(ctxRevealInFinder))]
         if node.isFolder {
             return [item("New File", #selector(ctxNewFile)), item("New Folder", #selector(ctxNewFolder)),
-                    .separator()] + edit + [.separator()] + copy
+                    .separator()] + edit + [.separator()] + reveal + [.separator()] + copy
         }
-        return edit + [.separator()] + copy + [.separator(),
+        return edit + [.separator()] + reveal + [.separator()] + copy + [.separator(),
                 item("New File", #selector(ctxNewFile)), item("New Folder", #selector(ctxNewFolder))]
     }
 
@@ -45,4 +46,9 @@ extension FileTreeViewController {
     @objc private func ctxDelete()    { if let n = menuTargetNode { confirmDelete(n) } }
     @objc private func ctxCopyPath()  { if let n = menuTargetNode { Clipboard.copy((store.repo as NSString).appendingPathComponent(n.id)) } }
     @objc private func ctxCopyRelative() { if let n = menuTargetNode { Clipboard.copy(n.id) } }
+    @objc private func ctxRevealInFinder() {
+        guard let n = menuTargetNode else { return }
+        let abs = (store.repo as NSString).appendingPathComponent(n.id)
+        NSWorkspace.shared.selectFile(abs, inFileViewerRootedAtPath: "")
+    }
 }
