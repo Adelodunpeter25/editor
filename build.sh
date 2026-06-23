@@ -8,9 +8,9 @@ CONFIG="${1:-debug}"
 VER="${EDITOR_VERSION:-0.1.0}"
 
 if [ "$CONFIG" = "debug" ]; then
-  APP="Editor Dev.app"; NAME="Editor Dev"; BID="com.editor.native.dev"; ICNS="AppIconDev.icns"
+  APP="Editor Dev.app"; NAME="Editor Dev"; BID="com.adelodunpeter.editor.dev"; ICNS="AppIconDev.icns"
 else
-  APP="Editor.app";     NAME="Editor";     BID="com.editor.native";     ICNS="AppIcon.icns"
+  APP="Editor.app";     NAME="Editor";     BID="com.adelodunpeter.editor";     ICNS="AppIcon.icns"
 fi
 [ -f "$ICNS" ] || ICNS="AppIcon.icns"
 

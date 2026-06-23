@@ -213,22 +213,18 @@ enum Git {
         let hash: String       // short sha
         let fullHash: String   // full sha
         let message: String    // first line of commit message
-        let author: String
-        let date: String       // relative date (e.g. "2 hours ago")
     }
 
-    /// Recent commit log (default 100 entries). Runs `git log` with a compact format.
+    /// Recent commit log. Uses `git log --oneline` for speed and simplicity.
     static func log(_ repo: String, limit: Int = 100) -> [LogEntry] {
         guard isRepo(repo) else { return [] }
-        // Use git's %x1f to emit the unit separator byte (0x1F) as a field delimiter.
-        let format = "%h%x1f%H%x1f%s%x1f%an%x1f%ar"
-        let output = Shell.run(git, ["-C", repo, "log", "--pretty=format:\(format)", "-\(limit)"])
+        let output = Shell.run(git, ["-C", repo, "log", "--oneline", "-\(limit)", "--pretty=format:%h %H %s"])
         guard !output.isEmpty else { return [] }
-        let sep = "\u{1F}"
         return output.components(separatedBy: "\n").compactMap { line in
-            let parts = line.components(separatedBy: sep)
-            guard parts.count >= 5 else { return nil }
-            return LogEntry(hash: parts[0], fullHash: parts[1], message: parts[2], author: parts[3], date: parts[4])
+            // Format: "shortHash fullHash message..."
+            let parts = line.split(separator: " ", maxSplits: 2)
+            guard parts.count >= 3 else { return nil }
+            return LogEntry(hash: String(parts[0]), fullHash: String(parts[1]), message: String(parts[2]))
         }
     }
 

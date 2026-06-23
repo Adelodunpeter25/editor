@@ -39,7 +39,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         commitTable.addTableColumn(col)
         commitTable.headerView = nil
         commitTable.backgroundColor = Theme.sidebarBg
-        commitTable.rowHeight = 36
+        commitTable.rowHeight = 26
         commitTable.intercellSpacing = .zero
         commitTable.selectionHighlightStyle = .regular
         commitTable.dataSource = self
@@ -183,21 +183,21 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         guard row < entries.count else { return NSView() }
         let entry = entries[row]
 
+        let hashLabel = NSTextField(labelWithString: entry.hash)
+        hashLabel.font = AppFont.mono(size: 11)
+        hashLabel.textColor = NSColor(srgbRed: 0.45, green: 0.62, blue: 0.96, alpha: 1)
+        hashLabel.setContentHuggingPriority(.required, for: .horizontal)
+
         let msg = NSTextField(labelWithString: entry.message)
         msg.font = .systemFont(ofSize: 12)
         msg.textColor = Theme.textPrimary
         msg.lineBreakMode = .byTruncatingTail
 
-        let detail = NSTextField(labelWithString: "\(entry.hash)  \(entry.author)  \(entry.date)")
-        detail.font = .systemFont(ofSize: 10)
-        detail.textColor = Theme.textDim
-        detail.lineBreakMode = .byTruncatingTail
-
-        let stack = NSStackView(views: [msg, detail])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 2
-        stack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+        let stack = NSStackView(views: [hashLabel, msg])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
         return stack
     }
 
