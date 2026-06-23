@@ -5,8 +5,10 @@ import AppKit
 extension FileTreeViewController {
 
     /// Rebuild the menu for the right-clicked row (`clickedRow`); empty space → root create actions.
+    /// Also select the row so it uses our subtle highlight instead of the system rounded one.
     func menuNeedsUpdate(_ menu: NSMenu) {
         let row = outline.clickedRow
+        if row >= 0 { outline.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
         menuTargetNode = (row >= 0) ? outline.item(atRow: row) as? TreeNode : nil
         menu.items = contextItems(for: menuTargetNode)
     }

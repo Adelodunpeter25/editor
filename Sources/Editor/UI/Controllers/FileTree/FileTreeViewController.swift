@@ -349,13 +349,19 @@ private final class TreeIndentRowView: NSTableRowView {
     required init?(coder: NSCoder) { fatalError() }
 
     override var isEmphasized: Bool {
-        get { false }   // prevents the bright blue "first responder" highlight
+        get { false }
         set {}
     }
+
+    override var interiorBackgroundStyle: NSView.BackgroundStyle { .emphasized }
 
     override func drawSelection(in dirtyRect: NSRect) {
         Theme.activeRowBg.setFill()
         bounds.fill()
+    }
+
+    override func drawDraggingDestinationFeedback(in dirtyRect: NSRect) {
+        // no-op: suppress the default rounded drag/menu highlight
     }
 
     override func draw(_ dirtyRect: NSRect) {
