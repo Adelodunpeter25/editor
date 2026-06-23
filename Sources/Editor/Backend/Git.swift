@@ -220,10 +220,11 @@ enum Git {
     /// Recent commit log (default 100 entries). Runs `git log` with a compact format.
     static func log(_ repo: String, limit: Int = 100) -> [LogEntry] {
         guard isRepo(repo) else { return [] }
-        let sep = "\u{1F}"  // unit separator
-        let format = "%h\(sep)%H\(sep)%s\(sep)%an\(sep)%ar"
+        // Use git's %x1f to emit the unit separator byte (0x1F) as a field delimiter.
+        let format = "%h%x1f%H%x1f%s%x1f%an%x1f%ar"
         let output = Shell.run(git, ["-C", repo, "log", "--pretty=format:\(format)", "-\(limit)"])
         guard !output.isEmpty else { return [] }
+        let sep = "\u{1F}"
         return output.components(separatedBy: "\n").compactMap { line in
             let parts = line.components(separatedBy: sep)
             guard parts.count >= 5 else { return nil }
