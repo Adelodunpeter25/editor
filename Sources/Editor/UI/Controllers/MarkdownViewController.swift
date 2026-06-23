@@ -102,7 +102,7 @@ final class MarkdownViewController: NSViewController, SourceEditing {
         tv.isEditable = false
         tv.drawsBackground = false
         tv.textColor = NSColor(white: 0.85, alpha: 1)
-        tv.textContainerInset = NSSize(width: 16, height: 14)
+        tv.textContainerInset = NSSize(width: 32, height: 20)
         tv.isVerticallyResizable = true
         tv.isHorizontallyResizable = false
         tv.autoresizingMask = NSView.AutoresizingMask.width
