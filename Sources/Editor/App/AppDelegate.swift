@@ -28,13 +28,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 350])
 
         Env.bootstrap()                 // compute login PATH once, before anything spawns
-        Notifier.shared.start()         // request notification permission; deliver background status pings
-        Notifier.shared.onActivate = { [weak self] sessionID, tabID in
-            // The session/tab may have been closed since the banner was posted — only switch if it's still open.
-            guard let self, let session = self.model.sessions.first(where: { $0.id == sessionID }) else { return }
-            self.model.activeSessionID = sessionID
-            session.activate(tabID)
-        }
         TerminalStore.shared.fontSize = model.settings.fontSize
         NSApp.appearance = NSAppearance(named: .darkAqua)
         buildMenu()

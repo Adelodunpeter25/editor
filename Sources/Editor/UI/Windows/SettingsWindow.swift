@@ -8,7 +8,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private var fontLabel: NSTextField!
     private var stepper: NSStepper!
     private var quickTermSeg: NSSegmentedControl!
-    private var notifyStatus: NSStackView!     // "macOS notifications are off" warning (hidden when on)
+    
     private var escMonitor: Any?
 
     // Tabs.
@@ -83,12 +83,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     private func buildGeneralPane() -> NSView {
         let expand = checkbox("Show contents of gitignored folders", \.expandIgnored)
-        let sound = checkbox("Play a sound on attention / completion", \.soundEnabled)
-        let notify = checkbox("Notify when a background session needs you", \.notificationsEnabled)
-        notifyStatus = makeNotifyStatusRow()
         let restore = checkbox("Restore sessions & tabs on launch", \.restoreOnLaunch)
         let monitor = checkbox("Show resource usage (memory / CPU) in the title bar", \.showResourceMonitor)
-        let menuBar = checkbox("Show session status in the menu bar", \.showMenuBarStatus)
 
         stepper = NSStepper()
         stepper.minValue = 9; stepper.maxValue = 24; stepper.increment = 1
@@ -109,7 +105,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         let quickTermRow = NSStackView(views: [quickTermLabel, quickTermSeg])
         quickTermRow.orientation = .horizontal; quickTermRow.spacing = 8
 
-        let stack = NSStackView(views: [expand, sound, notify, notifyStatus, restore, monitor, menuBar, fontRow, quickTermRow])
+        let stack = NSStackView(views: [expand, restore, monitor, fontRow, quickTermRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 14
@@ -238,61 +234,16 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     /// Open Settings to the Formatters tab (used by the "Manage Formatters…" prompt link).
     func showFormatters() { selectTab(1); refreshFormatterStatus() }
-
-    /// A warning row shown under the notify checkbox when macOS notifications aren't allowed for Editor.
-    /// Hidden (collapsed) when they are. Indented to sit under the checkbox text.
-    private func makeNotifyStatusRow() -> NSStackView {
-        let warning = NSImageView(image: NSImage(systemSymbolName: "exclamationmark.triangle.fill",
-                                                 accessibilityDescription: nil) ?? NSImage())
-        warning.contentTintColor = .systemOrange
-        let label = NSTextField(labelWithString: "macOS notifications are turned off — banners won’t appear.")
-        label.font = .systemFont(ofSize: 11)
-        label.textColor = NSColor(white: 0.7, alpha: 1)
-        let open = PointerButton()
-        open.isBordered = false
-        open.target = self
-        open.action = #selector(openNotificationSettings)
-        open.attributedTitle = NSAttributedString(string: "Open System Settings…", attributes: [
-            .foregroundColor: NSColor(srgbRed: 0.45, green: 0.62, blue: 0.96, alpha: 1),
-            .font: NSFont.systemFont(ofSize: 11),
-        ])
-        let row = NSStackView(views: [warning, label, open])
-        row.orientation = .horizontal
-        row.spacing = 6
-        row.alignment = .firstBaseline
-        row.edgeInsets = NSEdgeInsets(top: 0, left: 20, bottom: 0, right: 0)   // indent under the checkbox
-        row.isHidden = true   // shown after the async authorization check
-        return row
-    }
-
-    /// Show the warning row only when notifications aren't authorized. Async (UNUserNotificationCenter).
-    private func refreshNotificationStatus() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async { [weak self] in
-                let allowed = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
-                self?.notifyStatus?.isHidden = allowed
-            }
-        }
-    }
-
-    @objc private func openNotificationSettings() {
-        // Deep-link to the Notifications pane; ids differ across macOS versions, so try newest first.
-        for s in ["x-apple.systempreferences:com.apple.Notifications-Settings.extension",
-                  "x-apple.systempreferences:com.apple.preference.notifications"] {
-            if let url = URL(string: s), NSWorkspace.shared.open(url) { return }
-        }
-    }
-
     override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
-        refreshNotificationStatus()   // re-check each time it opens (the user may have just changed it)
+        
         refreshFormatterStatus()
     }
 
     /// Re-check when the window regains focus — e.g. the user installed a formatter / toggled the OS
     /// permission in System Settings and clicked back, with this window still open.
     func windowDidBecomeKey(_ notification: Notification) {
-        refreshNotificationStatus()
+        
         refreshFormatterStatus()
     }
 
