@@ -1,10 +1,12 @@
 import AppKit
+import Combine
 
 /// Git commit history shown below the Changes list in the sidebar. Renders commit list inline.
 /// Clicking a commit expands it to show the changed files directly underneath it.
 final class GitHistoryViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
-    private let repo: String
+    private let store: RepoStore
     private let onOpenDiff: (String, String?) -> Void
+    private var cancellables = Set<AnyCancellable>()
 
     private let commitTable = NSTableView()
     private let commitScroll = NSScrollView()
@@ -22,8 +24,8 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     private var batchSize = 50
     private var allLoaded = false
 
-    init(repo: String, onOpenDiff: @escaping (String, String?) -> Void) {
-        self.repo = repo
+    init(store: RepoStore, onOpenDiff: @escaping (String, String?) -> Void) {
+        self.store = store
         self.onOpenDiff = onOpenDiff
         super.init(nibName: nil, bundle: nil)
     }
@@ -81,6 +83,13 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         NotificationCenter.default.addObserver(self, selector: #selector(scrolled),
             name: NSView.boundsDidChangeNotification, object: commitScroll.contentView)
         commitScroll.contentView.postsBoundsChangedNotifications = true
+
+        store.$lastCommitHash
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refresh(clearCache: false)
+            }
+            .store(in: &cancellables)
     }
 
     /// Called by the sidebar when the Changes tab becomes visible. Loads history if not yet loaded.
@@ -92,7 +101,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
 
     private func loadMore() {
         guard !allLoaded else { return }
-        let repo = self.repo, offset = commits.count, batch = batchSize
+        let repo = self.store.repo, offset = commits.count, batch = batchSize
         DispatchQueue.global().async { [weak self] in
             let log = Git.log(repo, limit: offset + batch)
             DispatchQueue.main.async {
@@ -105,11 +114,13 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         }
     }
 
-    func refresh() {
+    func refresh(clearCache: Bool = false) {
+        if clearCache {
+            expandedCommits.removeAll()
+            fileCache.removeAll()
+        }
         commits = []
         allLoaded = false
-        expandedCommits.removeAll()
-        fileCache.removeAll()
         rebuildRows()
         loadMore()
     }
@@ -150,7 +161,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
             } else {
                 expandedCommits.insert(hash)
                 if fileCache[hash] == nil {
-                    let repo = self.repo
+                    let repo = self.store.repo
                     DispatchQueue.global().async { [weak self] in
                         let files = Git.commitFiles(repo, hash: hash)
                         DispatchQueue.main.async {
@@ -246,8 +257,8 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         let mainStack = NSStackView(views: [chevron, gitIcon, textStack])
         mainStack.orientation = .horizontal
         mainStack.alignment = .centerY
-        mainStack.spacing = 6
-        mainStack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+        mainStack.spacing = 4
+        mainStack.edgeInsets = NSEdgeInsets(top: 4, left: 4, bottom: 4, right: 10)
         return mainStack
     }
 
@@ -255,7 +266,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         // Spacer for indentation
         let spacer = NSView()
         spacer.translatesAutoresizingMaskIntoConstraints = false
-        spacer.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        spacer.widthAnchor.constraint(equalToConstant: 18).isActive = true
 
         // File icon
         let icon = NSImageView()
@@ -278,7 +289,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         stack.orientation = .horizontal
         stack.spacing = 5
         stack.alignment = .centerY
-        stack.edgeInsets = NSEdgeInsets(top: 2, left: 10, bottom: 2, right: 8)
+        stack.edgeInsets = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 8)
         return stack
     }
 }

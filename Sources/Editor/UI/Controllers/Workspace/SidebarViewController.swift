@@ -157,8 +157,22 @@ final class SidebarViewController: NSViewController {
     // MARK: - Mode switching
 
     @objc private func filesModeChanged() {
-        UserDefaults.standard.set(filesModeSeg.selectedSegment, forKey: "rightMode")
-        showSidebarContent()
+        let newSegment = filesModeSeg.selectedSegment
+        UserDefaults.standard.set(newSegment, forKey: "rightMode")
+
+        // If switching to search, directly add a search tab instead of showing inline
+        if newSegment == SidebarMode.search.rawValue {
+            // Switch back to files mode in the sidebar
+            filesModeSeg.selectedSegment = SidebarMode.files.rawValue
+            UserDefaults.standard.set(SidebarMode.files.rawValue, forKey: "rightMode")
+
+            // Add a new search tab
+            let title = "Search"
+            model.activeSession?.addTab(Tab(kind: .search, title: title))
+            showSidebarContent()
+        } else {
+            showSidebarContent()
+        }
     }
 
     /// Rebuild the tree + changes VCs when the active session changes, then show the one for the mode.
@@ -187,7 +201,7 @@ final class SidebarViewController: NSViewController {
                     }
                 },
                 onOpenFile: { [weak self] path in self?.model.activeSession?.openFile(path) })
-            let history = GitHistoryViewController(repo: session.url,
+            let history = GitHistoryViewController(store: store,
                 onOpenDiff: { [weak self] path, commitHash in
                     if let reveal = DiffNavigator.revealDiff {
                         reveal(path, commitHash)

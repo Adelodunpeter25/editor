@@ -238,6 +238,13 @@ enum Git {
         return output.components(separatedBy: "\n").filter { !$0.isEmpty }
     }
 
+    /// Get the hash of the latest commit (HEAD) in the repo.
+    static func lastCommitHash(_ repo: String) -> String {
+        guard isRepo(repo) else { return "" }
+        let output = Shell.run(git, ["-C", repo, "rev-parse", "HEAD"])
+        return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// (oldText, newText) for a path. Either side may be "" (new file → empty old; deleted → empty new).
     static func versions(_ repo: String, _ path: String, commitHash: String? = nil) -> (old: String, new: String) {
         if let commitHash {

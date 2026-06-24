@@ -19,6 +19,7 @@ final class RepoStore: ObservableObject {
     @Published private(set) var unstaged: [FileEntry] = []   // Changes — unstaged (worktree)
     @Published private(set) var stashCount = 0
     @Published private(set) var branch: String?              // current branch (for the status bar)
+    @Published private(set) var lastCommitHash = ""
 
     private var watcher: RepoWatcher?
     private var fallbackTimer: Timer?
@@ -45,6 +46,7 @@ final class RepoStore: ObservableObject {
     func start(tree: Bool, changes: Bool) {
         setActive(tree: tree, changes: changes)
         pollBranch()   // show the branch immediately, not only after the first FS event
+        pollLastCommitHash()
         if watcher == nil { watcher = RepoWatcher(path: repo) { [weak self] in self?.poll() } }
         watcher?.start()
         fallbackTimer?.invalidate()
@@ -66,8 +68,20 @@ final class RepoStore: ObservableObject {
 
     private func poll() {
         pollBranch()   // cheap; always read (independent of which sidebar mode is visible)
+        pollLastCommitHash()
         if treeActive { pollTree() }
         if changesActive { pollChanges() }
+    }
+
+    private func pollLastCommitHash() {
+        let repo = self.repo
+        DispatchQueue.global().async { [weak self] in
+            let hash = Git.lastCommitHash(repo)
+            DispatchQueue.main.async {
+                guard let self, hash != self.lastCommitHash else { return }
+                self.lastCommitHash = hash
+            }
+        }
     }
 
     private func pollBranch() {

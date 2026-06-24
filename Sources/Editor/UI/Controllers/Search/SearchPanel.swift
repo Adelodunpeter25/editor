@@ -283,7 +283,7 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
 
     // MARK: - Field events
 
-    func controlTextDidChange(_ obj: Notification) { runSearch(debounced: true) }
+    func controlTextDidChange(_ obj: Notification) { /* No real-time search - only search on Enter */ }
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy sel: Selector) -> Bool {
         if sel == #selector(NSResponder.insertNewline(_:)) { runSearch(debounced: false); return true }
