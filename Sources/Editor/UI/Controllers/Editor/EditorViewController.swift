@@ -148,7 +148,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     scroll.rulersVisible = true
     ruler.reload()  // build the line index for the just-loaded content
     self.lineRuler = ruler
-    
+
     // Git gutter (colored bars for added/modified/deleted lines)
     if !path.isEmpty {  // skip for untitled files
       let gutter = GitGutterRuler(scrollView: scroll, textView: tv, filePath: path)
@@ -162,7 +162,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
       ])
       self.gitGutter = gutter
     }
-    
+
     self.scrollView = scroll
 
     // The find bar floats in its own child window (UI/FindBar in a FindPanel), pinned to the editor's
@@ -234,7 +234,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   /// All bundled grammar keys + their display names, for the status-bar language menu.
   static func availableLanguages() -> [(key: String, name: String)] {
     TextMateHighlighter.availableLanguages.map {
-      (key: $0, name: langDisplayNames[$0] ?? $0.prefix(1).uppercased() + $0.dropFirst())
+      (key: $0, name: LanguageUtil.displayName(forKey: $0))
     }
   }
 
@@ -267,18 +267,11 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   /// Display name for the language (override if set, else detected from extension); "Plain Text" if none.
   var languageDisplayName: String {
-    guard let key = languageOverride ?? TextMateHighlighter.language(forPath: path) else {
+    guard let key = languageOverride ?? LanguageUtil.language(forPath: path) else {
       return "Plain Text"
     }
-    return Self.langDisplayNames[key] ?? key.prefix(1).uppercased() + key.dropFirst()
+    return LanguageUtil.displayName(forKey: key)
   }
-
-  private static let langDisplayNames = [
-    "javascript": "JavaScript", "typescript": "TypeScript", "tsx": "TypeScript JSX",
-    "objc": "Objective-C", "cpp": "C++", "json": "JSON", "html": "HTML", "css": "CSS",
-    "scss": "SCSS", "less": "Less", "yaml": "YAML", "toml": "TOML", "ini": "INI",
-    "php": "PHP", "sql": "SQL", "xml": "XML", "objcpp": "Objective-C++",
-  ]
 
   /// Tabs vs spaces (+ unit) from the file's leading whitespace — a quick heuristic over the first lines.
   private static func detectIndent(_ s: String) -> String {

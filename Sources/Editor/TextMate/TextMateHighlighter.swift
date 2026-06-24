@@ -210,22 +210,14 @@ final class TextMateHighlighter {
 
   /// Highlighter for a file, by extension / well-known filename. `nil` → no grammar (plain text).
   static func forPath(_ path: String) -> TextMateHighlighter? {
-    guard let language = language(forPath: path) else { return nil }
+    guard let language = LanguageUtil.language(forPath: path) else { return nil }
     return load(language: language)
   }
 
   /// Highlighter for a fenced-code-block language tag (```swift, ```py, …). `nil` → plain text.
   static func forLanguage(_ fence: String) -> TextMateHighlighter? {
-    let f = fence.lowercased()
-    return load(language: fenceAliases[f] ?? f)
+    return load(language: LanguageUtil.resolveAlias(fence))
   }
-
-  private static let fenceAliases: [String: String] = [
-    "py": "python", "js": "javascript", "jsx": "javascript", "ts": "typescript", "tsx": "tsx",
-    "rb": "ruby", "rs": "rust", "sh": "shell", "bash": "shell", "zsh": "shell", "shell": "shell",
-    "yml": "yaml", "c++": "cpp", "h": "c", "hpp": "cpp", "objective-c": "objc", "m": "objc",
-    "ps1": "powershell", "md": "markdown", "htm": "html", "dockerfile": "dockerfile",
-  ]
 
   /// All bundled grammar keys (the status-bar language picker), sorted.
   static var availableLanguages: [String] {
@@ -248,51 +240,6 @@ final class TextMateHighlighter {
     cache[language] = hl
     return hl
   }
-
-  /// Map a file path to a bundled grammar key. Filename is checked first (Dockerfile, Makefile),
-  /// then the extension.
-  static func language(forPath path: String) -> String? {
-    let name = (path as NSString).lastPathComponent.lowercased()
-    switch name {
-    case "dockerfile", "containerfile": return "dockerfile"
-    case "makefile", "gnumakefile": return "makefile"
-    case ".gitignore", ".gitattributes", ".gitconfig": return "ini"
-    default: break
-    }
-    return extToLanguage[(path as NSString).pathExtension.lowercased()]
-  }
-
-  private static let extToLanguage: [String: String] = [
-    "swift": "swift",
-    "py": "python", "pyw": "python", "pyi": "python",
-    "js": "javascript", "mjs": "javascript", "cjs": "javascript", "jsx": "javascript",
-    "ts": "typescript", "mts": "typescript", "cts": "typescript", "tsx": "tsx",
-    "json": "json", "jsonc": "json",
-    "go": "go",
-    "rs": "rust",
-    "c": "c", "h": "c",
-    "cpp": "cpp", "cc": "cpp", "cxx": "cpp", "c++": "cpp",
-    "hpp": "cpp", "hh": "cpp", "hxx": "cpp",
-    "m": "objc", "mm": "objc",
-    "java": "java",
-    "rb": "ruby", "rake": "ruby", "gemspec": "ruby",
-    "php": "php",
-    "html": "html", "htm": "html", "xhtml": "html",
-    "css": "css",
-    "scss": "scss",
-    "less": "less",
-    "sh": "shell", "bash": "shell", "zsh": "shell", "ksh": "shell",
-    "yml": "yaml", "yaml": "yaml",
-    "md": "markdown", "markdown": "markdown",
-    "sql": "sql",
-    "xml": "xml", "svg": "xml", "plist": "xml", "xsd": "xml",
-    "ini": "ini", "cfg": "ini", "conf": "ini", "toml": "ini",
-    "bat": "bat", "cmd": "bat",
-    "ps1": "powershell", "psm1": "powershell", "psd1": "powershell",
-    "mk": "makefile",
-    "pl": "perl", "pm": "perl",
-    "lua": "lua",
-  ]
 
   // MARK: Tokenizing
 
