@@ -8,9 +8,6 @@ final class GitGutterRuler: NSRulerView {
     private var gitDiff: GitDiffResult?
     private var diffDirty = true
     
-    private static let addedColor = NSColor(red: 0.3, green: 0.8, blue: 0.3, alpha: 1.0)
-    private static let modifiedColor = NSColor(red: 0.2, green: 0.5, blue: 1.0, alpha: 1.0)
-    private static let deletedColor = NSColor(red: 1.0, green: 0.3, blue: 0.3, alpha: 1.0)
     private static let barWidth: CGFloat = 3
     
     init(scrollView: NSScrollView, textView: NSTextView, filePath: String) {
@@ -86,7 +83,7 @@ final class GitGutterRuler: NSRulerView {
         // Draw added lines
         for lineNum in diff.addedLines {
             if let y = lineY(for: lineNum, lm: lm, ns: ns, visible: visible, inset: inset) {
-                Self.addedColor.setFill()
+                Theme.gitNew.setFill()
                 NSBezierPath(rect: NSRect(x: 0, y: y, width: Self.barWidth, height: lineHeight(for: lineNum, lm: lm, ns: ns))).fill()
             }
         }
@@ -94,7 +91,7 @@ final class GitGutterRuler: NSRulerView {
         // Draw modified lines
         for lineNum in diff.modifiedLines {
             if let y = lineY(for: lineNum, lm: lm, ns: ns, visible: visible, inset: inset) {
-                Self.modifiedColor.setFill()
+                Theme.gitModified.setFill()
                 NSBezierPath(rect: NSRect(x: 0, y: y, width: Self.barWidth, height: lineHeight(for: lineNum, lm: lm, ns: ns))).fill()
             }
         }
@@ -102,7 +99,7 @@ final class GitGutterRuler: NSRulerView {
         // Draw deleted line markers (small triangles)
         for lineNum in diff.deletedLines {
             if let y = lineY(for: lineNum, lm: lm, ns: ns, visible: visible, inset: inset) {
-                Self.deletedColor.setFill()
+                Theme.gitDeleted.setFill()
                 let path = NSBezierPath()
                 path.move(to: NSPoint(x: 0, y: y))
                 path.line(to: NSPoint(x: Self.barWidth, y: y + 3))
