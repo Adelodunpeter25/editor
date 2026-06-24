@@ -158,21 +158,21 @@ final class SidebarViewController: NSViewController {
 
     @objc private func filesModeChanged() {
         let newSegment = filesModeSeg.selectedSegment
-        UserDefaults.standard.set(newSegment, forKey: "rightMode")
 
         // If switching to search, directly add a search tab instead of showing inline
         if newSegment == SidebarMode.search.rawValue {
-            // Switch back to files mode in the sidebar
-            filesModeSeg.selectedSegment = SidebarMode.files.rawValue
-            UserDefaults.standard.set(SidebarMode.files.rawValue, forKey: "rightMode")
+            // Switch back to the previous mode (before the click)
+            let previousMode = UserDefaults.standard.integer(forKey: "rightMode")
+            filesModeSeg.selectedSegment = previousMode
 
             // Add a new search tab
             let title = "Search"
             model.activeSession?.addTab(Tab(kind: .search, title: title))
-            showSidebarContent()
-        } else {
-            showSidebarContent()
+            return
         }
+
+        UserDefaults.standard.set(newSegment, forKey: "rightMode")
+        showSidebarContent()
     }
 
     /// Rebuild the tree + changes VCs when the active session changes, then show the one for the mode.
