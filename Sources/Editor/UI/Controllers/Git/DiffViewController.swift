@@ -1,7 +1,15 @@
 import AppKit
 
+extension Notification.Name {
+  static let editorFileTextDidChange = Notification.Name("EditorFileTextDidChange")
+}
+
 enum DiffNavigator {
   static var revealDiff: ((_ path: String, _ commitHash: String?) -> Void)?
+}
+
+enum LiveFileText {
+  static var current: ((_ absolutePath: String) -> String?)?
 }
 
 struct UnifiedLine {
@@ -25,6 +33,8 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
   private var unified: [UnifiedLine] = []
   private var split: Bool
   private var loaded = false
+  private var reloadWork: DispatchWorkItem?
+  private var loadSeq = 0
   private var highlighter: TextMateHighlighter?
   private var newSpans: [(NSRange, NSColor)] = []  // syntax spans for the new file content
   private var oldSpans: [(NSRange, NSColor)] = []  // syntax spans for the old file content
@@ -130,7 +140,28 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    if commitHash == nil {
+      NotificationCenter.default.addObserver(
+        self, selector: #selector(editorFileTextDidChange(_:)),
+        name: .editorFileTextDidChange, object: nil)
+    }
     load()
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  @objc private func editorFileTextDidChange(_ note: Notification) {
+    guard commitHash == nil,
+      let changedPath = note.userInfo?["path"] as? String,
+      changedPath == URL(fileURLWithPath: repo).appendingPathComponent(path).path
+    else { return }
+    reloadWork?.cancel()
+    let text = note.userInfo?["text"] as? String
+    let work = DispatchWorkItem { [weak self] in self?.load(liveNewText: text) }
+    reloadWork = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: work)
   }
 
   private func configureColumns() {
@@ -152,13 +183,29 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     }
   }
 
-  private func load() {
+  private func load(liveNewText: String? = nil) {
+    loadSeq += 1
+    let seq = loadSeq
     let repo = self.repo
     let path = self.path
     let commitHash = self.commitHash
     let hl = TextMateHighlighter.forPath(path)
     DispatchQueue.global().async { [weak self] in
-      let v = Git.versions(repo, path, commitHash: commitHash)
+      let v: (old: String, new: String)
+      if let commitHash {
+        v = Git.versions(repo, path, commitHash: commitHash)
+      } else if let liveNewText {
+        let old = String(data: Shell.runData("/usr/bin/git", ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8) ?? ""
+        v = (old, liveNewText)
+      } else {
+        let absolute = URL(fileURLWithPath: repo).appendingPathComponent(path).path
+        if let live = LiveFileText.current?(absolute) {
+          let old = String(data: Shell.runData("/usr/bin/git", ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8) ?? ""
+          v = (old, live)
+        } else {
+          v = Git.versions(repo, path, commitHash: nil)
+        }
+      }
       let rows = computeDiff(old: v.old, new: v.new)
 
       var oSpans: [(NSRange, NSColor)] = []
@@ -182,7 +229,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
       let oOffsets = Self.lineOffsets(v.old)
       let nOffsets = Self.lineOffsets(v.new)
       DispatchQueue.main.async {
-        guard let self else { return }
+        guard let self, seq == self.loadSeq else { return }
         self.highlighter = hl
         self.rows = rows
         self.unified = Self.flatten(rows)

@@ -182,6 +182,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   func textDidChange(_ notification: Notification) {
     onDirty(textView.string != saved)
+    NotificationCenter.default.post(
+      name: .editorFileTextDidChange, object: self,
+      userInfo: ["path": path, "text": textView.string])
     requestHighlight(debounced: true)
     if findBar?.isHidden == false { recomputeMatches() }  // keep find matches/highlights in sync with edits
   }

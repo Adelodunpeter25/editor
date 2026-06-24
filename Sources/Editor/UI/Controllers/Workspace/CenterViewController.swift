@@ -190,6 +190,15 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
         self.pendingReveal[id] = line  // otherwise consumed in render() once its editor is built & active
       }
     }
+    LiveFileText.current = { [weak self] absolutePath in
+      guard let self else { return nil }
+      for vc in self.contentVCs.values {
+        if let host = vc as? SourceEditing, let editor = host.sourceEditor, editor.path == absolutePath {
+          return editor.text
+        }
+      }
+      return nil
+    }
     // Click on a git status change or history file -> open the diff in the active session and scroll to first change.
     DiffNavigator.revealDiff = { [weak self] path, commitHash in
       guard let self, let session = self.model.activeSession else { return }
