@@ -113,7 +113,6 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
     }
     if pendingEmptyDirs != before { persistEmptyDirs() }
     let tracked = pendingEmptyDirs
-    let repo = store.repo
     DispatchQueue.global().async { [weak self] in
       // Only scan for empty dirs if the user has tracked some — skip the expensive disk walk otherwise
       let emptyDirs: Set<String>

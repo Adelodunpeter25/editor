@@ -257,8 +257,8 @@ enum DebugState {
       let r = v.convert(v.bounds, to: nil)
       var info =
         "x\(Int(r.minX)) y\(Int(r.minY)) w\(Int(r.width)) h\(Int(r.height)) hidden\(v.isHidden)"
-      if let bar = v as? NSView, label == "tabBar" {
-        let chips = countChips(bar)
+      if label == "tabBar" {
+        let chips = countChips(v)
         info += " chips\(chips)"
       }
       if let ov = v as? NSOutlineView {
