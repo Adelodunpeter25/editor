@@ -1,8 +1,8 @@
 import AppKit
 import Combine
 
-/// The sidebar: a segmented control (Files / Changes) with file-actions toolbar above the
-/// content pane (file tree or git changes list).
+/// The sidebar: a segmented control (Files / Changes / Search) with file-actions toolbar above the
+/// content pane (file tree, git changes list, or search panel).
 final class SidebarViewController: NSViewController {
     static weak var current: SidebarViewController?   // for the debug harness (segment switching)
     private let model: AppModel
@@ -13,6 +13,7 @@ final class SidebarViewController: NSViewController {
     private var changesVC: ChangesViewController?
     private var historyVC: GitHistoryViewController?
     private var changesSplit: NSSplitView?        // vertical split: changes on top, history below
+    private var searchVC: SearchViewController?
     private var store: RepoStore?            // one shared git poller for the tree + Changes
     private var branchBridge: AnyCancellable?   // store.branch → session.gitBranch
     private var currentRepo: String?
@@ -20,20 +21,21 @@ final class SidebarViewController: NSViewController {
     private var didSizeChangesSplit = false
     private let filesModeSeg: PointerSegmentedControl = {
         let s = PointerSegmentedControl()
-        s.segmentCount = 2
+        s.segmentCount = 3
         func icon(_ name: String) -> NSImage? { NSImage(systemSymbolName: name, accessibilityDescription: nil) }
         s.setImage(icon("doc.on.doc"), forSegment: 0)
         s.setImage(icon("arrow.triangle.branch"), forSegment: 1)
+        s.setImage(icon("magnifyingglass"), forSegment: 2)
         s.setToolTip("Files", forSegment: 0)
         s.setToolTip("Changes (git)", forSegment: 1)
+        s.setToolTip("Search", forSegment: 2)
         s.trackingMode = .selectOne
         return s
     }()
-    private enum SidebarMode: Int { case files = 0, changes = 1 }
+    private enum SidebarMode: Int { case files = 0, changes = 1, search = 2 }
     private var sidebarMode: SidebarMode { SidebarMode(rawValue: filesModeSeg.selectedSegment) ?? .files }
     private var changesMode: Bool { sidebarMode == .changes }
-    private var fileActionsBar: NSStackView?   // new file / new folder / collapse-all / search (Files mode only)
-    private var changesActionsBar: NSStackView? // search (Changes mode only)
+    private var fileActionsBar: NSStackView?   // new file / new folder / collapse-all (Files mode only)
     private var sidebarEmptyView: NSView?    // "Open Folder" prompt when no project is open
 
     init(model: AppModel) {
@@ -110,7 +112,7 @@ final class SidebarViewController: NSViewController {
         pane.wantsLayer = true
         pane.layer?.backgroundColor = Theme.sidebarBg.cgColor
 
-        filesModeSeg.selectedSegment = max(0, min(1, UserDefaults.standard.integer(forKey: "rightMode")))
+        filesModeSeg.selectedSegment = max(0, min(2, UserDefaults.standard.integer(forKey: "rightMode")))
         filesModeSeg.target = self
         filesModeSeg.action = #selector(filesModeChanged)
         filesModeSeg.controlSize = .regular
@@ -120,7 +122,7 @@ final class SidebarViewController: NSViewController {
         filesModeSeg.translatesAutoresizingMaskIntoConstraints = false
         filesContainer.translatesAutoresizingMaskIntoConstraints = false
 
-        // Tree toolbar: new file / new folder / collapse-all / search. Files mode only.
+        // Tree toolbar: new file / new folder / collapse-all. Files mode only.
         let iconSize: CGFloat = 13
         let newFile = ClosureButton(symbol: "doc.badge.plus", pointSize: iconSize) { [weak self] in self?.treeVC?.beginNewFile() }
         newFile.toolTip = "New file"; newFile.focusRingType = .none
@@ -128,28 +130,15 @@ final class SidebarViewController: NSViewController {
         newFolder.toolTip = "New folder"; newFolder.focusRingType = .none
         let collapse = ClosureButton(symbol: "arrow.down.right.and.arrow.up.left", pointSize: iconSize) { [weak self] in self?.treeVC?.collapseAll() }
         collapse.toolTip = "Collapse all folders"; collapse.focusRingType = .none
-        let search = ClosureButton(symbol: "magnifyingglass", pointSize: iconSize) { [weak self] in self?.revealSearch() }
-        search.toolTip = "Search"; search.focusRingType = .none
-        let actions = NSStackView(views: [newFile, newFolder, collapse, search])
+        let actions = NSStackView(views: [newFile, newFolder, collapse])
         actions.orientation = .horizontal
         actions.spacing = 8
         actions.translatesAutoresizingMaskIntoConstraints = false
         actions.isHidden = sidebarMode != .files
         fileActionsBar = actions
 
-        // Changes toolbar: search. Changes mode only.
-        let changesSearch = ClosureButton(symbol: "magnifyingglass", pointSize: iconSize) { [weak self] in self?.revealSearch() }
-        changesSearch.toolTip = "Search"; changesSearch.focusRingType = .none
-        let changesActions = NSStackView(views: [changesSearch])
-        changesActions.orientation = .horizontal
-        changesActions.spacing = 8
-        changesActions.translatesAutoresizingMaskIntoConstraints = false
-        changesActions.isHidden = sidebarMode != .changes
-        changesActionsBar = changesActions
-
         pane.addSubview(filesModeSeg)
         pane.addSubview(actions)
-        pane.addSubview(changesActions)
         pane.addSubview(filesContainer)
         NSLayoutConstraint.activate([
             filesModeSeg.topAnchor.constraint(equalTo: pane.topAnchor, constant: 12),
@@ -157,9 +146,6 @@ final class SidebarViewController: NSViewController {
             actions.centerYAnchor.constraint(equalTo: filesModeSeg.centerYAnchor),
             actions.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -8),
             actions.leadingAnchor.constraint(greaterThanOrEqualTo: filesModeSeg.trailingAnchor, constant: 8),
-            changesActions.centerYAnchor.constraint(equalTo: filesModeSeg.centerYAnchor),
-            changesActions.trailingAnchor.constraint(equalTo: pane.trailingAnchor, constant: -8),
-            changesActions.leadingAnchor.constraint(greaterThanOrEqualTo: filesModeSeg.trailingAnchor, constant: 8),
             filesContainer.topAnchor.constraint(equalTo: filesModeSeg.bottomAnchor, constant: 10),
             filesContainer.leadingAnchor.constraint(equalTo: pane.leadingAnchor),
             filesContainer.trailingAnchor.constraint(equalTo: pane.trailingAnchor),
@@ -209,8 +195,15 @@ final class SidebarViewController: NSViewController {
                         self?.model.activeSession?.openDiff(path, commitHash: commitHash)
                     }
                 })
-            addChild(tree); addChild(changes); addChild(history)
-            treeVC = tree; changesVC = changes; historyVC = history; self.store = store
+            let search = SearchViewController(repo: session.url,
+                onOpen: { [weak self] rel, line in self?.openSearchResult(rel, line) })
+            search.onOpenAsTab = { [weak self] query, options in
+                SearchSeed.pending = (query, options)
+                let title = query.isEmpty ? "Search" : "Search: \(query)"
+                self?.model.activeSession?.addTab(Tab(kind: .search, title: title))
+            }
+            addChild(tree); addChild(changes); addChild(history); addChild(search)
+            treeVC = tree; changesVC = changes; historyVC = history; searchVC = search; self.store = store
             branchBridge = store.$branch.sink { [weak session] in session?.gitBranch = $0 }
         }
         showSidebarContent()
@@ -218,8 +211,7 @@ final class SidebarViewController: NSViewController {
 
     private func showSidebarContent() {
         fileActionsBar?.isHidden = sidebarMode != .files
-        changesActionsBar?.isHidden = sidebarMode != .changes
-        guard let treeVC, let changesVC, let historyVC, let store else { return }
+        guard let treeVC, let changesVC, let historyVC, let searchVC, let store else { return }
 
         // Build the changes split once and reuse it
         if changesSplit == nil {
@@ -238,6 +230,7 @@ final class SidebarViewController: NSViewController {
         let panes: [(SidebarMode, NSView)] = [
             (.files, treeVC.view),
             (.changes, changesSplit!),
+            (.search, searchVC.view),
         ]
         for (mode, paneView) in panes {
             if mode == sidebarMode {
@@ -259,6 +252,7 @@ final class SidebarViewController: NSViewController {
 
         store.start(tree: sidebarMode == .files, changes: sidebarMode == .changes)
         if sidebarMode == .files { lastRevealedPath = nil; revealActiveFile() }
+        if sidebarMode == .search { DispatchQueue.main.async { [weak self] in self?.searchVC?.focusField() } }
         if sidebarMode == .changes { historyVC.loadIfNeeded() }
     }
 
@@ -309,6 +303,8 @@ final class SidebarViewController: NSViewController {
         treeVC?.view.removeFromSuperview(); treeVC?.removeFromParent(); treeVC = nil
         changesVC?.view.removeFromSuperview(); changesVC?.removeFromParent(); changesVC = nil
         historyVC?.view.removeFromSuperview(); historyVC?.removeFromParent(); historyVC = nil
+        if let sv = searchVC { if sv.isViewLoaded { sv.view.removeFromSuperview() }; sv.removeFromParent() }
+        searchVC = nil
         didSizeChangesSplit = false
     }
 
@@ -317,9 +313,8 @@ final class SidebarViewController: NSViewController {
     }
 
     func revealSearch() {
-        // Add a new search tab directly instead of switching sidebar mode
-        let title = "Search"
-        model.activeSession?.addTab(Tab(kind: .search, title: title))
+        filesModeSeg.selectedSegment = SidebarMode.search.rawValue
+        filesModeChanged()
     }
 
     func debugSelectMode(_ index: Int) {
