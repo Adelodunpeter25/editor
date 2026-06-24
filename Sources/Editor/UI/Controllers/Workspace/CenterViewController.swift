@@ -183,6 +183,19 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
                 self.pendingReveal[id] = line    // otherwise consumed in render() once its editor is built & active
             }
         }
+        // Click on a git status change or history file -> open the diff in the active session and scroll to first change.
+        DiffNavigator.revealDiff = { [weak self] path, commitHash in
+            guard let self, let session = self.model.activeSession else { return }
+            let existingTab = session.tabs.first(where: { $0.kind == .diff && $0.path == path && $0.commitHash == commitHash })
+            session.openDiff(path, commitHash: commitHash)
+            if let tab = existingTab {
+                DispatchQueue.main.async { [weak self] in
+                    if let diffVC = self?.contentVCs[tab.id] as? DiffViewController {
+                        diffVC.forceScrollToFirstChange()
+                    }
+                }
+            }
+        }
         model.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] in self?.refresh() }

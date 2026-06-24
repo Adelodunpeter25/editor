@@ -1,61 +1,17 @@
 import AppKit
 
-// MARK: - Line diff (pure; drives both unified and split views)
-
-enum DiffRow {
-    case equal(old: Int, new: Int, text: String)
-    case del(old: Int, text: String)
-    case ins(new: Int, text: String)
-    case change(old: Int, new: Int, oldText: String, newText: String)
+enum DiffNavigator {
+    static var revealDiff: ((_ path: String, _ commitHash: String?) -> Void)?
 }
 
-/// Line-level diff using the standard library's Myers diff.
-func computeDiff(old: String, new: String) -> [DiffRow] {
-    let oldLines = old.isEmpty ? [] : old.components(separatedBy: "\n")
-    let newLines = new.isEmpty ? [] : new.components(separatedBy: "\n")
-    let diff = newLines.difference(from: oldLines)
-    var removed = Set<Int>(), inserted = Set<Int>()
-    for ch in diff {
-        switch ch {
-        case .remove(let o, _, _): removed.insert(o)
-        case .insert(let o, _, _): inserted.insert(o)
-        }
-    }
-    var rows: [DiffRow] = []
-    var i = 0, j = 0
-    while i < oldLines.count || j < newLines.count {
-        let oRem = i < oldLines.count && removed.contains(i)
-        let nIns = j < newLines.count && inserted.contains(j)
-        if oRem && nIns {
-            rows.append(.change(old: i + 1, new: j + 1, oldText: oldLines[i], newText: newLines[j])); i += 1; j += 1
-        } else if oRem {
-            rows.append(.del(old: i + 1, text: oldLines[i])); i += 1
-        } else if nIns {
-            rows.append(.ins(new: j + 1, text: newLines[j])); j += 1
-        } else if i < oldLines.count && j < newLines.count {
-            rows.append(.equal(old: i + 1, new: j + 1, text: oldLines[i])); i += 1; j += 1
-        } else if i < oldLines.count {
-            rows.append(.del(old: i + 1, text: oldLines[i])); i += 1
-        } else {
-            rows.append(.ins(new: j + 1, text: newLines[j])); j += 1
-        }
-    }
-    return rows
+struct UnifiedLine {
+    let oldNo: Int?
+    let newNo: Int?
+    let sign: String
+    let text: String
+    let bg: NSColor
+    let fg: NSColor
 }
-
-// MARK: - Colors
-
-private let addBg = Theme.diffAddBg
-private let delBg = Theme.diffDelBg
-private let addFg = Theme.diffAddFg
-private let delFg = Theme.diffDelFg
-private let gutterFg = Theme.diffGutterFg
-private let diffTextFg = Theme.diffTextFg
-private func diffFont() -> NSFont { AppFont.mono(size: 12) }
-
-private struct UnifiedLine { let oldNo: Int?; let newNo: Int?; let sign: String; let text: String; let bg: NSColor; let fg: NSColor }
-
-// MARK: - Diff view controller (NSTableView)
 
 /// Renders a file's diff, unified or split. Built from `computeDiff` rows. One row per line;
 /// full-width row background carries add/del color. Split shows old | new columns.
@@ -212,8 +168,32 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
                 self.loaded = true
                 self.emptyLabel.isHidden = !rows.isEmpty
                 self.table.reloadData()
-                self.scrollToFirstChange()
+                self.table.layoutSubtreeIfNeeded()
+                if self.view.window != nil && self.view.bounds.width > 0 {
+                    self.didScrollToFirstChange = true
+                    DispatchQueue.main.async { [weak self] in
+                        self?.scrollToFirstChange()
+                    }
+                }
             }
+        }
+    }
+
+    private var didScrollToFirstChange = false
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        if loaded && !didScrollToFirstChange && view.bounds.width > 0 {
+            didScrollToFirstChange = true
+            DispatchQueue.main.async { [weak self] in
+                self?.scrollToFirstChange()
+            }
+        }
+    }
+
+    func forceScrollToFirstChange() {
+        if loaded {
+            scrollToFirstChange()
         }
     }
 
@@ -240,22 +220,28 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
         } else {
             firstChangeRow = unified.firstIndex(where: { $0.sign != " " }) ?? 0
         }
-        guard firstChangeRow > 0 else { return }
+        guard firstChangeRow >= 0, firstChangeRow < table.numberOfRows else { return }
         // Scroll a few lines above the change for context
         let targetRow = max(0, firstChangeRow - 3)
-        table.scrollRowToVisible(targetRow)
+        let rowRect = table.rect(ofRow: targetRow)
+        let h = scroll.contentView.bounds.height
+        if h > 0 {
+            table.scrollToVisible(NSRect(x: 0, y: rowRect.origin.y, width: 1, height: h))
+        } else {
+            table.scrollRowToVisible(targetRow)
+        }
     }
 
     private static func flatten(_ rows: [DiffRow]) -> [UnifiedLine] {
         var out: [UnifiedLine] = []
         for row in rows {
             switch row {
-            case .equal(let o, let n, let t): out.append(UnifiedLine(oldNo: o, newNo: n, sign: " ", text: t, bg: .clear, fg: diffTextFg))
-            case .del(let o, let t): out.append(UnifiedLine(oldNo: o, newNo: nil, sign: "-", text: t, bg: delBg, fg: delFg))
-            case .ins(let n, let t): out.append(UnifiedLine(oldNo: nil, newNo: n, sign: "+", text: t, bg: addBg, fg: addFg))
+            case .equal(let o, let n, let t): out.append(UnifiedLine(oldNo: o, newNo: n, sign: " ", text: t, bg: .clear, fg: DiffTheme.diffTextFg))
+            case .del(let o, let t): out.append(UnifiedLine(oldNo: o, newNo: nil, sign: "-", text: t, bg: DiffTheme.delBg, fg: DiffTheme.delFg))
+            case .ins(let n, let t): out.append(UnifiedLine(oldNo: nil, newNo: n, sign: "+", text: t, bg: DiffTheme.addBg, fg: DiffTheme.addFg))
             case .change(let o, let n, let ot, let nt):
-                out.append(UnifiedLine(oldNo: o, newNo: nil, sign: "-", text: ot, bg: delBg, fg: delFg))
-                out.append(UnifiedLine(oldNo: nil, newNo: n, sign: "+", text: nt, bg: addBg, fg: addFg))
+                out.append(UnifiedLine(oldNo: o, newNo: nil, sign: "-", text: ot, bg: DiffTheme.delBg, fg: DiffTheme.delFg))
+                out.append(UnifiedLine(oldNo: nil, newNo: n, sign: "+", text: nt, bg: DiffTheme.addBg, fg: DiffTheme.addFg))
             }
         }
         return out
@@ -323,59 +309,10 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     private static func sides(_ row: DiffRow) -> (old: (no: Int?, text: String, fg: NSColor, bg: NSColor),
                                                   new: (no: Int?, text: String, fg: NSColor, bg: NSColor)) {
         switch row {
-        case .equal(let o, let n, let t): return ((o, t, diffTextFg, .clear), (n, t, diffTextFg, .clear))
-        case .del(let o, let t):          return ((o, t, delFg, delBg), (nil, "", diffTextFg, .clear))
-        case .ins(let n, let t):          return ((nil, "", diffTextFg, .clear), (n, t, addFg, addBg))
-        case .change(let o, let n, let ot, let nt): return ((o, ot, delFg, delBg), (n, nt, addFg, addBg))
+        case .equal(let o, let n, let t): return ((o, t, DiffTheme.diffTextFg, .clear), (n, t, DiffTheme.diffTextFg, .clear))
+        case .del(let o, let t):          return ((o, t, DiffTheme.delFg, DiffTheme.delBg), (nil, "", DiffTheme.diffTextFg, .clear))
+        case .ins(let n, let t):          return ((nil, "", DiffTheme.diffTextFg, .clear), (n, t, DiffTheme.addFg, DiffTheme.addBg))
+        case .change(let o, let n, let ot, let nt): return ((o, ot, DiffTheme.delFg, DiffTheme.delBg), (n, nt, DiffTheme.addFg, DiffTheme.addBg))
         }
-    }
-}
-
-/// One diff line cell: monospaced text on a full-cell background color, with optional syntax highlighting.
-private final class DiffCellView: NSView {
-    private let field = NSTextField(labelWithString: "")
-
-    init() {
-        super.init(frame: .zero)
-        wantsLayer = true
-        field.font = diffFont()
-        field.lineBreakMode = .byClipping
-        field.allowsEditingTextAttributes = true
-        field.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(field)
-        NSLayoutConstraint.activate([
-            field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
-            field.centerYAnchor.constraint(equalTo: centerYAnchor),
-            field.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError() }
-
-    func configure(prefixedText: String, lineText: String, fg: NSColor, bg: NSColor,
-                   highlighted: [(offset: Int, length: Int, color: NSColor)]? = nil) {
-        layer?.backgroundColor = bg.cgColor
-        let fullText = prefixedText + lineText
-        guard let spans = highlighted, !spans.isEmpty else {
-            field.attributedStringValue = NSAttributedString(string: fullText.isEmpty ? " " : fullText,
-                                                            attributes: [.font: diffFont(), .foregroundColor: fg])
-            return
-        }
-        let attr = NSMutableAttributedString(string: fullText, attributes: [.font: diffFont(), .foregroundColor: fg])
-        let prefixLen = prefixedText.utf16.count
-        for span in spans {
-            let start = prefixLen + span.offset
-            let len = min(span.length, fullText.utf16.count - start)
-            guard start >= 0, len > 0, start + len <= fullText.utf16.count else { continue }
-            attr.addAttribute(.foregroundColor, value: span.color, range: NSRange(location: start, length: len))
-        }
-        field.attributedStringValue = attr
-    }
-
-    func configure(no: Int?, text: String, fg: NSColor, bg: NSColor,
-                   highlighted: [(offset: Int, length: Int, color: NSColor)]? = nil) {
-        let g = no.map { n -> String in let s = String(n); return String(repeating: " ", count: max(0, 4 - s.count)) + s } ?? "    "
-        configure(prefixedText: "\(g)  ", lineText: text, fg: fg, bg: bg, highlighted: highlighted)
     }
 }

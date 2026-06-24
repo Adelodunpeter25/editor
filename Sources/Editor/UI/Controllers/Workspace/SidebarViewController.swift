@@ -179,10 +179,22 @@ final class SidebarViewController: NSViewController {
                 onRename: { [weak self] old, new in self?.model.activeSession?.fileRenamed(from: old, to: new) },
                 onDelete: { [weak self] rel in self?.model.activeSession?.fileDeleted(rel) })
             let changes = ChangesViewController(store: store,
-                onOpenDiff: { [weak self] path in self?.model.activeSession?.openDiff(path) },
+                onOpenDiff: { [weak self] path in
+                    if let reveal = DiffNavigator.revealDiff {
+                        reveal(path, nil)
+                    } else {
+                        self?.model.activeSession?.openDiff(path)
+                    }
+                },
                 onOpenFile: { [weak self] path in self?.model.activeSession?.openFile(path) })
             let history = GitHistoryViewController(repo: session.url,
-                onOpenDiff: { [weak self] path, commitHash in self?.model.activeSession?.openDiff(path, commitHash: commitHash) })
+                onOpenDiff: { [weak self] path, commitHash in
+                    if let reveal = DiffNavigator.revealDiff {
+                        reveal(path, commitHash)
+                    } else {
+                        self?.model.activeSession?.openDiff(path, commitHash: commitHash)
+                    }
+                })
             let search = SearchViewController(repo: session.url,
                 onOpen: { [weak self] rel, line in self?.openSearchResult(rel, line) })
             search.onOpenAsTab = { [weak self] query, options in
