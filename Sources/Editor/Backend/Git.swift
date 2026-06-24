@@ -264,6 +264,16 @@ enum Git {
     return output.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
+  static func headText(forAbsolutePath path: String) -> String? {
+    let dir = (path as NSString).deletingLastPathComponent
+    let repo = Shell.run(git, ["-C", dir, "rev-parse", "--show-toplevel"])
+    guard !repo.isEmpty else { return nil }
+    let prefix = repo.hasSuffix("/") ? repo : repo + "/"
+    let relativePath = path.hasPrefix(prefix) ? String(path.dropFirst(prefix.count)) : path
+    let output = Shell.run(git, ["-C", repo, "show", "HEAD:\(relativePath)"])
+    return output.isEmpty ? nil : output
+  }
+
   /// (oldText, newText) for a path. Either side may be "" (new file → empty old; deleted → empty new).
   static func versions(_ repo: String, _ path: String, commitHash: String? = nil) -> (
     old: String, new: String
