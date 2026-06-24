@@ -1,22 +1,26 @@
 import AppKit
 
-/// Git commit history shown below the Changes list in the sidebar. A vertical split: commit list on
-/// top, changed files for the selected commit below. Loads progressively (50 at a time, more on scroll).
+/// Git commit history shown below the Changes list in the sidebar. Renders commit list inline.
+/// Clicking a commit expands it to show the changed files directly underneath it.
 final class GitHistoryViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
     private let repo: String
-    private var entries: [Git.LogEntry] = []
-    private var selectedFiles: [String] = []
     private let onOpenDiff: (String) -> Void
 
     private let commitTable = NSTableView()
     private let commitScroll = NSScrollView()
-    private let filesTable = NSTableView()
-    private let filesScroll = NSScrollView()
-    private let split = NSSplitView()
+
+    private enum RowItem {
+        case commit(Git.LogEntry, isExpanded: Bool)
+        case file(path: String, commitHash: String)
+    }
+
+    private var commits: [Git.LogEntry] = []
+    private var expandedCommits = Set<String>()
+    private var fileCache: [String: [String]] = [:]
+    private var rows: [RowItem] = []
 
     private var batchSize = 50
     private var allLoaded = false
-    private var didSizeSplit = false
 
     init(repo: String, onOpenDiff: @escaping (String) -> Void) {
         self.repo = repo
@@ -40,60 +44,32 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         commitTable.addTableColumn(col)
         commitTable.headerView = nil
         commitTable.backgroundColor = Theme.sidebarBg
-        commitTable.rowHeight = 36
         commitTable.intercellSpacing = .zero
         commitTable.selectionHighlightStyle = .regular
         commitTable.dataSource = self
         commitTable.delegate = self
         commitTable.target = self
-        commitTable.action = #selector(commitClicked)
+        commitTable.action = #selector(rowClicked)
 
         commitScroll.documentView = commitTable
         commitScroll.hasVerticalScroller = true
         commitScroll.drawsBackground = true
         commitScroll.backgroundColor = Theme.sidebarBg
-
-        // Files table (shown when a commit is selected)
-        let filesCol = NSTableColumn(identifier: .init("file"))
-        filesCol.resizingMask = .autoresizingMask
-        filesTable.addTableColumn(filesCol)
-        filesTable.headerView = nil
-        filesTable.backgroundColor = Theme.sidebarBg
-        filesTable.rowHeight = 22
-        filesTable.intercellSpacing = .zero
-        filesTable.selectionHighlightStyle = .regular
-        filesTable.dataSource = self
-        filesTable.delegate = self
-        filesTable.target = self
-        filesTable.doubleAction = #selector(fileDoubleClicked)
-
-        filesScroll.documentView = filesTable
-        filesScroll.hasVerticalScroller = true
-        filesScroll.drawsBackground = true
-        filesScroll.backgroundColor = Theme.sidebarBg
-
-        // Split: commits on top, files below
-        split.isVertical = false
-        split.dividerStyle = .thin
-        split.delegate = self
-        split.addArrangedSubview(commitScroll)
-        split.addArrangedSubview(filesScroll)
-        split.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
-        split.setHoldingPriority(.defaultLow, forSubviewAt: 1)
-        split.translatesAutoresizingMaskIntoConstraints = false
+        commitScroll.translatesAutoresizingMaskIntoConstraints = false
 
         let root = NSView()
         root.wantsLayer = true
         root.layer?.backgroundColor = Theme.sidebarBg.cgColor
         root.addSubview(header)
-        root.addSubview(split)
+        root.addSubview(commitScroll)
+
         NSLayoutConstraint.activate([
             header.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
             header.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10),
-            split.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 6),
-            split.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            split.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            split.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            commitScroll.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 6),
+            commitScroll.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            commitScroll.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            commitScroll.bottomAnchor.constraint(equalTo: root.bottomAnchor),
         ])
         self.view = root
     }
@@ -107,43 +83,51 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         commitScroll.contentView.postsBoundsChangedNotifications = true
     }
 
-    override func viewDidLayout() {
-        super.viewDidLayout()
-        if !didSizeSplit, split.bounds.height > 100 {
-            didSizeSplit = true
-            let targetY = split.bounds.height * 0.65
-            split.setPosition(targetY, ofDividerAt: 0)
-        }
-    }
-
     /// Called by the sidebar when the Changes tab becomes visible. Loads history if not yet loaded.
     func loadIfNeeded() {
-        if entries.isEmpty { loadMore() }
+        if commits.isEmpty { loadMore() }
     }
 
     // MARK: - Loading
 
     private func loadMore() {
         guard !allLoaded else { return }
-        let repo = self.repo, offset = entries.count, batch = batchSize
+        let repo = self.repo, offset = commits.count, batch = batchSize
         DispatchQueue.global().async { [weak self] in
             let log = Git.log(repo, limit: offset + batch)
             DispatchQueue.main.async {
                 guard let self else { return }
-                if log.count <= self.entries.count { self.allLoaded = true; return }
-                self.entries = log
-                self.commitTable.reloadData()
+                if log.count <= self.commits.count { self.allLoaded = true; return }
+                self.commits = log
+                self.rebuildRows()
                 if log.count < offset + batch { self.allLoaded = true }
             }
         }
     }
 
     func refresh() {
-        entries = []
+        commits = []
         allLoaded = false
-        selectedFiles = []
-        filesTable.reloadData()
+        expandedCommits.removeAll()
+        fileCache.removeAll()
+        rebuildRows()
         loadMore()
+    }
+
+    private func rebuildRows() {
+        var newRows: [RowItem] = []
+        for commit in commits {
+            let expanded = expandedCommits.contains(commit.fullHash)
+            newRows.append(.commit(commit, isExpanded: expanded))
+            if expanded {
+                let files = fileCache[commit.fullHash] ?? []
+                for file in files {
+                    newRows.append(.file(path: file, commitHash: commit.fullHash))
+                }
+            }
+        }
+        self.rows = newRows
+        self.commitTable.reloadData()
     }
 
     @objc private func scrolled() {
@@ -153,40 +137,62 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         if visibleBottom > docH - 100 { loadMore() }
     }
 
-    @objc private func commitClicked() {
-        let row = commitTable.clickedRow
-        guard row >= 0, row < entries.count else { return }
-        let entry = entries[row]
-        let repo = self.repo
-        DispatchQueue.global().async { [weak self] in
-            let files = Git.commitFiles(repo, hash: entry.fullHash)
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.selectedFiles = files
-                self.filesTable.reloadData()
-            }
-        }
-    }
+    @objc private func rowClicked() {
+        let clickedRow = commitTable.clickedRow
+        guard clickedRow >= 0, clickedRow < rows.count else { return }
 
-    @objc private func fileDoubleClicked() {
-        let row = filesTable.clickedRow
-        guard row >= 0, row < selectedFiles.count else { return }
-        onOpenDiff(selectedFiles[row])
+        switch rows[clickedRow] {
+        case .commit(let entry, let isExpanded):
+            let hash = entry.fullHash
+            if isExpanded {
+                expandedCommits.remove(hash)
+                rebuildRows()
+            } else {
+                expandedCommits.insert(hash)
+                if fileCache[hash] == nil {
+                    let repo = self.repo
+                    DispatchQueue.global().async { [weak self] in
+                        let files = Git.commitFiles(repo, hash: hash)
+                        DispatchQueue.main.async {
+                            guard let self else { return }
+                            self.fileCache[hash] = files
+                            self.rebuildRows()
+                        }
+                    }
+                } else {
+                    rebuildRows()
+                }
+            }
+        case .file(let path, _):
+            onOpenDiff(path)
+        }
     }
 
     // MARK: - DataSource
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        tableView === commitTable ? entries.count : selectedFiles.count
+        rows.count
     }
 
     // MARK: - Delegate
 
+    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+        guard row < rows.count else { return 24 }
+        switch rows[row] {
+        case .commit:
+            return 38
+        case .file:
+            return 22
+        }
+    }
+
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        if tableView === commitTable {
-            return makeCommitCell(row)
-        } else {
-            return makeFileCell(row)
+        guard row < rows.count else { return nil }
+        switch rows[row] {
+        case .commit(let entry, let isExpanded):
+            return makeCommitCell(entry, isExpanded: isExpanded)
+        case .file(let path, _):
+            return makeFileCell(path)
         }
     }
 
@@ -194,10 +200,25 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         return HistoryRowView()
     }
 
-    private func makeCommitCell(_ row: Int) -> NSView {
-        guard row < entries.count else { return NSView() }
-        let entry = entries[row]
+    private func makeCommitCell(_ entry: Git.LogEntry, isExpanded: Bool) -> NSView {
+        // Chevron icon
+        let chevron = NSImageView()
+        let chevronSymbol = isExpanded ? "chevron.down" : "chevron.right"
+        let chevImg = NSImage(systemSymbolName: chevronSymbol, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 8, weight: .semibold))
+        chevron.image = chevImg
+        chevron.contentTintColor = Theme.textDim
+        chevron.setContentHuggingPriority(.required, for: .horizontal)
 
+        // Git commit icon
+        let gitIcon = NSImageView()
+        let gitImg = NSImage(systemSymbolName: "git.commit", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
+        gitIcon.image = gitImg
+        gitIcon.contentTintColor = NSColor(srgbRed: 0.45, green: 0.62, blue: 0.96, alpha: 1)
+        gitIcon.setContentHuggingPriority(.required, for: .horizontal)
+
+        // Text labels (vertical stack)
         let msg = NSTextField(labelWithString: entry.message)
         msg.font = .systemFont(ofSize: 12)
         msg.textColor = Theme.textPrimary
@@ -208,32 +229,44 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
         detail.textColor = Theme.textDim
         detail.lineBreakMode = .byTruncatingTail
 
-        let stack = NSStackView(views: [msg, detail])
-        stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 2
-        stack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
-        return stack
+        let textStack = NSStackView(views: [msg, detail])
+        textStack.orientation = .vertical
+        textStack.alignment = .leading
+        textStack.spacing = 2
+
+        // Main horizontal stack
+        let mainStack = NSStackView(views: [chevron, gitIcon, textStack])
+        mainStack.orientation = .horizontal
+        mainStack.alignment = .centerY
+        mainStack.spacing = 6
+        mainStack.edgeInsets = NSEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+        return mainStack
     }
 
-    private func makeFileCell(_ row: Int) -> NSView {
-        guard row < selectedFiles.count else { return NSView() }
-        let file = selectedFiles[row]
+    private func makeFileCell(_ path: String) -> NSView {
+        // Spacer for indentation
+        let spacer = NSView()
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+        spacer.widthAnchor.constraint(equalToConstant: 24).isActive = true
 
+        // File icon
         let icon = NSImageView()
-        icon.image = FileIcon.icon(forFilename: (file as NSString).lastPathComponent, size: 11)
+        icon.image = FileIcon.icon(forFilename: (path as NSString).lastPathComponent, size: 11)
         icon.contentTintColor = Theme.textMuted
         icon.setContentHuggingPriority(.required, for: .horizontal)
 
-        let label = NSTextField(labelWithString: file)
+        // Label
+        let label = NSTextField(labelWithString: path)
         label.font = .systemFont(ofSize: 11)
         label.textColor = Theme.textSecondary
         label.lineBreakMode = .byTruncatingMiddle
 
-        let stack = NSStackView(views: [icon, label])
+        // Horizontal stack
+        let stack = NSStackView(views: [spacer, icon, label])
         stack.orientation = .horizontal
         stack.spacing = 5
-        stack.edgeInsets = NSEdgeInsets(top: 2, left: 12, bottom: 2, right: 8)
+        stack.alignment = .centerY
+        stack.edgeInsets = NSEdgeInsets(top: 2, left: 10, bottom: 2, right: 8)
         return stack
     }
 }
@@ -244,15 +277,5 @@ private final class HistoryRowView: NSTableRowView {
     override func drawSelection(in dirtyRect: NSRect) {
         Theme.activeRowBg.setFill()
         bounds.fill()
-    }
-}
-
-extension GitHistoryViewController: NSSplitViewDelegate {
-    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
-        return 60
-    }
-
-    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
-        return splitView.bounds.height - 40
     }
 }
