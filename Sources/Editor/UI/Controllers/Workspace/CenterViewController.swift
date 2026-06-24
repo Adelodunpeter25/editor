@@ -193,7 +193,9 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     LiveFileText.current = { [weak self] absolutePath in
       guard let self else { return nil }
       for vc in self.contentVCs.values {
-        if let host = vc as? SourceEditing, let editor = host.sourceEditor, editor.path == absolutePath {
+        if let host = vc as? SourceEditing, let editor = host.sourceEditor,
+          editor.path == absolutePath
+        {
           return editor.text
         }
       }

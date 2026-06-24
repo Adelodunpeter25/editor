@@ -278,7 +278,8 @@ enum Git {
   static func workingTreeVersions(_ repo: String, _ path: String, liveNewText: String? = nil) -> (
     old: String, new: String
   ) {
-    let old = String(data: Shell.runData(git, ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8)
+    let old =
+      String(data: Shell.runData(git, ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8)
       ?? ""
     if let liveNewText { return (old, liveNewText) }
     let url = URL(fileURLWithPath: repo).appendingPathComponent(path)
