@@ -41,7 +41,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   var textView: CodeTextView!
   var scrollView: NSScrollView!
-  var minimapView: MinimapView?
   var textStorage: NSTextStorage!
   var lineRuler: LineNumberRuler!
   var gitGutter: GitGutterRuler?
@@ -164,31 +163,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
     self.scrollView = scroll
 
-    let root = NSView()
-    root.wantsLayer = true
-    root.layer?.backgroundColor = TMTheme.background.cgColor
-    root.translatesAutoresizingMaskIntoConstraints = false
-    scroll.translatesAutoresizingMaskIntoConstraints = false
-    let minimap = MinimapView(scrollView: scroll, textView: tv)
-    minimap.translatesAutoresizingMaskIntoConstraints = false
-    root.addSubview(scroll)
-    root.addSubview(minimap)
-    NSLayoutConstraint.activate([
-      scroll.topAnchor.constraint(equalTo: root.topAnchor),
-      scroll.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-      scroll.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-      scroll.trailingAnchor.constraint(equalTo: minimap.leadingAnchor),
-      minimap.topAnchor.constraint(equalTo: root.topAnchor),
-      minimap.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      minimap.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-      minimap.widthAnchor.constraint(equalToConstant: 56),
-    ])
-    self.minimapView = minimap
-
     // The find bar floats in its own child window (UI/FindBar in a FindPanel), pinned to the editor's
     // top-right (VS Code style) — a separate window has its own cursor-rect domain, so the bar's button
     // cursors don't conflict with the text view's I-beam the way a same-window overlay subview did.
-    self.view = root
+    self.view = scroll
   }
 
   override func viewDidLoad() {
