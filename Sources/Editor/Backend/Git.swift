@@ -235,10 +235,11 @@ enum Git {
   }
 
   /// Recent commit log. Uses `git log` with a compact separator format.
-  static func log(_ repo: String, limit: Int = 100) -> [LogEntry] {
+  static func log(_ repo: String, limit: Int = 100, skip: Int = 0) -> [LogEntry] {
     guard isRepo(repo) else { return [] }
     let format = "%h%x1f%H%x1f%s%x1f%an%x1f%ar"
-    let output = Shell.run(git, ["-C", repo, "log", "--pretty=format:\(format)", "-\(limit)"])
+    let output = Shell.run(
+      git, ["-C", repo, "log", "--pretty=format:\(format)", "--skip=\(skip)", "-\(limit)"])
     guard !output.isEmpty else { return [] }
     let sep = "\u{1F}"
     let parsed: [LogEntry] = output.components(separatedBy: "\n").compactMap { line in

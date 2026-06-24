@@ -25,6 +25,8 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
 
   private var batchSize = 50
   private var allLoaded = false
+  private var isLoading = false
+  private var loadGeneration = 0
 
   init(
     store: RepoStore,
@@ -108,26 +110,34 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
   // MARK: - Loading
 
   private func loadMore() {
-    guard !allLoaded else { return }
+    guard !allLoaded, !isLoading else { return }
+    isLoading = true
     let repo = self.store.repo
     let offset = commits.count
     let batch = batchSize
+    let generation = loadGeneration
     DispatchQueue.global().async { [weak self] in
-      let log = Git.log(repo, limit: offset + batch)
+      let log = Git.log(repo, limit: batch, skip: offset)
       DispatchQueue.main.async {
         guard let self else { return }
-        if log.count <= self.commits.count {
+        guard generation == self.loadGeneration else { return }
+        self.isLoading = false
+        guard offset == self.commits.count else { return }
+        if log.isEmpty {
           self.allLoaded = true
           return
         }
-        self.commits = log
+        self.commits.append(contentsOf: log)
         self.rebuildRows()
-        if log.count < offset + batch { self.allLoaded = true }
+        if log.count < batch { self.allLoaded = true }
+        self.scrolled()
       }
     }
   }
 
   func refresh(clearCache: Bool = false) {
+    loadGeneration += 1
+    isLoading = false
     if clearCache {
       expandedCommits.removeAll()
       fileCache.removeAll()
