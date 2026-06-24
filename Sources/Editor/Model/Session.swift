@@ -1,231 +1,247 @@
-import Foundation
 import Combine
+import Foundation
 
 /// One open repo and its tabs. Reference type + `ObservableObject` so view controllers observe a
 /// specific session; `@Published` arrays drive tab/status updates.
 final class Session: ObservableObject, Identifiable {
-    let id: String
-    let url: String          // repo root path (absolute, standardized)
-    let name: String         // last path component, shown in the SESSIONS list
+  let id: String
+  let url: String  // repo root path (absolute, standardized)
+  let name: String  // last path component, shown in the SESSIONS list
 
-    @Published var tabs: [Tab]
-    @Published var activeTabID: String
-    @Published var gitBranch: String?                       // current branch, bridged from the RepoStore poll
+  @Published var tabs: [Tab]
+  @Published var activeTabID: String
+  @Published var gitBranch: String?  // current branch, bridged from the RepoStore poll
 
-    init(id: String = UUID().uuidString, url: String, tabs: [Tab] = [], activeTabID: String? = nil) {
-        self.id = id
-        self.url = url
-        self.name = (url as NSString).lastPathComponent
-        self.tabs = tabs
-        self.activeTabID = activeTabID ?? tabs.first?.id ?? ""
+  init(id: String = UUID().uuidString, url: String, tabs: [Tab] = [], activeTabID: String? = nil) {
+    self.id = id
+    self.url = url
+    self.name = (url as NSString).lastPathComponent
+    self.tabs = tabs
+    self.activeTabID = activeTabID ?? tabs.first?.id ?? ""
+  }
+
+  var activeTab: Tab? { tabs.first { $0.id == activeTabID } }
+
+  // MARK: - Tabs
+
+  @discardableResult
+  func addTab(_ tab: Tab) -> Tab {
+    tabs.append(tab)
+    activeTabID = tab.id
+    return tab
+  }
+
+  /// Open a new blank, unsaved editor tab (VS Code's "New File"). It's a `.file` tab with no path; the
+  /// editor prompts for a location on first save, after which `fileSavedAs` turns it into a real file.
+  /// The title reuses the **lowest free** `Untitled-N` among open untitled tabs (VS Code-style), so
+  /// closing them all brings the next one back to `Untitled-1` instead of a counter that only climbs.
+  func newUntitled() {
+    let prefix = "Untitled-"
+    let used = Set(
+      tabs.compactMap { tab -> Int? in
+        guard tab.kind == .file, tab.path == nil, tab.title.hasPrefix(prefix) else { return nil }
+        return Int(tab.title.dropFirst(prefix.count))
+      })
+    var n = 1
+    while used.contains(n) { n += 1 }
+    addTab(Tab(kind: .file, title: "\(prefix)\(n)", path: nil))
+  }
+
+  /// An untitled tab was saved to `path` — adopt it as a real file (path + filename title). The editor
+  /// already redirected its own saves; this keeps the model/tab chip in sync.
+  func fileSavedAs(_ id: String, path: String) {
+    guard let i = tabs.firstIndex(where: { $0.id == id }) else { return }
+    tabs[i].path = path
+    tabs[i].title = (path as NSString).lastPathComponent
+  }
+
+  func closeTab(_ id: String) {
+    guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+    TerminalStore.shared.close(id)  // kill the PTY if this tab had one
+    tabs.remove(at: idx)
+    if activeTabID == id {
+      activeTabID = tabs.indices.contains(idx) ? tabs[idx].id : (tabs.last?.id ?? "")
     }
+  }
 
-    var activeTab: Tab? { tabs.first { $0.id == activeTabID } }
+  func togglePin(_ id: String) {
+    guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+    tabs[idx].pinned.toggle()
+    // Move pinned tabs to the left, unpinned to the right of pinned group
+    let pinned = tabs.filter { $0.pinned }
+    let unpinned = tabs.filter { !$0.pinned }
+    tabs = pinned + unpinned
+  }
 
-    // MARK: - Tabs
+  func closeOthers(_ id: String) {
+    let toClose = tabs.filter { $0.id != id && !$0.pinned }
+    for tab in toClose { TerminalStore.shared.close(tab.id) }
+    tabs.removeAll { $0.id != id && !$0.pinned }
+    activeTabID = id
+  }
 
-    @discardableResult
-    func addTab(_ tab: Tab) -> Tab {
-        tabs.append(tab)
-        activeTabID = tab.id
-        return tab
+  func closeAll() {
+    let toClose = tabs.filter { !$0.pinned }
+    for tab in toClose { TerminalStore.shared.close(tab.id) }
+    tabs.removeAll { !$0.pinned }
+    activeTabID = tabs.first?.id ?? ""
+  }
+
+  /// Kill every PTY this session owns (called when the session itself closes).
+  func killTerminals() {
+    for tab in tabs { TerminalStore.shared.close(tab.id) }
+    TerminalStore.shared.closeAllQuick(sessionID: id)  // and its quick-access shells, if any were opened
+  }
+
+  func activate(_ id: String) {
+    guard tabs.contains(where: { $0.id == id }) else { return }
+    if activeTabID != id { activeTabID = id }
+  }
+
+  // MARK: - Process exit / restart
+
+  /// The tab's process ended (typed `exit` / Claude quit) — flag it so the UI shows the "Session ended" bar.
+  func markExited(_ id: String) {
+    if let i = tabs.firstIndex(where: { $0.id == id }), !tabs[i].exited { tabs[i].exited = true }
+  }
+
+  /// Relaunch the tab's process in place (Restart). Claude resumes its conversation via the launch logic.
+  /// The terminal view is rebuilt fresh (a dead SwiftTerm view can't be restarted in place).
+  func restartTab(_ id: String) {
+    guard let i = tabs.firstIndex(where: { $0.id == id }) else { return }
+    tabs[i].exited = false
+    TerminalLifecycle.rebuild?(id)
+  }
+
+  /// Convert a dead tab into a plain shell in place (same tab id + cwd), then relaunch it as a terminal.
+  func convertToTerminal(_ id: String) {
+    guard let i = tabs.firstIndex(where: { $0.id == id }) else { return }
+    tabs[i].kind = .terminal
+    tabs[i].title = "Terminal"
+    tabs[i].exited = false
+    TerminalLifecycle.rebuild?(id)
+  }
+
+  /// Mark a tab as shown (lazy-spawn gate flips on first view).
+  func markShown(_ id: String) {
+    if let i = tabs.firstIndex(where: { $0.id == id }), !tabs[i].shown { tabs[i].shown = true }
+  }
+
+  func setDirty(_ id: String, _ dirty: Bool) {
+    if let i = tabs.firstIndex(where: { $0.id == id }), tabs[i].dirty != dirty {
+      tabs[i].dirty = dirty
     }
+  }
 
-    /// Open a new blank, unsaved editor tab (VS Code's "New File"). It's a `.file` tab with no path; the
-    /// editor prompts for a location on first save, after which `fileSavedAs` turns it into a real file.
-    /// The title reuses the **lowest free** `Untitled-N` among open untitled tabs (VS Code-style), so
-    /// closing them all brings the next one back to `Untitled-1` instead of a counter that only climbs.
-    func newUntitled() {
-        let prefix = "Untitled-"
-        let used = Set(tabs.compactMap { tab -> Int? in
-            guard tab.kind == .file, tab.path == nil, tab.title.hasPrefix(prefix) else { return nil }
-            return Int(tab.title.dropFirst(prefix.count))
-        })
-        var n = 1
-        while used.contains(n) { n += 1 }
-        addTab(Tab(kind: .file, title: "\(prefix)\(n)", path: nil))
+  // MARK: - Files / diffs
+
+  func openFile(_ path: String) {
+    let abs = absolute(path)
+    if let existing = tabs.first(where: { $0.kind == .file && $0.path == abs }) {
+      activate(existing.id)
+      return
     }
-
-    /// An untitled tab was saved to `path` — adopt it as a real file (path + filename title). The editor
-    /// already redirected its own saves; this keeps the model/tab chip in sync.
-    func fileSavedAs(_ id: String, path: String) {
-        guard let i = tabs.firstIndex(where: { $0.id == id }) else { return }
-        tabs[i].path = path
-        tabs[i].title = (path as NSString).lastPathComponent
+    // If the active tab is replaceable (not dirty, not pinned, file tab opened < 10 min ago),
+    // replace it instead of adding a new tab.
+    if let idx = tabs.firstIndex(where: { $0.id == activeTabID }),
+      isTabReplaceable(tabs[idx])
+    {
+      let oldID = tabs[idx].id
+      TerminalStore.shared.close(oldID)
+      let newTab = Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs)
+      tabs[idx] = newTab
+      activeTabID = newTab.id
+    } else {
+      addTab(Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs))
     }
+  }
 
-    func closeTab(_ id: String) {
-        guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
-        TerminalStore.shared.close(id)   // kill the PTY if this tab had one
-        tabs.remove(at: idx)
-        if activeTabID == id {
-            activeTabID = tabs.indices.contains(idx) ? tabs[idx].id : (tabs.last?.id ?? "")
-        }
+  /// A tab is replaceable if it's a file tab, not dirty, not pinned, and was opened < 10 minutes ago.
+  private func isTabReplaceable(_ tab: Tab) -> Bool {
+    guard tab.kind == .file, !tab.dirty, !tab.pinned else { return false }
+    return Date().timeIntervalSince(tab.createdAt) < 600  // 10 minutes
+  }
+
+  /// Open (or focus, if already open) the project Search tab for this session.
+  func openSearch() {
+    if let existing = tabs.first(where: { $0.kind == .search }) {
+      activate(existing.id)
+      return
     }
+    addTab(Tab(kind: .search, title: "Search"))
+  }
 
-    func togglePin(_ id: String) {
-        guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
-        tabs[idx].pinned.toggle()
-        // Move pinned tabs to the left, unpinned to the right of pinned group
-        let pinned = tabs.filter { $0.pinned }
-        let unpinned = tabs.filter { !$0.pinned }
-        tabs = pinned + unpinned
+  /// `path` is repo-relative here (the diff needs it relative for `git show HEAD:<path>`).
+  func openDiff(_ path: String, commitHash: String? = nil) {
+    if let existing = tabs.first(where: {
+      $0.kind == .diff && $0.path == path && $0.commitHash == commitHash
+    }) {
+      activate(existing.id)
+      return
     }
+    let commitTitle = commitHash != nil ? " (\(String(commitHash!.prefix(7))))" : ""
+    addTab(
+      Tab(
+        kind: .diff, title: "Diff - \((path as NSString).lastPathComponent)\(commitTitle)",
+        path: path, commitHash: commitHash))
+  }
 
-    func closeOthers(_ id: String) {
-        let toClose = tabs.filter { $0.id != id && !$0.pinned }
-        for tab in toClose { TerminalStore.shared.close(tab.id) }
-        tabs.removeAll { $0.id != id && !$0.pinned }
-        activeTabID = id
+  // MARK: - File-tree sync (rename / delete reflected in open tabs)
+
+  /// A file/folder was renamed on disk — retarget any open tab whose file is it, or sits inside it
+  /// (folder rename). `.file` tabs store an absolute path; `.diff` tabs store a repo-relative one.
+  func fileRenamed(from oldRel: String, to newRel: String) {
+    let oldAbs = absolute(oldRel)
+    let newAbs = absolute(newRel)
+    for i in tabs.indices {
+      let (from, to): (String, String)
+      switch tabs[i].kind {
+      case .file: (from, to) = (oldAbs, newAbs)
+      case .diff: (from, to) = (oldRel, newRel)
+      default: continue
+      }
+      guard let p = tabs[i].path, let moved = Self.remap(p, from: from, to: to) else { continue }
+      tabs[i].path = moved
+      tabs[i].title = (moved as NSString).lastPathComponent
     }
+  }
 
-    func closeAll() {
-        let toClose = tabs.filter { !$0.pinned }
-        for tab in toClose { TerminalStore.shared.close(tab.id) }
-        tabs.removeAll { !$0.pinned }
-        activeTabID = tabs.first?.id ?? ""
+  /// A file/folder was deleted — close any open tab for it (or for files inside a deleted folder).
+  func fileDeleted(_ rel: String) {
+    let abs = absolute(rel)
+    let doomed = tabs.filter { t in
+      guard t.kind == .file || t.kind == .diff, let p = t.path else { return false }
+      let target = t.kind == .diff ? rel : abs
+      return p == target || p.hasPrefix(target + "/")
     }
+    doomed.forEach { closeTab($0.id) }
+  }
 
-    /// Kill every PTY this session owns (called when the session itself closes).
-    func killTerminals() {
-        for tab in tabs { TerminalStore.shared.close(tab.id) }
-        TerminalStore.shared.closeAllQuick(sessionID: id)   // and its quick-access shells, if any were opened
-    }
+  /// Map a path through a rename: exact match → new; inside the renamed folder → reparent; else nil.
+  private static func remap(_ path: String, from old: String, to new: String) -> String? {
+    if path == old { return new }
+    if path.hasPrefix(old + "/") { return new + String(path.dropFirst(old.count)) }
+    return nil
+  }
 
-    func activate(_ id: String) {
-        guard tabs.contains(where: { $0.id == id }) else { return }
-        if activeTabID != id { activeTabID = id }
-    }
+  // MARK: - Reorder (drag)
 
-    // MARK: - Process exit / restart
+  func moveTabToEnd(_ id: String) {
+    guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+    let t = tabs.remove(at: idx)
+    tabs.append(t)
+  }
 
-    /// The tab's process ended (typed `exit` / Claude quit) — flag it so the UI shows the "Session ended" bar.
-    func markExited(_ id: String) {
-        if let i = tabs.firstIndex(where: { $0.id == id }), !tabs[i].exited { tabs[i].exited = true }
-    }
+  func moveTab(_ id: String, before targetID: String) {
+    guard let from = tabs.firstIndex(where: { $0.id == id }),
+      let target = tabs.firstIndex(where: { $0.id == targetID }), from != target
+    else { return }
+    let t = tabs.remove(at: from)
+    let insertAt = tabs.firstIndex(where: { $0.id == targetID }) ?? target
+    tabs.insert(t, at: insertAt)
+  }
 
-    /// Relaunch the tab's process in place (Restart). Claude resumes its conversation via the launch logic.
-    /// The terminal view is rebuilt fresh (a dead SwiftTerm view can't be restarted in place).
-    func restartTab(_ id: String) {
-        guard let i = tabs.firstIndex(where: { $0.id == id }) else { return }
-        tabs[i].exited = false
-        TerminalLifecycle.rebuild?(id)
-    }
-
-    /// Convert a dead tab into a plain shell in place (same tab id + cwd), then relaunch it as a terminal.
-    func convertToTerminal(_ id: String) {
-        guard let i = tabs.firstIndex(where: { $0.id == id }) else { return }
-        tabs[i].kind = .terminal
-        tabs[i].title = "Terminal"
-        tabs[i].exited = false
-        TerminalLifecycle.rebuild?(id)
-    }
-
-    /// Mark a tab as shown (lazy-spawn gate flips on first view).
-    func markShown(_ id: String) {
-        if let i = tabs.firstIndex(where: { $0.id == id }), !tabs[i].shown { tabs[i].shown = true }
-    }
-
-    func setDirty(_ id: String, _ dirty: Bool) {
-        if let i = tabs.firstIndex(where: { $0.id == id }), tabs[i].dirty != dirty { tabs[i].dirty = dirty }
-    }
-
-    // MARK: - Files / diffs
-
-    func openFile(_ path: String) {
-        let abs = absolute(path)
-        if let existing = tabs.first(where: { $0.kind == .file && $0.path == abs }) {
-            activate(existing.id); return
-        }
-        // If the active tab is replaceable (not dirty, not pinned, file tab opened < 10 min ago),
-        // replace it instead of adding a new tab.
-        if let idx = tabs.firstIndex(where: { $0.id == activeTabID }),
-           isTabReplaceable(tabs[idx]) {
-            let oldID = tabs[idx].id
-            TerminalStore.shared.close(oldID)
-            let newTab = Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs)
-            tabs[idx] = newTab
-            activeTabID = newTab.id
-        } else {
-            addTab(Tab(kind: .file, title: (abs as NSString).lastPathComponent, path: abs))
-        }
-    }
-
-    /// A tab is replaceable if it's a file tab, not dirty, not pinned, and was opened < 10 minutes ago.
-    private func isTabReplaceable(_ tab: Tab) -> Bool {
-        guard tab.kind == .file, !tab.dirty, !tab.pinned else { return false }
-        return Date().timeIntervalSince(tab.createdAt) < 600  // 10 minutes
-    }
-
-    /// Open (or focus, if already open) the project Search tab for this session.
-    func openSearch() {
-        if let existing = tabs.first(where: { $0.kind == .search }) { activate(existing.id); return }
-        addTab(Tab(kind: .search, title: "Search"))
-    }
-
-    /// `path` is repo-relative here (the diff needs it relative for `git show HEAD:<path>`).
-    func openDiff(_ path: String, commitHash: String? = nil) {
-        if let existing = tabs.first(where: { $0.kind == .diff && $0.path == path && $0.commitHash == commitHash }) {
-            activate(existing.id); return
-        }
-        let commitTitle = commitHash != nil ? " (\(String(commitHash!.prefix(7))))" : ""
-        addTab(Tab(kind: .diff, title: "Diff - \((path as NSString).lastPathComponent)\(commitTitle)", path: path, commitHash: commitHash))
-    }
-
-    // MARK: - File-tree sync (rename / delete reflected in open tabs)
-
-    /// A file/folder was renamed on disk — retarget any open tab whose file is it, or sits inside it
-    /// (folder rename). `.file` tabs store an absolute path; `.diff` tabs store a repo-relative one.
-    func fileRenamed(from oldRel: String, to newRel: String) {
-        let oldAbs = absolute(oldRel), newAbs = absolute(newRel)
-        for i in tabs.indices {
-            let (from, to): (String, String)
-            switch tabs[i].kind {
-            case .file: (from, to) = (oldAbs, newAbs)
-            case .diff: (from, to) = (oldRel, newRel)
-            default: continue
-            }
-            guard let p = tabs[i].path, let moved = Self.remap(p, from: from, to: to) else { continue }
-            tabs[i].path = moved
-            tabs[i].title = (moved as NSString).lastPathComponent
-        }
-    }
-
-    /// A file/folder was deleted — close any open tab for it (or for files inside a deleted folder).
-    func fileDeleted(_ rel: String) {
-        let abs = absolute(rel)
-        let doomed = tabs.filter { t in
-            guard t.kind == .file || t.kind == .diff, let p = t.path else { return false }
-            let target = t.kind == .diff ? rel : abs
-            return p == target || p.hasPrefix(target + "/")
-        }
-        doomed.forEach { closeTab($0.id) }
-    }
-
-    /// Map a path through a rename: exact match → new; inside the renamed folder → reparent; else nil.
-    private static func remap(_ path: String, from old: String, to new: String) -> String? {
-        if path == old { return new }
-        if path.hasPrefix(old + "/") { return new + String(path.dropFirst(old.count)) }
-        return nil
-    }
-
-    // MARK: - Reorder (drag)
-
-    func moveTabToEnd(_ id: String) {
-        guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
-        let t = tabs.remove(at: idx)
-        tabs.append(t)
-    }
-
-    func moveTab(_ id: String, before targetID: String) {
-        guard let from = tabs.firstIndex(where: { $0.id == id }),
-              let target = tabs.firstIndex(where: { $0.id == targetID }), from != target else { return }
-        let t = tabs.remove(at: from)
-        let insertAt = tabs.firstIndex(where: { $0.id == targetID }) ?? target
-        tabs.insert(t, at: insertAt)
-    }
-
-    private func absolute(_ path: String) -> String {
-        path.hasPrefix("/") ? path : (url as NSString).appendingPathComponent(path)
-    }
+  private func absolute(_ path: String) -> String {
+    path.hasPrefix("/") ? path : (url as NSString).appendingPathComponent(path)
+  }
 }

@@ -1,301 +1,322 @@
 import AppKit
 
 extension NSPasteboard.PasteboardType {
-    static let editorTab = NSPasteboard.PasteboardType("com.editor.tab")
+  static let editorTab = NSPasteboard.PasteboardType("com.editor.tab")
 }
 
 /// The tab strip above the workspace content: tab chips on the left, and new-terminal button on the
 /// right. Rebuilt from the active session on change. Chips are drag-reorderable (intra-strip) — the
 /// drop reorders via `Session.moveTab`.
 final class TabBarView: NSView {
-    var onSelect: ((String) -> Void)?
-    var onClose: ((String) -> Void)?
-    var onPin: ((String) -> Void)?
-    var onCloseOthers: ((String) -> Void)?
-    var onCloseAll: (() -> Void)?
-    var onNewTerminal: (() -> Void)?
-    /// Reorder: move `dragged` to just before `beforeID` (nil = move to the end).
-    var onReorder: ((_ dragged: String, _ beforeID: String?) -> Void)?
+  var onSelect: ((String) -> Void)?
+  var onClose: ((String) -> Void)?
+  var onPin: ((String) -> Void)?
+  var onCloseOthers: ((String) -> Void)?
+  var onCloseAll: (() -> Void)?
+  var onNewTerminal: (() -> Void)?
+  /// Reorder: move `dragged` to just before `beforeID` (nil = move to the end).
+  var onReorder: ((_ dragged: String, _ beforeID: String?) -> Void)?
 
-    private let chips = NSStackView()
-    private let dropIndicator = NSView()   // vertical insertion line shown while dragging a chip
+  private let chips = NSStackView()
+  private let dropIndicator = NSView()  // vertical insertion line shown while dragging a chip
 
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(white: 0.09, alpha: 1).cgColor
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.backgroundColor = NSColor(white: 0.09, alpha: 1).cgColor
 
-        chips.orientation = .horizontal
-        chips.spacing = 4
-        chips.alignment = .centerY
+    chips.orientation = .horizontal
+    chips.spacing = 4
+    chips.alignment = .centerY
 
-        let newTerm = iconButton("terminal", "New terminal (⌃⇧`)", #selector(newTerminal))
-        let rightButtons = NSStackView(views: [newTerm])
-        rightButtons.orientation = .horizontal
-        rightButtons.spacing = 4
-        rightButtons.setContentHuggingPriority(.required, for: .horizontal)
+    let newTerm = iconButton("terminal", "New terminal (⌃⇧`)", #selector(newTerminal))
+    let rightButtons = NSStackView(views: [newTerm])
+    rightButtons.orientation = .horizontal
+    rightButtons.spacing = 4
+    rightButtons.setContentHuggingPriority(.required, for: .horizontal)
 
-        let outer = NSStackView(views: [chips, NSView(), rightButtons])
-        outer.orientation = .horizontal
-        outer.spacing = 6
-        outer.alignment = .centerY
-        outer.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 10)
-        outer.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(outer)
-        NSLayoutConstraint.activate([
-            outer.leadingAnchor.constraint(equalTo: leadingAnchor),
-            outer.trailingAnchor.constraint(equalTo: trailingAnchor),
-            outer.topAnchor.constraint(equalTo: topAnchor),
-            outer.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
+    let outer = NSStackView(views: [chips, NSView(), rightButtons])
+    outer.orientation = .horizontal
+    outer.spacing = 6
+    outer.alignment = .centerY
+    outer.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 10)
+    outer.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(outer)
+    NSLayoutConstraint.activate([
+      outer.leadingAnchor.constraint(equalTo: leadingAnchor),
+      outer.trailingAnchor.constraint(equalTo: trailingAnchor),
+      outer.topAnchor.constraint(equalTo: topAnchor),
+      outer.bottomAnchor.constraint(equalTo: bottomAnchor),
+    ])
 
-        // bottom divider
-        let div = NSView(); div.wantsLayer = true; div.layer?.backgroundColor = NSColor(white: 0.2, alpha: 1).cgColor
-        div.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(div)
-        NSLayoutConstraint.activate([
-            div.leadingAnchor.constraint(equalTo: leadingAnchor),
-            div.trailingAnchor.constraint(equalTo: trailingAnchor),
-            div.bottomAnchor.constraint(equalTo: bottomAnchor),
-            div.heightAnchor.constraint(equalToConstant: 1),
-        ])
+    // bottom divider
+    let div = NSView()
+    div.wantsLayer = true
+    div.layer?.backgroundColor = NSColor(white: 0.2, alpha: 1).cgColor
+    div.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(div)
+    NSLayoutConstraint.activate([
+      div.leadingAnchor.constraint(equalTo: leadingAnchor),
+      div.trailingAnchor.constraint(equalTo: trailingAnchor),
+      div.bottomAnchor.constraint(equalTo: bottomAnchor),
+      div.heightAnchor.constraint(equalToConstant: 1),
+    ])
 
-        dropIndicator.wantsLayer = true
-        dropIndicator.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
-        dropIndicator.layer?.cornerRadius = 1
-        dropIndicator.isHidden = true
-        addSubview(dropIndicator)   // floats above the chips while dragging
-        registerForDraggedTypes([.editorTab])
+    dropIndicator.wantsLayer = true
+    dropIndicator.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+    dropIndicator.layer?.cornerRadius = 1
+    dropIndicator.isHidden = true
+    addSubview(dropIndicator)  // floats above the chips while dragging
+    registerForDraggedTypes([.editorTab])
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError() }
+
+  private func iconButton(_ symbol: String, _ tip: String, _ action: Selector, size: CGFloat = 12)
+    -> PointerButton
+  {
+    let b = PointerButton()
+    b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+      .withSymbolConfiguration(.init(pointSize: size, weight: .regular))
+    b.isBordered = false
+    b.bezelStyle = .inline
+    b.contentTintColor = NSColor(white: 0.7, alpha: 1)
+    b.toolTip = tip
+    b.target = self
+    b.action = action
+    b.setContentHuggingPriority(.required, for: .horizontal)
+    return b
+  }
+
+  func render(session: Session?, activeTabID: String) {
+    chips.arrangedSubviews.forEach { $0.removeFromSuperview() }
+    guard let session else { return }
+    for tab in session.tabs {
+      let chip = TabChipView(
+        tabID: tab.id,
+        title: tab.title,
+        kind: tab.kind,
+        dirty: tab.dirty,
+        pinned: tab.pinned,
+        isActive: tab.id == activeTabID,
+        copyPaths: Self.copyPaths(for: tab, repo: session.url),
+        onSelect: { [weak self] in self?.onSelect?(tab.id) },
+        onClose: { [weak self] in self?.onClose?(tab.id) },
+        onPin: { [weak self] in self?.onPin?(tab.id) },
+        onCloseOthers: { [weak self] in self?.onCloseOthers?(tab.id) },
+        onCloseAll: { [weak self] in self?.onCloseAll?() }
+      )
+      chips.addArrangedSubview(chip)
     }
+  }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError() }
+  /// Absolute + repo-relative path for a file tab (nil for non-file tabs). `Tab.path` is absolute;
+  /// relative strips the repo prefix (a file outside the repo keeps its absolute path as "relative").
+  static func copyPaths(for tab: Tab, repo: String) -> (absolute: String, relative: String)? {
+    guard tab.kind == .file, let abs = tab.path else { return nil }
+    let prefix = repo.hasSuffix("/") ? repo : repo + "/"
+    let rel = abs.hasPrefix(prefix) ? String(abs.dropFirst(prefix.count)) : abs
+    return (abs, rel)
+  }
 
-    private func iconButton(_ symbol: String, _ tip: String, _ action: Selector, size: CGFloat = 12) -> PointerButton {
-        let b = PointerButton()
-        b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: size, weight: .regular))
-        b.isBordered = false
-        b.bezelStyle = .inline
-        b.contentTintColor = NSColor(white: 0.7, alpha: 1)
-        b.toolTip = tip
-        b.target = self
-        b.action = action
-        b.setContentHuggingPriority(.required, for: .horizontal)
-        return b
+  @objc private func newTerminal() { onNewTerminal?() }
+
+  // MARK: - Drag reorder (drop target)
+
+  override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+    showDrop(sender)
+    return .move
+  }
+  override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+    showDrop(sender)
+    return .move
+  }
+  override func draggingExited(_ sender: NSDraggingInfo?) { dropIndicator.isHidden = true }
+  override func draggingEnded(_ sender: NSDraggingInfo) { dropIndicator.isHidden = true }
+
+  override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+    dropIndicator.isHidden = true
+    guard let dragged = sender.draggingPasteboard.string(forType: .editorTab) else { return false }
+    let (beforeID, _) = insertionPoint(at: sender.draggingLocation)
+    if beforeID != dragged { onReorder?(dragged, beforeID) }
+    return true
+  }
+
+  private func showDrop(_ sender: NSDraggingInfo) {
+    let (_, x) = insertionPoint(at: sender.draggingLocation)
+    dropIndicator.frame = NSRect(x: x - 1, y: 5, width: 2, height: max(0, bounds.height - 11))
+    dropIndicator.isHidden = false
+  }
+
+  /// For a drop at `windowPoint`, return the chip id to insert before (nil = append) and the x where
+  /// the insertion line should draw.
+  private func insertionPoint(at windowPoint: NSPoint) -> (String?, CGFloat) {
+    let p = convert(windowPoint, from: nil)
+    let chipViews = chips.arrangedSubviews.compactMap { $0 as? TabChipView }
+    for chip in chipViews {
+      let f = chip.convert(chip.bounds, to: self)
+      if p.x < f.midX { return (chip.tabID, f.minX - 2) }
     }
-
-    func render(session: Session?, activeTabID: String) {
-        chips.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        guard let session else { return }
-        for tab in session.tabs {
-            let chip = TabChipView(
-                tabID: tab.id,
-                title: tab.title,
-                kind: tab.kind,
-                dirty: tab.dirty,
-                pinned: tab.pinned,
-                isActive: tab.id == activeTabID,
-                copyPaths: Self.copyPaths(for: tab, repo: session.url),
-                onSelect: { [weak self] in self?.onSelect?(tab.id) },
-                onClose: { [weak self] in self?.onClose?(tab.id) },
-                onPin: { [weak self] in self?.onPin?(tab.id) },
-                onCloseOthers: { [weak self] in self?.onCloseOthers?(tab.id) },
-                onCloseAll: { [weak self] in self?.onCloseAll?() }
-            )
-            chips.addArrangedSubview(chip)
-        }
-    }
-
-    /// Absolute + repo-relative path for a file tab (nil for non-file tabs). `Tab.path` is absolute;
-    /// relative strips the repo prefix (a file outside the repo keeps its absolute path as "relative").
-    static func copyPaths(for tab: Tab, repo: String) -> (absolute: String, relative: String)? {
-        guard tab.kind == .file, let abs = tab.path else { return nil }
-        let prefix = repo.hasSuffix("/") ? repo : repo + "/"
-        let rel = abs.hasPrefix(prefix) ? String(abs.dropFirst(prefix.count)) : abs
-        return (abs, rel)
-    }
-
-    @objc private func newTerminal() { onNewTerminal?() }
-
-    // MARK: - Drag reorder (drop target)
-
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { showDrop(sender); return .move }
-    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { showDrop(sender); return .move }
-    override func draggingExited(_ sender: NSDraggingInfo?) { dropIndicator.isHidden = true }
-    override func draggingEnded(_ sender: NSDraggingInfo) { dropIndicator.isHidden = true }
-
-    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        dropIndicator.isHidden = true
-        guard let dragged = sender.draggingPasteboard.string(forType: .editorTab) else { return false }
-        let (beforeID, _) = insertionPoint(at: sender.draggingLocation)
-        if beforeID != dragged { onReorder?(dragged, beforeID) }
-        return true
-    }
-
-    private func showDrop(_ sender: NSDraggingInfo) {
-        let (_, x) = insertionPoint(at: sender.draggingLocation)
-        dropIndicator.frame = NSRect(x: x - 1, y: 5, width: 2, height: max(0, bounds.height - 11))
-        dropIndicator.isHidden = false
-    }
-
-    /// For a drop at `windowPoint`, return the chip id to insert before (nil = append) and the x where
-    /// the insertion line should draw.
-    private func insertionPoint(at windowPoint: NSPoint) -> (String?, CGFloat) {
-        let p = convert(windowPoint, from: nil)
-        let chipViews = chips.arrangedSubviews.compactMap { $0 as? TabChipView }
-        for chip in chipViews {
-            let f = chip.convert(chip.bounds, to: self)
-            if p.x < f.midX { return (chip.tabID, f.minX - 2) }
-        }
-        let endX = chipViews.last.map { $0.convert($0.bounds, to: self).maxX + 2 } ?? 8
-        return (nil, endX)
-    }
+    let endX = chipViews.last.map { $0.convert($0.bounds, to: self).maxX + 2 } ?? 8
+    return (nil, endX)
+  }
 }
 
 /// One tab chip: kind indicator, title, optional dirty dot, close button. The whole chip (except the
 /// close button) is click-to-select and drag-to-reorder. Active chip is highlighted.
 final class TabChipView: PointerView, NSDraggingSource {
-    let tabID: String
-    let pinned: Bool
-    let onSelect: () -> Void
-    let onClose: () -> Void
-    let onPin: () -> Void
-    let onCloseOthers: () -> Void
-    let onCloseAll: () -> Void
-    let copyPaths: (absolute: String, relative: String)?
-    private let closeButton = PointerButton()
-    private var mouseDownAt: NSPoint = .zero
-    private var didDrag = false
+  let tabID: String
+  let pinned: Bool
+  let onSelect: () -> Void
+  let onClose: () -> Void
+  let onPin: () -> Void
+  let onCloseOthers: () -> Void
+  let onCloseAll: () -> Void
+  let copyPaths: (absolute: String, relative: String)?
+  private let closeButton = PointerButton()
+  private var mouseDownAt: NSPoint = .zero
+  private var didDrag = false
 
-    init(tabID: String, title: String, kind: TabKind, dirty: Bool, pinned: Bool, isActive: Bool,
-         copyPaths: (absolute: String, relative: String)? = nil,
-         onSelect: @escaping () -> Void, onClose: @escaping () -> Void,
-         onPin: @escaping () -> Void, onCloseOthers: @escaping () -> Void, onCloseAll: @escaping () -> Void) {
-        self.tabID = tabID
-        self.pinned = pinned
-        self.onSelect = onSelect
-        self.onClose = onClose
-        self.onPin = onPin
-        self.onCloseOthers = onCloseOthers
-        self.onCloseAll = onCloseAll
-        self.copyPaths = copyPaths
-        super.init(frame: .zero)
+  init(
+    tabID: String, title: String, kind: TabKind, dirty: Bool, pinned: Bool, isActive: Bool,
+    copyPaths: (absolute: String, relative: String)? = nil,
+    onSelect: @escaping () -> Void, onClose: @escaping () -> Void,
+    onPin: @escaping () -> Void, onCloseOthers: @escaping () -> Void,
+    onCloseAll: @escaping () -> Void
+  ) {
+    self.tabID = tabID
+    self.pinned = pinned
+    self.onSelect = onSelect
+    self.onClose = onClose
+    self.onPin = onPin
+    self.onCloseOthers = onCloseOthers
+    self.onCloseAll = onCloseAll
+    self.copyPaths = copyPaths
+    super.init(frame: .zero)
 
-        wantsLayer = true
-        layer?.cornerRadius = 5
-        layer?.backgroundColor = (isActive ? NSColor(white: 1, alpha: 0.10) : NSColor(white: 1, alpha: 0.03)).cgColor
-        toolTip = title
+    wantsLayer = true
+    layer?.cornerRadius = 5
+    layer?.backgroundColor =
+      (isActive ? NSColor(white: 1, alpha: 0.10) : NSColor(white: 1, alpha: 0.03)).cgColor
+    toolTip = title
 
-        let indicator: NSView
-        let img: NSImage? = (kind == .file)
-            ? FileIcon.icon(forFilename: title, size: 11)
-            : NSImage(systemSymbolName: Self.iconSymbol(for: kind), accessibilityDescription: nil)?
-                .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
-        if let img {
-            let iv = NSImageView(image: img)
-            iv.contentTintColor = .secondaryLabelColor
-            iv.setContentHuggingPriority(.required, for: .horizontal)
-            indicator = iv
-        } else {
-            let glyph = NSTextField(labelWithString: Self.glyph(for: kind))
-            glyph.font = .systemFont(ofSize: 11)
-            glyph.textColor = .secondaryLabelColor
-            indicator = glyph
-        }
-
-        // Title is a plain label (not a button) so the whole chip can be dragged; clicks are handled
-        // by the chip's own mouse events (see hitTest / mouseUp).
-        let titleLabel = NSTextField(labelWithString: (dirty ? "● " : "") + title)
-        titleLabel.font = .systemFont(ofSize: 12, weight: isActive ? .medium : .regular)
-        titleLabel.textColor = isActive ? .labelColor : .secondaryLabelColor
-        titleLabel.lineBreakMode = .byTruncatingTail
-
-        closeButton.title = "✕"
-        closeButton.isBordered = false
-        closeButton.bezelStyle = .inline
-        closeButton.font = .systemFont(ofSize: 10)
-        closeButton.contentTintColor = .tertiaryLabelColor
-        closeButton.toolTip = "Close tab"
-        closeButton.target = self
-        closeButton.action = #selector(closeTapped)
-        closeButton.setContentHuggingPriority(.required, for: .horizontal)
-
-        let stack = NSStackView(views: [indicator, titleLabel, closeButton])
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 6
-        stack.edgeInsets = NSEdgeInsets(top: 4, left: 9, bottom: 4, right: 7)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            titleLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 160),
-        ])
+    let indicator: NSView
+    let img: NSImage? =
+      (kind == .file)
+      ? FileIcon.icon(forFilename: title, size: 11)
+      : NSImage(systemSymbolName: Self.iconSymbol(for: kind), accessibilityDescription: nil)?
+        .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
+    if let img {
+      let iv = NSImageView(image: img)
+      iv.contentTintColor = .secondaryLabelColor
+      iv.setContentHuggingPriority(.required, for: .horizontal)
+      indicator = iv
+    } else {
+      let glyph = NSTextField(labelWithString: Self.glyph(for: kind))
+      glyph.font = .systemFont(ofSize: 11)
+      glyph.textColor = .secondaryLabelColor
+      indicator = glyph
     }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError() }
+    // Title is a plain label (not a button) so the whole chip can be dragged; clicks are handled
+    // by the chip's own mouse events (see hitTest / mouseUp).
+    let titleLabel = NSTextField(labelWithString: (dirty ? "● " : "") + title)
+    titleLabel.font = .systemFont(ofSize: 12, weight: isActive ? .medium : .regular)
+    titleLabel.textColor = isActive ? .labelColor : .secondaryLabelColor
+    titleLabel.lineBreakMode = .byTruncatingTail
 
-    private static func iconSymbol(for kind: TabKind) -> String {
-        switch kind {
-        case .terminal: return "terminal"
-        case .file:     return "doc"
-        case .diff:     return "plus.forwardslash.minus"
-        case .search:   return "magnifyingglass"
-        }
-    }
+    closeButton.title = "✕"
+    closeButton.isBordered = false
+    closeButton.bezelStyle = .inline
+    closeButton.font = .systemFont(ofSize: 10)
+    closeButton.contentTintColor = .tertiaryLabelColor
+    closeButton.toolTip = "Close tab"
+    closeButton.target = self
+    closeButton.action = #selector(closeTapped)
+    closeButton.setContentHuggingPriority(.required, for: .horizontal)
 
-    private static func glyph(for kind: TabKind) -> String {
-        switch kind {
-        case .terminal: return "❯"
-        case .file:     return "✎"
-        case .diff:     return "±"
-        case .search:   return "⌕"
-        }
-    }
+    let stack = NSStackView(views: [indicator, titleLabel, closeButton])
+    stack.orientation = .horizontal
+    stack.alignment = .centerY
+    stack.spacing = 6
+    stack.edgeInsets = NSEdgeInsets(top: 4, left: 9, bottom: 4, right: 7)
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(stack)
+    NSLayoutConstraint.activate([
+      stack.topAnchor.constraint(equalTo: topAnchor),
+      stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+      stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+      stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+      titleLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 160),
+    ])
+  }
 
-    /// Route all clicks/drags to the chip itself, except the close button.
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        guard let hit = super.hitTest(point) else { return nil }
-        return hit === closeButton ? closeButton : self
-    }
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError() }
 
-    // Click = select; drag past a small threshold = begin a reorder drag.
-    override func mouseDown(with event: NSEvent) {
-        mouseDownAt = event.locationInWindow
-        didDrag = false
+  private static func iconSymbol(for kind: TabKind) -> String {
+    switch kind {
+    case .terminal: return "terminal"
+    case .file: return "doc"
+    case .diff: return "plus.forwardslash.minus"
+    case .search: return "magnifyingglass"
     }
-    override func mouseDragged(with event: NSEvent) {
-        guard !didDrag else { return }
-        let dx = event.locationInWindow.x - mouseDownAt.x, dy = event.locationInWindow.y - mouseDownAt.y
-        if (dx * dx + dy * dy) > 16 { didDrag = true; beginReorderDrag(event) }   // ~4pt
-    }
-    override func mouseUp(with event: NSEvent) {
-        if !didDrag { onSelect() }
-    }
+  }
 
-    private func beginReorderDrag(_ event: NSEvent) {
-        let item = NSPasteboardItem()
-        item.setString(tabID, forType: .editorTab)
-        let dragItem = NSDraggingItem(pasteboardWriter: item)
-        dragItem.setDraggingFrame(bounds, contents: snapshot())
-        beginDraggingSession(with: [dragItem], event: event, source: self)
+  private static func glyph(for kind: TabKind) -> String {
+    switch kind {
+    case .terminal: return "❯"
+    case .file: return "✎"
+    case .diff: return "±"
+    case .search: return "⌕"
     }
+  }
 
-    private func snapshot() -> NSImage {
-        let image = NSImage(size: bounds.size)
-        if let rep = bitmapImageRepForCachingDisplay(in: bounds) {
-            cacheDisplay(in: bounds, to: rep)
-            image.addRepresentation(rep)
-        }
-        return image
+  /// Route all clicks/drags to the chip itself, except the close button.
+  override func hitTest(_ point: NSPoint) -> NSView? {
+    guard let hit = super.hitTest(point) else { return nil }
+    return hit === closeButton ? closeButton : self
+  }
+
+  // Click = select; drag past a small threshold = begin a reorder drag.
+  override func mouseDown(with event: NSEvent) {
+    mouseDownAt = event.locationInWindow
+    didDrag = false
+  }
+  override func mouseDragged(with event: NSEvent) {
+    guard !didDrag else { return }
+    let dx = event.locationInWindow.x - mouseDownAt.x
+    let dy = event.locationInWindow.y - mouseDownAt.y
+    if (dx * dx + dy * dy) > 16 {
+      didDrag = true
+      beginReorderDrag(event)
+    }  // ~4pt
+  }
+  override func mouseUp(with event: NSEvent) {
+    if !didDrag { onSelect() }
+  }
+
+  private func beginReorderDrag(_ event: NSEvent) {
+    let item = NSPasteboardItem()
+    item.setString(tabID, forType: .editorTab)
+    let dragItem = NSDraggingItem(pasteboardWriter: item)
+    dragItem.setDraggingFrame(bounds, contents: snapshot())
+    beginDraggingSession(with: [dragItem], event: event, source: self)
+  }
+
+  private func snapshot() -> NSImage {
+    let image = NSImage(size: bounds.size)
+    if let rep = bitmapImageRepForCachingDisplay(in: bounds) {
+      cacheDisplay(in: bounds, to: rep)
+      image.addRepresentation(rep)
     }
+    return image
+  }
 
-    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .move }
+  func draggingSession(
+    _ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext
+  ) -> NSDragOperation { .move }
 
-    @objc func closeTapped() { onClose() }
+  @objc func closeTapped() { onClose() }
 }
