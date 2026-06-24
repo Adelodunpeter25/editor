@@ -8,6 +8,7 @@ final class RepoWatcher {
     private let onChange: () -> Void
     private var stream: FSEventStreamRef?
     private var debounce: DispatchWorkItem?
+    private let queue = DispatchQueue(label: "com.editor.watcher", qos: .utility)
 
     init(path: String, onChange: @escaping () -> Void) {
         self.path = path
@@ -19,36 +20,62 @@ final class RepoWatcher {
         var ctx = FSEventStreamContext(version: 0,
                                        info: Unmanaged.passUnretained(self).toOpaque(),
                                        retain: nil, release: nil, copyDescription: nil)
-        let callback: FSEventStreamCallback = { _, info, _, _, _, _ in
+        let callback: FSEventStreamCallback = { _, info, _, eventPaths, _, _ in
             guard let info else { return }
-            Unmanaged<RepoWatcher>.fromOpaque(info).takeUnretainedValue().fired()
+            let watcher = Unmanaged<RepoWatcher>.fromOpaque(info).takeUnretainedValue()
+            let paths = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue() as? [String] ?? []
+            watcher.fired(paths: paths)
         }
         // 0.4s latency lets FSEvents coalesce bursts (saves, builds) into one callback. FileEvents
         // flag = per-file granularity; covers .git/ changes (staging/commits) too.
-        let flags = FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer)
+        let flags = FSEventStreamCreateFlags(
+            kFSEventStreamCreateFlagFileEvents |
+            kFSEventStreamCreateFlagNoDefer |
+            kFSEventStreamCreateFlagUseCFTypes
+        )
         guard let s = FSEventStreamCreate(kCFAllocatorDefault, callback, &ctx,
                                           [path] as CFArray,
                                           FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
                                           0.4, flags) else { return }
-        FSEventStreamSetDispatchQueue(s, DispatchQueue.global(qos: .utility))
+        FSEventStreamSetDispatchQueue(s, queue)
         FSEventStreamStart(s)
         stream = s
     }
 
     func stop() {
-        debounce?.cancel(); debounce = nil
+        queue.async { [weak self] in
+            self?.debounce?.cancel()
+            self?.debounce = nil
+        }
         guard let s = stream else { return }
         FSEventStreamStop(s); FSEventStreamInvalidate(s); FSEventStreamRelease(s)
         stream = nil
     }
 
-    private func fired() {
-        DispatchQueue.main.async { [weak self] in
+    private func fired(paths: [String]) {
+        // If all changed paths are inside ignored directories, skip polling.
+        if !paths.isEmpty {
+            let allIgnored = paths.allSatisfy { path in
+                let lower = path.lowercased()
+                return lower.contains("/.build/") || lower.hasSuffix("/.build")
+                    || lower.contains("/.swiftpm/")
+                    || lower.hasSuffix(".ds_store")
+                    || lower.contains("/.git/logs/")
+                    || lower.contains("/.git/commit_editmsg")
+            }
+            if allIgnored { return }
+        }
+
+        queue.async { [weak self] in
             guard let self else { return }
             self.debounce?.cancel()
-            let work = DispatchWorkItem { [weak self] in self?.onChange() }
+            let work = DispatchWorkItem { [weak self] in
+                DispatchQueue.main.async {
+                    self?.onChange()
+                }
+            }
             self.debounce = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: work)
+            self.queue.asyncAfter(deadline: .now() + 0.2, execute: work)
         }
     }
 
