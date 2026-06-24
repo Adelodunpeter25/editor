@@ -2,7 +2,8 @@ import AppKit
 import Combine
 
 /// Git commit history shown below the Changes list in the sidebar. Renders commit list inline.
-/// Clicking a commit expands it to show the changed files directly underneath it.
+/// Clicking a commit expands it to show the changed files directly underneath it, and a button opens
+/// the commit summary in a tab.
 final class GitHistoryViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
   private let store: RepoStore
   private let onOpenDiff: (String, String?) -> Void
@@ -58,7 +59,6 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     commitTable.delegate = self
     commitTable.target = self
     commitTable.action = #selector(rowClicked)
-    commitTable.doubleAction = #selector(rowDoubleClicked)
 
     commitScroll.documentView = commitTable
     commitScroll.hasVerticalScroller = true
@@ -162,9 +162,6 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
   }
 
   @objc private func rowClicked() {
-    if let event = NSApp.currentEvent, event.clickCount == 2 {
-      return
-    }
     let clickedRow = commitTable.clickedRow
     guard clickedRow >= 0, clickedRow < rows.count else { return }
 
@@ -190,18 +187,6 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
           rebuildRows()
         }
       }
-    case .file(let path, let commitHash):
-      onOpenDiff(path, commitHash)
-    }
-  }
-
-  @objc private func rowDoubleClicked() {
-    let clickedRow = commitTable.clickedRow
-    guard clickedRow >= 0, clickedRow < rows.count else { return }
-
-    switch rows[clickedRow] {
-    case .commit(let entry, _):
-      onOpenCommitSummary(entry.fullHash)
     case .file(let path, let commitHash):
       onOpenDiff(path, commitHash)
     }
@@ -241,7 +226,6 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
   }
 
   private func makeCommitCell(_ entry: Git.LogEntry, isExpanded: Bool) -> NSView {
-    // Chevron icon
     let chevron = NSImageView()
     chevron.translatesAutoresizingMaskIntoConstraints = false
     chevron.imageScaling = .scaleProportionallyDown
@@ -254,7 +238,6 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     chevron.widthAnchor.constraint(equalToConstant: 10).isActive = true
     chevron.heightAnchor.constraint(equalToConstant: 10).isActive = true
 
-    // Git commit icon
     let gitIcon = NSImageView()
     gitIcon.translatesAutoresizingMaskIntoConstraints = false
     gitIcon.imageScaling = .scaleProportionallyDown
@@ -266,7 +249,6 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     gitIcon.widthAnchor.constraint(equalToConstant: 14).isActive = true
     gitIcon.heightAnchor.constraint(equalToConstant: 14).isActive = true
 
-    // Text labels (vertical stack)
     let msg = NSTextField(labelWithString: entry.message)
     msg.font = .systemFont(ofSize: 12)
     msg.textColor = Theme.textPrimary
@@ -282,8 +264,16 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     textStack.alignment = .leading
     textStack.spacing = 2
 
-    // Main horizontal stack
-    let mainStack = NSStackView(views: [chevron, gitIcon, textStack])
+    let infoButton = ClosureButton(symbol: "info.circle", pointSize: 11) { [weak self] in
+      self?.onOpenCommitSummary(entry.fullHash)
+    }
+    infoButton.toolTip = "Open commit summary"
+    infoButton.focusRingType = .none
+
+    let spacer = NSView()
+    spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+    let mainStack = NSStackView(views: [chevron, gitIcon, textStack, spacer, infoButton])
     mainStack.orientation = .horizontal
     mainStack.alignment = .centerY
     mainStack.spacing = 4
