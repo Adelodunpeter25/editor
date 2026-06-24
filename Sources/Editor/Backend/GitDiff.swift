@@ -15,8 +15,8 @@ struct GitGutterChangeSet {
 
 enum GitDiff {
   static func rows(old: String, new: String) -> [DiffRow] {
-    let oldLines = old.isEmpty ? [] : old.components(separatedBy: "\n")
-    let newLines = new.isEmpty ? [] : new.components(separatedBy: "\n")
+    let oldLines = logicalLines(old)
+    let newLines = logicalLines(new)
 
     var lineToId = [String: Int]()
     var nextId = 0
@@ -79,7 +79,7 @@ enum GitDiff {
   }
 
   static func gutterChanges(head: String?, current: String) -> GitGutterChangeSet {
-    let currentLineCount = current.isEmpty ? 0 : current.components(separatedBy: "\n").count
+    let currentLineCount = logicalLines(current).count
     guard let head else {
       return GitGutterChangeSet(
         addedLines: currentLineCount > 0 ? Set(1...currentLineCount) : [],
@@ -124,5 +124,12 @@ enum GitDiff {
     }
     if pendingDelete { changes.deletedLines.insert(pendingDeleteTarget) }
     return changes
+  }
+
+  private static func logicalLines(_ text: String) -> [String] {
+    guard !text.isEmpty else { return [] }
+    var lines = text.components(separatedBy: "\n")
+    if text.hasSuffix("\n"), lines.last == "" { lines.removeLast() }
+    return lines
   }
 }
