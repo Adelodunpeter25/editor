@@ -1,27 +1,19 @@
 import AppKit
 
-/// Git gutter indicators (VS Code-style): colored bars in the left margin showing added/modified/deleted
-/// lines relative to HEAD. Green = added, blue = modified, red = deleted (triangle marker).
-final class GitGutterRuler: NSView {
+/// Computes editor git gutter data and pushes it into the line-number ruler.
+final class GitGutterRuler: NSObject {
   private weak var textView: NSTextView?
   private var filePath: String
-  private var gitDiff: GitDiffResult?
   private var diffDirty = true
-
-  private static let barWidth: CGFloat = 3
-
-  override var isFlipped: Bool { return true }
+  var onChange: ((GitDiffResult) -> Void)?
 
   init(scrollView: NSScrollView, textView: NSTextView, filePath: String) {
     self.textView = textView
     self.filePath = filePath
-    super.init(frame: .zero)
+    super.init()
 
     scrollView.contentView.postsBoundsChangedNotifications = true
     let nc = NotificationCenter.default
-    nc.addObserver(
-      self, selector: #selector(viewDidScroll),
-      name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
     nc.addObserver(
       self, selector: #selector(textDidChange),
       name: NSText.didChangeNotification, object: textView)
@@ -29,25 +21,18 @@ final class GitGutterRuler: NSView {
     recomputeDiff()
   }
 
-  @available(*, unavailable)
-  required init?(coder: NSCoder) { fatalError() }
-
   deinit { NotificationCenter.default.removeObserver(self) }
 
-  @objc private func viewDidScroll() { needsDisplay = true }
   @objc private func textDidChange() {
     diffDirty = true
-    needsDisplay = true
+    recomputeDiff()
   }
 
-  /// Called when the file is saved or reloaded
   func reload() {
     diffDirty = true
     recomputeDiff()
-    needsDisplay = true
   }
 
-  /// Update the file path (for retargeting on rename)
   func updatePath(_ newPath: String) {
     filePath = newPath
     reload()
@@ -62,97 +47,9 @@ final class GitGutterRuler: NSView {
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let diff = GitDiffComputer.computeDiff(for: path, currentText: currentText)
       DispatchQueue.main.async {
-        self?.gitDiff = diff
-        self?.needsDisplay = true
+        self?.onChange?(diff)
       }
     }
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    super.draw(dirtyRect)
-
-    guard let textView = textView, let lm = textView.layoutManager,
-      let diff = gitDiff
-    else { return }
-
-    let visible = textView.visibleRect
-    let inset = textView.textContainerInset.height
-    let ns = textView.string as NSString
-
-    // Draw added lines
-    for lineNum in diff.addedLines {
-      if let y = lineY(for: lineNum, lm: lm, ns: ns, visible: visible, inset: inset) {
-        Theme.gitNew.setFill()
-        NSBezierPath(
-          rect: NSRect(
-            x: 0, y: y, width: Self.barWidth, height: lineHeight(for: lineNum, lm: lm, ns: ns))
-        ).fill()
-      }
-    }
-
-    // Draw modified lines
-    for lineNum in diff.modifiedLines {
-      if let y = lineY(for: lineNum, lm: lm, ns: ns, visible: visible, inset: inset) {
-        Theme.gitModified.setFill()
-        NSBezierPath(
-          rect: NSRect(
-            x: 0, y: y, width: Self.barWidth, height: lineHeight(for: lineNum, lm: lm, ns: ns))
-        ).fill()
-      }
-    }
-
-    // Draw deleted line markers (small triangles)
-    for lineNum in diff.deletedLines {
-      if let y = lineY(for: lineNum, lm: lm, ns: ns, visible: visible, inset: inset) {
-        Theme.gitDeleted.setFill()
-        let path = NSBezierPath()
-        path.move(to: NSPoint(x: 0, y: y))
-        path.line(to: NSPoint(x: Self.barWidth, y: y + 3))
-        path.line(to: NSPoint(x: 0, y: y + 6))
-        path.close()
-        path.fill()
-      }
-    }
-  }
-
-  /// Get the viewport Y coordinate for a 1-based line number
-  private func lineY(
-    for lineNum: Int, lm: NSLayoutManager, ns: NSString, visible: NSRect, inset: CGFloat
-  ) -> CGFloat? {
-    guard lineNum > 0 else { return nil }
-    let charIndex = charIndexForLine(lineNum, ns: ns)
-    guard charIndex < ns.length else { return nil }
-
-    let glyphIndex = lm.glyphIndexForCharacter(at: charIndex)
-    let fragRect = lm.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
-    let y = inset + fragRect.minY - visible.minY
-
-    // Only draw if visible
-    guard y >= -fragRect.height && y <= visible.height else { return nil }
-    return y
-  }
-
-  /// Get line height for a 1-based line number
-  private func lineHeight(for lineNum: Int, lm: NSLayoutManager, ns: NSString) -> CGFloat {
-    guard lineNum > 0 else { return 0 }
-    let charIndex = charIndexForLine(lineNum, ns: ns)
-    guard charIndex < ns.length else { return lm.extraLineFragmentRect.height }
-
-    let glyphIndex = lm.glyphIndexForCharacter(at: charIndex)
-    return lm.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil).height
-  }
-
-  /// Convert 1-based line number to character index
-  private func charIndexForLine(_ lineNum: Int, ns: NSString) -> Int {
-    var idx = 0
-    var current = 1
-    while current < lineNum && idx < ns.length {
-      let r = ns.range(of: "\n", range: NSRange(location: idx, length: ns.length - idx))
-      if r.location == NSNotFound { break }
-      idx = r.location + 1
-      current += 1
-    }
-    return idx
   }
 }
 

@@ -16,6 +16,12 @@ final class LineNumberRuler: NSRulerView {
   private static let currentColor = Theme.gutterCurrent
   private let rightPadding: CGFloat = 8
   private let leftPadding: CGFloat = 6
+  private let gitBarWidth: CGFloat = 3
+  private let gitBarLeading: CGFloat = 2
+
+  var gitAddedLines: Set<Int> = [] { didSet { needsDisplay = true } }
+  var gitModifiedLines: Set<Int> = [] { didSet { needsDisplay = true } }
+  var gitDeletedLines: Set<Int> = [] { didSet { needsDisplay = true } }
 
   init(scrollView: NSScrollView, textView: NSTextView) {
     self.textView = textView
@@ -111,7 +117,8 @@ final class LineNumberRuler: NSRulerView {
     let digits = max(2, String(lineStarts.count).count)
     let sample = String(repeating: "8", count: digits)
     let w = sample.size(withAttributes: [.font: font]).width
-    ruleThickness = ceil(w) + leftPadding + rightPadding
+    let gitPadding = gitBarLeading + gitBarWidth + 4
+    ruleThickness = ceil(w) + leftPadding + rightPadding + gitPadding
   }
 
   // MARK: Drawing
@@ -149,6 +156,7 @@ final class LineNumberRuler: NSRulerView {
       if y > visible.height { break }  // below the viewport bottom — done
       if y + fragRect.height >= 0 {  // intersects the viewport — draw it
         let n = line + 1
+        drawGitMarker(for: n, y: y, height: fragRect.height)
         let attrs: [NSAttributedString.Key: Any] = [
           .font: font,
           .foregroundColor: n == curLine ? Self.currentColor : Self.numberColor,
@@ -160,6 +168,28 @@ final class LineNumberRuler: NSRulerView {
         s.draw(at: NSPoint(x: drawX, y: drawY), withAttributes: attrs)
       }
       line += 1
+    }
+  }
+
+  private func drawGitMarker(for line: Int, y: CGFloat, height: CGFloat) {
+    if gitAddedLines.contains(line) {
+      Theme.gitNew.setFill()
+      NSBezierPath(rect: NSRect(x: gitBarLeading, y: y, width: gitBarWidth, height: height)).fill()
+      return
+    }
+    if gitModifiedLines.contains(line) {
+      Theme.gitModified.setFill()
+      NSBezierPath(rect: NSRect(x: gitBarLeading, y: y, width: gitBarWidth, height: height)).fill()
+      return
+    }
+    if gitDeletedLines.contains(line) {
+      Theme.gitDeleted.setFill()
+      let path = NSBezierPath()
+      path.move(to: NSPoint(x: gitBarLeading, y: y))
+      path.line(to: NSPoint(x: gitBarLeading + gitBarWidth, y: y + 3))
+      path.line(to: NSPoint(x: gitBarLeading, y: y + 6))
+      path.close()
+      path.fill()
     }
   }
 

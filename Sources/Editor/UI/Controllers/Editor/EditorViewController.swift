@@ -149,17 +149,15 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     ruler.reload()  // build the line index for the just-loaded content
     self.lineRuler = ruler
 
-    // Git gutter (colored bars for added/modified/deleted lines)
+    // Git gutter (colored bars for added/modified/deleted lines), drawn inside the line-number ruler.
     if !path.isEmpty {  // skip for untitled files
       let gutter = GitGutterRuler(scrollView: scroll, textView: tv, filePath: path)
-      scroll.addSubview(gutter)
-      gutter.translatesAutoresizingMaskIntoConstraints = false
-      NSLayoutConstraint.activate([
-        gutter.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor, constant: -5),
-        gutter.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
-        gutter.bottomAnchor.constraint(equalTo: scroll.contentView.bottomAnchor),
-        gutter.widthAnchor.constraint(equalToConstant: 3),
-      ])
+      gutter.onChange = { [weak ruler] diff in
+        ruler?.gitAddedLines = diff.addedLines
+        ruler?.gitModifiedLines = diff.modifiedLines
+        ruler?.gitDeletedLines = diff.deletedLines
+      }
+      gutter.reload()
       self.gitGutter = gutter
     }
 
