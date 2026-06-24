@@ -14,17 +14,29 @@ struct DiffTheme {
 /// One diff line cell: monospaced text on a full-cell background color, with optional syntax highlighting.
 final class DiffCellView: NSView {
   private let field = NSTextField(labelWithString: "")
+  private let gutterBar = NSView()
 
   init() {
     super.init(frame: .zero)
     wantsLayer = true
+
+    gutterBar.wantsLayer = true
+    gutterBar.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(gutterBar)
+
     field.font = DiffTheme.font()
     field.lineBreakMode = .byClipping
     field.allowsEditingTextAttributes = true
     field.translatesAutoresizingMaskIntoConstraints = false
     addSubview(field)
+
     NSLayoutConstraint.activate([
-      field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
+      gutterBar.leadingAnchor.constraint(equalTo: leadingAnchor),
+      gutterBar.topAnchor.constraint(equalTo: topAnchor),
+      gutterBar.bottomAnchor.constraint(equalTo: bottomAnchor),
+      gutterBar.widthAnchor.constraint(equalToConstant: 3),
+
+      field.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
       field.centerYAnchor.constraint(equalTo: centerYAnchor),
       field.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -6),
     ])
@@ -38,6 +50,15 @@ final class DiffCellView: NSView {
     highlighted: [(offset: Int, length: Int, color: NSColor)]? = nil
   ) {
     layer?.backgroundColor = bg.cgColor
+
+    if bg == DiffTheme.addBg {
+      gutterBar.layer?.backgroundColor = Theme.gitNew.cgColor
+    } else if bg == DiffTheme.delBg {
+      gutterBar.layer?.backgroundColor = Theme.gitDeleted.cgColor
+    } else {
+      gutterBar.layer?.backgroundColor = NSColor.clear.cgColor
+    }
+
     let fullText = prefixedText + lineText
     guard let spans = highlighted, !spans.isEmpty else {
       field.attributedStringValue = NSAttributedString(
