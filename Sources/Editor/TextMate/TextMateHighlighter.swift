@@ -32,6 +32,7 @@ private enum GrammarBundle {
 // MARK: - Grammar model (Codable over the .tmLanguage.json shape)
 
 final class TMRule: Decodable {
+    var id: Int = -1
     let name: String?
     let contentName: String?
     let match: String?
@@ -153,6 +154,10 @@ enum TMTheme {
 
 final class TextMateHighlighter {
     private let grammar: TMGrammar
+    private var ruleCount = 0
+
+    private static let resolvedEndLock = NSLock()
+    private static var resolvedEndCache = [String: NSRegularExpression]()
 
     // Anchors/lookaround see the full string and ^/$ never falsely fire at a sub-range's edge — so
     // tokenizing the *content* of a begin/end region (a mid-line sub-range) stays correct.
@@ -161,11 +166,23 @@ final class TextMateHighlighter {
 
     private init(grammar: TMGrammar) {
         self.grammar = grammar
+        assignIDs(grammar.patterns)
+        if let repository = grammar.repository { assignIDs(Array(repository.values)) }
         // Force every rule's lazy regex to compile now, on the construction thread. After this the
         // grammar is immutable, so `spans(for:)` is a pure read and is safe to run on any thread
         // (the editor tokenizes small files on main and large files on a background queue).
         precompile(grammar.patterns)
         if let repository = grammar.repository { precompile(Array(repository.values)) }
+    }
+
+    private func assignIDs(_ rules: [TMRule]) {
+        for rule in rules {
+            if rule.id == -1 {
+                rule.id = ruleCount
+                ruleCount += 1
+            }
+            if let nested = rule.patterns { assignIDs(nested) }
+        }
     }
 
     private func precompile(_ rules: [TMRule]) {
@@ -274,33 +291,38 @@ final class TextMateHighlighter {
     /// Colour spans for `text`, produced **line by line** so each regex only scans within the current
     /// line (≈80 chars) rather than the whole document — linear in file size. begin/end state carries
     /// across lines on a stack, so multi-line strings/comments stay correct. Spans are emitted in
-    /// application order (outer scopes first, inner override).
+    /// application order.
     func spans(for text: String) -> [(NSRange, NSColor)] {
         let ns = text as NSString
         var out: [(NSRange, NSColor)] = []
         var stack = [Frame(rule: nil, endRegex: nil,
                            patterns: expand(grammar.patterns, visited: []), contentColor: nil)]
-        // Per-region resolved `end` regexes (backref-substituted), keyed by the resolved pattern so the
-        // handful of distinct shapes (one per quote char, etc.) compile once. Local to this call → no
-        // cross-thread sharing with another editor's tokenize pass.
-        var endCache: [String: NSRegularExpression] = [:]
         ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length),
                                options: [.byLines, .substringNotRequired]) { _, lineRange, _, _ in
-            self.tokenizeLine(lineRange, text: text, ns: ns, stack: &stack, out: &out, endCache: &endCache)
+            self.tokenizeLine(lineRange, text: text, ns: ns, stack: &stack, out: &out)
         }
         return out
     }
 
     /// Resolve a begin/end rule's `end` regex for a region just opened by `match`. Rules whose `end` has
     /// no backref use the static `endRe`; rules like the string rule (`end: (\3)…`) get `\1`…`\9` replaced
-    /// with the regex-escaped text the begin captured, then compiled (cached by resolved pattern).
-    private func resolvedEnd(_ rule: TMRule, match: NSTextCheckingResult, ns: NSString,
-                             cache: inout [String: NSRegularExpression]) -> NSRegularExpression? {
+    /// with the regex-escaped text the begin captured, then compiled.
+    private func resolvedEnd(_ rule: TMRule, match: NSTextCheckingResult, ns: NSString) -> NSRegularExpression? {
         guard rule.endHasBackref, let end = rule.end else { return rule.endRe }
         let resolved = Self.substituteBackrefs(end, match: match, in: ns)
-        if let cached = cache[resolved] { return cached }
+        
+        Self.resolvedEndLock.lock()
+        if let cached = Self.resolvedEndCache[resolved] {
+            Self.resolvedEndLock.unlock()
+            return cached
+        }
+        Self.resolvedEndLock.unlock()
+        
         guard let re = TMRule.compile(resolved) else { return nil }
-        cache[resolved] = re
+        
+        Self.resolvedEndLock.lock()
+        Self.resolvedEndCache[resolved] = re
+        Self.resolvedEndLock.unlock()
         return re
     }
 
@@ -308,21 +330,30 @@ final class TextMateHighlighter {
     /// (empty if the group didn't participate). Escaped pairs (`\\`, `\n`, …) are copied verbatim so a
     /// literal `\\3` isn't treated as a backref.
     private static func substituteBackrefs(_ pattern: String, match: NSTextCheckingResult, in ns: NSString) -> String {
-        let c = Array(pattern); var out = ""; out.reserveCapacity(pattern.count); var i = 0
-        while i < c.count {
-            if c[i] == "\\", i + 1 < c.count {
-                if let d = c[i + 1].wholeNumberValue, d >= 1, d <= 9 {
+        var out = ""
+        out.reserveCapacity(pattern.count)
+        var i = pattern.startIndex
+        while i < pattern.endIndex {
+            if pattern[i] == "\\", pattern.index(after: i) < pattern.endIndex {
+                let nextIndex = pattern.index(after: i)
+                let nextChar = pattern[nextIndex]
+                if let d = nextChar.wholeNumberValue, d >= 1, d <= 9 {
                     if d < match.numberOfRanges {
                         let r = match.range(at: d)
                         if r.location != NSNotFound {
                             out += NSRegularExpression.escapedPattern(for: ns.substring(with: r))
                         }
                     }
-                    i += 2; continue
+                    i = pattern.index(after: nextIndex)
+                    continue
                 }
-                out.append(c[i]); out.append(c[i + 1]); i += 2; continue
+                out.append(pattern[i])
+                out.append(nextChar)
+                i = pattern.index(after: nextIndex)
+                continue
             }
-            out.append(c[i]); i += 1
+            out.append(pattern[i])
+            i = pattern.index(after: i)
         }
         return out
     }
@@ -353,64 +384,65 @@ final class TextMateHighlighter {
     /// Tokenize one line, mutating the carried `stack` and appending colour spans. All regex searches
     /// are confined to `[pos, lineEnd)`; per-rule next-matches are cached for the duration of the line.
     private func tokenizeLine(_ lineRange: NSRange, text: String, ns: NSString,
-                              stack: inout [Frame], out: inout [(NSRange, NSColor)],
-                              endCache: inout [String: NSRegularExpression]) {
+                               stack: inout [Frame], out: inout [(NSRange, NSColor)]) {
         let lineEnd = lineRange.location + lineRange.length
         var pos = lineRange.location
-        var nextMatch = [ObjectIdentifier: NSTextCheckingResult?]()   // per-rule cache, this line only
-        var lastZeroWidthPush: (ObjectIdentifier, Int)?               // guard zero-width begin/end ping-pong
+        var nextMatch = Array<NSTextCheckingResult?>(repeating: nil, count: ruleCount)
+        var hasCachedMatch = Array<Bool>(repeating: false, count: ruleCount)
+        var lastZeroWidthPush: (ObjectIdentifier, Int)?
         var iterations = 0
 
         while pos <= lineEnd {
-            iterations += 1; if iterations > 100_000 { break }   // guard against zero-width-match cycles
+            iterations += 1; if iterations > 100_000 { break }
             let top = stack[stack.count - 1]
 
-            // Earliest child match (a new token or nested region) in the rest of the line.
             var bestRule: TMRule?; var best: NSTextCheckingResult?; var bestStart = lineEnd + 1
             for rule in top.patterns {
                 guard let regex = rule.match != nil ? rule.matchRe : rule.beginRe else { continue }
-                let id = ObjectIdentifier(rule)
+                let rid = rule.id
                 let match: NSTextCheckingResult?
-                if let cached = nextMatch[id] { match = cached }
-                else {
+                if hasCachedMatch[rid] {
+                    if let cached = nextMatch[rid] {
+                        if cached.range.location >= pos {
+                            match = cached
+                        } else {
+                            match = regex.firstMatch(in: text, options: Self.matchOptions,
+                                                     range: NSRange(location: pos, length: lineEnd - pos))
+                            nextMatch[rid] = match
+                        }
+                    } else {
+                        match = nil
+                    }
+                } else {
                     match = regex.firstMatch(in: text, options: Self.matchOptions,
                                              range: NSRange(location: pos, length: lineEnd - pos))
-                    nextMatch[id] = match
+                    nextMatch[rid] = match
+                    hasCachedMatch[rid] = true
                 }
                 if let match, match.range.location < bestStart { bestStart = match.range.location; best = match; bestRule = rule }
             }
 
-            // The current region's end, if any, in the rest of the line.
             let endMatch = top.endRegex?.firstMatch(in: text, options: Self.matchOptions,
                                                     range: NSRange(location: pos, length: lineEnd - pos))
 
             if let end = endMatch, best == nil || end.range.location <= bestStart {
-                // End wins (starts no later than the best child) → close the region.
                 paint(pos, end.range.location, top.contentColor, &out)
                 if let rule = top.rule {
                     if let name = rule.name, let color = TMTheme.color(for: name) { out.append((end.range, color)) }
                     applyCaptures(rule.endCaptures ?? rule.captures, match: end, out: &out)
                 }
                 stack.removeLast()
-                pos = end.range.location + end.range.length     // zero-width (lookahead) end: parent resumes here
+                pos = end.range.location + end.range.length
             } else if let rule = bestRule, let match = best {
                 paint(pos, match.range.location, top.contentColor, &out)
                 if let name = rule.name, let color = TMTheme.color(for: name) { out.append((match.range, color)) }
-                if rule.begin != nil, let endRegex = resolvedEnd(rule, match: match, ns: ns, cache: &endCache) {
-                    // A begin can match **zero-width** (a lookahead — e.g. a function-call "argument value"
-                    // region opens with `(?=\S)`). Advance by the match's *real* length so the region's
-                    // content starts exactly here. Forcing +1 (as a plain match does) would skip the next
-                    // real character — e.g. the opening `"` of a string — opening an unterminated string
-                    // that paints the rest of the file as one colour.
+                if rule.begin != nil, let endRegex = resolvedEnd(rule, match: match, ns: ns) {
                     let zeroWidth = match.range.length == 0
                     let key = (ObjectIdentifier(rule), match.range.location)
                     if zeroWidth, let last = lastZeroWidthPush, last == key {
-                        // The one hang this reintroduces: a zero-width begin re-matching at the same spot
-                        // after a zero-width end closed it (ping-pong). Force progress instead of looping.
                         pos = match.range.location + 1
                     } else {
                         if zeroWidth { lastZeroWidthPush = key }
-                        // Open a nested region; its content inherits contentName ?? name ?? parent colour.
                         applyCaptures(rule.beginCaptures ?? rule.captures, match: match, out: &out)
                         let contentColor = rule.contentName.flatMap { TMTheme.color(for: $0) }
                             ?? rule.name.flatMap { TMTheme.color(for: $0) } ?? top.contentColor
@@ -419,16 +451,15 @@ final class TextMateHighlighter {
                         pos = match.range.location + match.range.length
                     }
                 } else {
-                    applyCaptures(rule.captures, match: match, out: &out)   // plain match rule (begin w/o end → match)
-                    pos = match.range.location + max(match.range.length, 1)  // ≥1 so a zero-width match can't spin
+                    applyCaptures(rule.captures, match: match, out: &out)
+                    pos = match.range.location + max(match.range.length, 1)
                 }
             } else {
-                paint(pos, lineEnd, top.contentColor, &out)   // nothing more matches on this line
+                paint(pos, lineEnd, top.contentColor, &out)
                 break
             }
 
             if pos >= lineEnd { break }
-            for (id, cached) in nextMatch where (cached?.range.location ?? Int.max) < pos { nextMatch.removeValue(forKey: id) }
         }
     }
 

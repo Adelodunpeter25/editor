@@ -214,6 +214,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
 
     /// Scroll to the first changed line so the user sees the diff immediately.
     private func scrollToFirstChange() {
+        table.layoutSubtreeIfNeeded()
         let firstChangeRow: Int
         if split {
             firstChangeRow = rows.firstIndex(where: { if case .equal = $0 { return false }; return true }) ?? 0
@@ -224,11 +225,9 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
         // Scroll a few lines above the change for context
         let targetRow = max(0, firstChangeRow - 3)
         let rowRect = table.rect(ofRow: targetRow)
-        let h = scroll.contentView.bounds.height
-        if h > 0 {
-            table.scrollToVisible(NSRect(x: 0, y: rowRect.origin.y, width: 1, height: h))
-        } else {
-            table.scrollRowToVisible(targetRow)
+        if rowRect.origin.y >= 0 {
+            scroll.contentView.scroll(to: NSPoint(x: 0, y: rowRect.origin.y))
+            scroll.reflectScrolledClipView(scroll.contentView)
         }
     }
 
