@@ -34,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       item.target = self
       item.representedObject = path
       item.toolTip = path
+      item.image = FileIcon.folderIcon(expanded: false, size: 13)
       menu.addItem(item)
     }
     return menu
