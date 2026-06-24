@@ -345,6 +345,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
   {
     let cell = DiffCellView()
     if split {
+      guard row < rows.count else { return cell }
       let (old, new) = Self.sides(rows[row])
       let side = tableColumn?.identifier.rawValue == "old" ? old : new
       let isOld = tableColumn?.identifier.rawValue == "old"
@@ -353,6 +354,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
       cell.configure(
         no: side.no, text: side.text, fg: side.fg, bg: side.bg, highlighted: highlighted)
     } else {
+      guard row < unified.count else { return cell }
       let l = unified[row]
       let prefix = "\(gut(l.oldNo)) \(gut(l.newNo)) \(l.sign) "
       let isOld = l.newNo == nil
