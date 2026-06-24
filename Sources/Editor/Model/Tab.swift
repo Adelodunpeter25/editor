@@ -1,7 +1,7 @@
 import Foundation
 
 /// What a tab shows.
-enum TabKind: String, Codable { case terminal, file, diff, search }
+enum TabKind: String, Codable { case terminal, file, diff, search, commitSummary }
 
 /// A single tab in a session. Value type — sessions hold `[Tab]` and mutate by index, so changes
 /// flow through `Session`'s `@Published var tabs` for free.

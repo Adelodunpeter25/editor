@@ -241,6 +241,9 @@ final class SidebarViewController: NSViewController {
           } else {
             self?.model.activeSession?.openDiff(path, commitHash: commitHash)
           }
+        },
+        onOpenCommitSummary: { [weak self] hash in
+          self?.model.activeSession?.openCommitSummary(hash)
         })
       let search = SearchViewController(
         repo: session.url,

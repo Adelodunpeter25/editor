@@ -304,6 +304,52 @@ enum Git {
     }
   }
 
+  struct CommitSummary {
+    let hash: String
+    let authorName: String
+    let authorEmail: String
+    let date: String
+    let message: String
+    let files: [FileStat]
+  }
+
+  struct FileStat {
+    let path: String
+    let additions: Int
+    let deletions: Int
+  }
+
+  static func commitSummary(_ repo: String, hash: String) -> CommitSummary? {
+    let gitPath = Env.resolve("git")
+    // Format: name\u{1}email\u{1}date\u{1}body
+    let info = Shell.run(
+      gitPath, ["-C", repo, "show", "--quiet", "--pretty=format:%an\u{1}%ae\u{1}%ad\u{1}%B", hash])
+    let parts = info.components(separatedBy: "\u{1}")
+    guard parts.count >= 4 else { return nil }
+
+    let authorName = parts[0]
+    let authorEmail = parts[1]
+    let date = parts[2]
+    let message = parts.dropFirst(3).joined(separator: "\u{1}")
+
+    let numstat = Shell.run(gitPath, ["-C", repo, "show", "--numstat", "--format=", hash])
+    var files: [FileStat] = []
+    for line in numstat.components(separatedBy: "\n") {
+      let lineParts = line.components(separatedBy: "\t")
+      if lineParts.count >= 3 {
+        let add = Int(lineParts[0]) ?? 0
+        let del = Int(lineParts[1]) ?? 0
+        let path = lineParts[2]
+        if !path.isEmpty {
+          files.append(FileStat(path: path, additions: add, deletions: del))
+        }
+      }
+    }
+    return CommitSummary(
+      hash: hash, authorName: authorName, authorEmail: authorEmail, date: date, message: message,
+      files: files)
+  }
+
   private static func gitFiles(_ repo: String, _ expand: Bool) -> [FileEntry] {
     // Run status + ls-files in parallel for faster startup
     var statusMap: [String: GitStatus] = [:]

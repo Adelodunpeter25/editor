@@ -6,6 +6,7 @@ import Combine
 final class GitHistoryViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
   private let store: RepoStore
   private let onOpenDiff: (String, String?) -> Void
+  private let onOpenCommitSummary: (String) -> Void
   private var cancellables = Set<AnyCancellable>()
 
   private let commitTable = NSTableView()
@@ -24,9 +25,14 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
   private var batchSize = 50
   private var allLoaded = false
 
-  init(store: RepoStore, onOpenDiff: @escaping (String, String?) -> Void) {
+  init(
+    store: RepoStore,
+    onOpenDiff: @escaping (String, String?) -> Void,
+    onOpenCommitSummary: @escaping (String) -> Void
+  ) {
     self.store = store
     self.onOpenDiff = onOpenDiff
+    self.onOpenCommitSummary = onOpenCommitSummary
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -52,6 +58,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     commitTable.delegate = self
     commitTable.target = self
     commitTable.action = #selector(rowClicked)
+    commitTable.doubleAction = #selector(rowDoubleClicked)
 
     commitScroll.documentView = commitTable
     commitScroll.hasVerticalScroller = true
@@ -155,6 +162,9 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
   }
 
   @objc private func rowClicked() {
+    if let event = NSApp.currentEvent, event.clickCount == 2 {
+      return
+    }
     let clickedRow = commitTable.clickedRow
     guard clickedRow >= 0, clickedRow < rows.count else { return }
 
@@ -180,6 +190,18 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
           rebuildRows()
         }
       }
+    case .file(let path, let commitHash):
+      onOpenDiff(path, commitHash)
+    }
+  }
+
+  @objc private func rowDoubleClicked() {
+    let clickedRow = commitTable.clickedRow
+    guard clickedRow >= 0, clickedRow < rows.count else { return }
+
+    switch rows[clickedRow] {
+    case .commit(let entry, _):
+      onOpenCommitSummary(entry.fullHash)
     case .file(let path, let commitHash):
       onOpenDiff(path, commitHash)
     }

@@ -186,6 +186,17 @@ final class Session: ObservableObject, Identifiable {
         path: path, commitHash: commitHash))
   }
 
+  func openCommitSummary(_ commitHash: String) {
+    if let existing = tabs.first(where: {
+      $0.kind == .commitSummary && $0.commitHash == commitHash
+    }) {
+      activate(existing.id)
+      return
+    }
+    let title = "Commit: \(String(commitHash.prefix(7)))"
+    addTab(Tab(kind: .commitSummary, title: title, commitHash: commitHash))
+  }
+
   // MARK: - File-tree sync (rename / delete reflected in open tabs)
 
   /// A file/folder was renamed on disk — retarget any open tab whose file is it, or sits inside it

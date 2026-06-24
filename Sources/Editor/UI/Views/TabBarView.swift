@@ -18,6 +18,7 @@ final class TabBarView: NSView {
   var onReorder: ((_ dragged: String, _ beforeID: String?) -> Void)?
 
   private let chips = NSStackView()
+  private let scrollView = NSScrollView()
   private let dropIndicator = NSView()  // vertical insertion line shown while dragging a chip
 
   override init(frame frameRect: NSRect) {
@@ -25,28 +26,40 @@ final class TabBarView: NSView {
     wantsLayer = true
     layer?.backgroundColor = NSColor(white: 0.09, alpha: 1).cgColor
 
+    scrollView.drawsBackground = false
+    scrollView.hasHorizontalScroller = false
+    scrollView.hasVerticalScroller = false
+    scrollView.translatesAutoresizingMaskIntoConstraints = false
+
     chips.orientation = .horizontal
     chips.spacing = 4
     chips.alignment = .centerY
+    chips.translatesAutoresizingMaskIntoConstraints = false
+    scrollView.documentView = chips
 
     let newTerm = iconButton("terminal", "New terminal (⌃⇧`)", #selector(newTerminal))
     let rightButtons = NSStackView(views: [newTerm])
     rightButtons.orientation = .horizontal
     rightButtons.spacing = 4
     rightButtons.setContentHuggingPriority(.required, for: .horizontal)
+    rightButtons.translatesAutoresizingMaskIntoConstraints = false
 
-    let outer = NSStackView(views: [chips, NSView(), rightButtons])
-    outer.orientation = .horizontal
-    outer.spacing = 6
-    outer.alignment = .centerY
-    outer.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 10)
-    outer.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(outer)
+    addSubview(scrollView)
+    addSubview(rightButtons)
+
     NSLayoutConstraint.activate([
-      outer.leadingAnchor.constraint(equalTo: leadingAnchor),
-      outer.trailingAnchor.constraint(equalTo: trailingAnchor),
-      outer.topAnchor.constraint(equalTo: topAnchor),
-      outer.bottomAnchor.constraint(equalTo: bottomAnchor),
+      scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+      scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+      scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+      scrollView.trailingAnchor.constraint(equalTo: rightButtons.leadingAnchor, constant: -6),
+
+      rightButtons.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+      rightButtons.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+      chips.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
+      chips.bottomAnchor.constraint(equalTo: scrollView.contentView.bottomAnchor),
+      chips.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
+      chips.heightAnchor.constraint(equalTo: scrollView.contentView.heightAnchor),
     ])
 
     // bottom divider
@@ -92,6 +105,7 @@ final class TabBarView: NSView {
   func render(session: Session?, activeTabID: String) {
     chips.arrangedSubviews.forEach { $0.removeFromSuperview() }
     guard let session else { return }
+    var activeChip: TabChipView?
     for tab in session.tabs {
       let chip = TabChipView(
         tabID: tab.id,
@@ -108,6 +122,16 @@ final class TabBarView: NSView {
         onCloseAll: { [weak self] in self?.onCloseAll?() }
       )
       chips.addArrangedSubview(chip)
+      if tab.id == activeTabID {
+        activeChip = chip
+      }
+    }
+
+    if let activeChip {
+      DispatchQueue.main.async { [weak activeChip] in
+        guard let activeChip else { return }
+        _ = activeChip.scrollToVisible(activeChip.bounds)
+      }
     }
   }
 
@@ -201,23 +225,19 @@ final class TabChipView: PointerView, NSDraggingSource {
       (isActive ? NSColor(white: 1, alpha: 0.10) : NSColor(white: 1, alpha: 0.03)).cgColor
     toolTip = title
 
-    let indicator: NSView
-    let img: NSImage? =
-      (kind == .file)
-      ? FileIcon.icon(forFilename: title, size: 11)
-      : NSImage(systemSymbolName: Self.iconSymbol(for: kind), accessibilityDescription: nil)?
-        .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
-    if let img {
-      let iv = NSImageView(image: img)
-      iv.contentTintColor = .secondaryLabelColor
-      iv.setContentHuggingPriority(.required, for: .horizontal)
-      indicator = iv
+    let img: NSImage
+    if kind == .file {
+      img = FileIcon.icon(forFilename: title, size: 11) ?? NSImage()
     } else {
-      let glyph = NSTextField(labelWithString: Self.glyph(for: kind))
-      glyph.font = .systemFont(ofSize: 11)
-      glyph.textColor = .secondaryLabelColor
-      indicator = glyph
+      img =
+        NSImage(systemSymbolName: Self.iconSymbol(for: kind), accessibilityDescription: nil)?
+        .withSymbolConfiguration(.init(pointSize: 11, weight: .regular)) ?? NSImage()
     }
+
+    let iv = NSImageView(image: img)
+    iv.contentTintColor = .secondaryLabelColor
+    iv.setContentHuggingPriority(.required, for: .horizontal)
+    let indicator = iv
 
     // Title is a plain label (not a button) so the whole chip can be dragged; clicks are handled
     // by the chip's own mouse events (see hitTest / mouseUp).
@@ -261,15 +281,7 @@ final class TabChipView: PointerView, NSDraggingSource {
     case .file: return "doc"
     case .diff: return "plus.forwardslash.minus"
     case .search: return "magnifyingglass"
-    }
-  }
-
-  private static func glyph(for kind: TabKind) -> String {
-    switch kind {
-    case .terminal: return "❯"
-    case .file: return "✎"
-    case .diff: return "±"
-    case .search: return "⌕"
+    case .commitSummary: return "info.circle"
     }
   }
 

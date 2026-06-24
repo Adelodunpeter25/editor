@@ -380,6 +380,11 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
       addChild(vc)
       contentVCs[tab.id] = vc
       return vc.view
+    case .commitSummary:
+      let vc = GitCommitSummaryViewController(repo: session.url, commitHash: tab.commitHash ?? "")
+      addChild(vc)
+      contentVCs[tab.id] = vc
+      return vc.view
     case .search:
       // A full-width project search in the center. `isPrimary: false` so it doesn't steal the
       // sidebar instance's `SearchViewController.current` (the harness target).
