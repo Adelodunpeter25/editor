@@ -55,14 +55,7 @@ final class RepoWatcher {
     private func fired(paths: [String]) {
         // If all changed paths are inside ignored directories, skip polling.
         if !paths.isEmpty {
-            let allIgnored = paths.allSatisfy { path in
-                let lower = path.lowercased()
-                return lower.contains("/.build/") || lower.hasSuffix("/.build")
-                    || lower.contains("/.swiftpm/")
-                    || lower.hasSuffix(".ds_store")
-                    || lower.contains("/.git/logs/")
-                    || lower.contains("/.git/commit_editmsg")
-            }
+            let allIgnored = paths.allSatisfy { GitIgnoreUtil.isIgnoredPath($0) }
             if allIgnored { return }
         }
 

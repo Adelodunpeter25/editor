@@ -210,7 +210,7 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource, N
     static func diskEmptyDirs(_ repo: String) -> Set<String> {
         let fm = FileManager.default
         var result = Set<String>()
-        let skip: Set<String> = [".git", "node_modules", ".build", ".next", "Pods", "DerivedData"]
+        let skip = GitIgnoreUtil.ignoredDirectories
         func scan(_ path: String, _ rel: String) {
             guard let entries = try? fm.contentsOfDirectory(atPath: path) else { return }
             if entries.isEmpty { if !rel.isEmpty { result.insert(rel) }; return }
