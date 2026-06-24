@@ -274,6 +274,17 @@ enum Git {
     return output.isEmpty ? nil : output
   }
 
+  static func workingTreeVersions(_ repo: String, _ path: String, liveNewText: String? = nil) -> (
+    old: String, new: String
+  ) {
+    let old = String(data: Shell.runData(git, ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8)
+      ?? ""
+    if let liveNewText { return (old, liveNewText) }
+    let url = URL(fileURLWithPath: repo).appendingPathComponent(path)
+    let new = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+    return (old, new)
+  }
+
   /// (oldText, newText) for a path. Either side may be "" (new file → empty old; deleted → empty new).
   static func versions(_ repo: String, _ path: String, commitHash: String? = nil) -> (
     old: String, new: String

@@ -195,16 +195,10 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
       if let commitHash {
         v = Git.versions(repo, path, commitHash: commitHash)
       } else if let liveNewText {
-        let old = String(data: Shell.runData("/usr/bin/git", ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8) ?? ""
-        v = (old, liveNewText)
+        v = Git.workingTreeVersions(repo, path, liveNewText: liveNewText)
       } else {
         let absolute = URL(fileURLWithPath: repo).appendingPathComponent(path).path
-        if let live = LiveFileText.current?(absolute) {
-          let old = String(data: Shell.runData("/usr/bin/git", ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8) ?? ""
-          v = (old, live)
-        } else {
-          v = Git.versions(repo, path, commitHash: nil)
-        }
+        v = Git.workingTreeVersions(repo, path, liveNewText: LiveFileText.current?(absolute))
       }
       let rows = computeDiff(old: v.old, new: v.new)
 
