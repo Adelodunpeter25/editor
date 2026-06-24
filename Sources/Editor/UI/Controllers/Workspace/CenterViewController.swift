@@ -347,7 +347,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
             contentVCs[tab.id] = vc
             return vc.view
         case .diff:
-            let vc = DiffViewController(repo: session.url, path: tab.path ?? "",
+            let vc = DiffViewController(repo: session.url, path: tab.path ?? "", commitHash: tab.commitHash,
                                        onOpenFile: { [weak session] in session?.openFile(tab.path ?? "") })
             addChild(vc)
             contentVCs[tab.id] = vc

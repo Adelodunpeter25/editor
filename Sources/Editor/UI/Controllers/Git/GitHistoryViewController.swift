@@ -4,7 +4,7 @@ import AppKit
 /// Clicking a commit expands it to show the changed files directly underneath it.
 final class GitHistoryViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
     private let repo: String
-    private let onOpenDiff: (String) -> Void
+    private let onOpenDiff: (String, String?) -> Void
 
     private let commitTable = NSTableView()
     private let commitScroll = NSScrollView()
@@ -22,7 +22,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     private var batchSize = 50
     private var allLoaded = false
 
-    init(repo: String, onOpenDiff: @escaping (String) -> Void) {
+    init(repo: String, onOpenDiff: @escaping (String, String?) -> Void) {
         self.repo = repo
         self.onOpenDiff = onOpenDiff
         super.init(nibName: nil, bundle: nil)
@@ -163,8 +163,8 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
                     rebuildRows()
                 }
             }
-        case .file(let path, _):
-            onOpenDiff(path)
+        case .file(let path, let commitHash):
+            onOpenDiff(path, commitHash)
         }
     }
 

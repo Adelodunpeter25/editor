@@ -57,11 +57,12 @@ private struct UnifiedLine { let oldNo: Int?; let newNo: Int?; let sign: String;
 
 // MARK: - Diff view controller (NSTableView)
 
-/// Renders a file's diff vs HEAD, unified or split. Built from `computeDiff` rows. One row per line;
+/// Renders a file's diff, unified or split. Built from `computeDiff` rows. One row per line;
 /// full-width row background carries add/del color. Split shows old | new columns.
 final class DiffViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
     let repo: String   // repo root
     let path: String   // repo-relative path
+    let commitHash: String?
     private let onOpenFile: () -> Void
 
     private var rows: [DiffRow] = []
@@ -86,9 +87,10 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
         return s
     }()
 
-    init(repo: String, path: String, onOpenFile: @escaping () -> Void) {
+    init(repo: String, path: String, commitHash: String? = nil, onOpenFile: @escaping () -> Void) {
         self.repo = repo
         self.path = path
+        self.commitHash = commitHash
         self.onOpenFile = onOpenFile
         self.split = UserDefaults.standard.bool(forKey: "diffSplit")
         super.init(nibName: nil, bundle: nil)
@@ -188,10 +190,10 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     }
 
     private func load() {
-        let repo = self.repo, path = self.path
+        let repo = self.repo, path = self.path, commitHash = self.commitHash
         let hl = TextMateHighlighter.forPath(path)
         DispatchQueue.global().async { [weak self] in
-            let v = Git.versions(repo, path)
+            let v = Git.versions(repo, path, commitHash: commitHash)
             let rows = computeDiff(old: v.old, new: v.new)
             // Compute syntax highlighting spans for both old and new content
             let oSpans = hl?.spans(for: v.old) ?? []

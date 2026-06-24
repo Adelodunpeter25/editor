@@ -10,6 +10,7 @@ struct Tab: Identifiable, Equatable {
     var kind: TabKind
     var title: String
     var path: String?             // absolute file path (for .file / .diff)
+    var commitHash: String?       // commit hash if showing a historical diff
     var dirty: Bool               // unsaved edits (for .file)
     var pinned: Bool              // pinned tabs stick to the left and survive "close others"
     var shown: Bool               // lazy-spawn gate: process isn't started until first viewed
@@ -20,6 +21,7 @@ struct Tab: Identifiable, Equatable {
          kind: TabKind,
          title: String,
          path: String? = nil,
+         commitHash: String? = nil,
          dirty: Bool = false,
          pinned: Bool = false,
          shown: Bool = false,
@@ -29,6 +31,7 @@ struct Tab: Identifiable, Equatable {
         self.kind = kind
         self.title = title
         self.path = path
+        self.commitHash = commitHash
         self.dirty = dirty
         self.pinned = pinned
         self.shown = shown

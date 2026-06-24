@@ -164,11 +164,12 @@ final class Session: ObservableObject, Identifiable {
     }
 
     /// `path` is repo-relative here (the diff needs it relative for `git show HEAD:<path>`).
-    func openDiff(_ path: String) {
-        if let existing = tabs.first(where: { $0.kind == .diff && $0.path == path }) {
+    func openDiff(_ path: String, commitHash: String? = nil) {
+        if let existing = tabs.first(where: { $0.kind == .diff && $0.path == path && $0.commitHash == commitHash }) {
             activate(existing.id); return
         }
-        addTab(Tab(kind: .diff, title: "Diff - \((path as NSString).lastPathComponent)", path: path))
+        let commitTitle = commitHash != nil ? " (\(String(commitHash!.prefix(7))))" : ""
+        addTab(Tab(kind: .diff, title: "Diff - \((path as NSString).lastPathComponent)\(commitTitle)", path: path, commitHash: commitHash))
     }
 
     // MARK: - File-tree sync (rename / delete reflected in open tabs)

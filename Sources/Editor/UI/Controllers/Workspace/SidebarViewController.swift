@@ -182,7 +182,7 @@ final class SidebarViewController: NSViewController {
                 onOpenDiff: { [weak self] path in self?.model.activeSession?.openDiff(path) },
                 onOpenFile: { [weak self] path in self?.model.activeSession?.openFile(path) })
             let history = GitHistoryViewController(repo: session.url,
-                onOpenDiff: { [weak self] path in self?.model.activeSession?.openDiff(path) })
+                onOpenDiff: { [weak self] path, commitHash in self?.model.activeSession?.openDiff(path, commitHash: commitHash) })
             let search = SearchViewController(repo: session.url,
                 onOpen: { [weak self] rel, line in self?.openSearchResult(rel, line) })
             search.onOpenAsTab = { [weak self] query, options in

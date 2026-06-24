@@ -239,11 +239,17 @@ enum Git {
     }
 
     /// (oldText, newText) for a path. Either side may be "" (new file → empty old; deleted → empty new).
-    static func versions(_ repo: String, _ path: String) -> (old: String, new: String) {
-        let old = String(data: Shell.runData(git, ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8) ?? ""
-        let url = URL(fileURLWithPath: repo).appendingPathComponent(path)
-        let new = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
-        return (old, new)
+    static func versions(_ repo: String, _ path: String, commitHash: String? = nil) -> (old: String, new: String) {
+        if let commitHash {
+            let old = String(data: Shell.runData(git, ["-C", repo, "show", "\(commitHash)^:\(path)"]), encoding: .utf8) ?? ""
+            let new = String(data: Shell.runData(git, ["-C", repo, "show", "\(commitHash):\(path)"]), encoding: .utf8) ?? ""
+            return (old, new)
+        } else {
+            let old = String(data: Shell.runData(git, ["-C", repo, "show", "HEAD:\(path)"]), encoding: .utf8) ?? ""
+            let url = URL(fileURLWithPath: repo).appendingPathComponent(path)
+            let new = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
+            return (old, new)
+        }
     }
 
     private static func gitFiles(_ repo: String, _ expand: Bool) -> [FileEntry] {
