@@ -23,6 +23,8 @@ struct PersistedState: Codable {
 
 enum Persistence {
   static let key = "editor.state"
+  static let recentProjectsKey = "editor.recentProjects"
+  static let recentProjectsLimit = 12
 
   static func load() -> PersistedState? {
     guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
@@ -33,5 +35,18 @@ enum Persistence {
     if let data = try? JSONEncoder().encode(state) {
       UserDefaults.standard.set(data, forKey: key)
     }
+  }
+
+  static func recentProjects() -> [String] {
+    let paths = UserDefaults.standard.stringArray(forKey: recentProjectsKey) ?? []
+    return paths.filter { FileManager.default.fileExists(atPath: $0) }
+  }
+
+  static func noteRecentProject(_ path: String) {
+    let resolved = (path as NSString).standardizingPath
+    var paths = recentProjects().filter { $0 != resolved }
+    paths.insert(resolved, at: 0)
+    if paths.count > recentProjectsLimit { paths = Array(paths.prefix(recentProjectsLimit)) }
+    UserDefaults.standard.set(paths, forKey: recentProjectsKey)
   }
 }

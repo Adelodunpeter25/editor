@@ -36,6 +36,7 @@ final class AppModel: ObservableObject {
   @discardableResult
   func openRepo(_ path: String) -> Session {
     let resolved = (path as NSString).standardizingPath
+    Persistence.noteRecentProject(resolved)
     if let existing = sessions.first(where: { $0.url == resolved }) {
       activeSessionID = existing.id
       return existing

@@ -23,6 +23,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let resourceMonitor = ResourceMonitor()
   private var attentionItem: AttentionItem!
 
+  func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+    let recent = Persistence.recentProjects()
+    guard !recent.isEmpty else { return nil }
+    let menu = NSMenu()
+    for path in recent {
+      let item = NSMenuItem(
+        title: (path as NSString).lastPathComponent, action: #selector(openRecentProjectFromDock(_:)),
+        keyEquivalent: "")
+      item.target = self
+      item.representedObject = path
+      item.toolTip = path
+      menu.addItem(item)
+    }
+    return menu
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Snappier tooltips (default is ~2s). Registered so it doesn't clobber a user override.
     UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 350])
@@ -305,6 +321,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     panel.allowsMultipleSelection = false
     panel.prompt = "Open"
     if panel.runModal() == .OK, let url = panel.url { model.openRepo(url.path) }
+  }
+
+  @objc private func openRecentProjectFromDock(_ sender: NSMenuItem) {
+    guard let path = sender.representedObject as? String else { return }
+    model.openRepo(path)
+    windowController.showWindow(nil)
+    NSApp.activate(ignoringOtherApps: true)
   }
 
   @objc private func newProject() { NewProject.present(model: model) }
