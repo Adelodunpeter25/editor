@@ -43,6 +43,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   var scrollView: NSScrollView!
   var textStorage: NSTextStorage!
   var lineRuler: LineNumberRuler!
+  var gitGutter: GitGutterRuler?
   var highlighter: TextMateHighlighter?
   var saved = ""
   var lastFontSize: Double
@@ -147,6 +148,21 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     scroll.rulersVisible = true
     ruler.reload()  // build the line index for the just-loaded content
     self.lineRuler = ruler
+    
+    // Git gutter (colored bars for added/modified/deleted lines)
+    if !path.isEmpty {  // skip for untitled files
+      let gutter = GitGutterRuler(scrollView: scroll, textView: tv, filePath: path)
+      scroll.addFloatingSubview(gutter, for: .horizontal)
+      gutter.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        gutter.leadingAnchor.constraint(equalTo: scroll.leadingAnchor),
+        gutter.topAnchor.constraint(equalTo: scroll.topAnchor),
+        gutter.bottomAnchor.constraint(equalTo: scroll.bottomAnchor),
+        gutter.widthAnchor.constraint(equalToConstant: 5),
+      ])
+      self.gitGutter = gutter
+    }
+    
     self.scrollView = scroll
 
     // The find bar floats in its own child window (UI/FindBar in a FindPanel), pinned to the editor's
@@ -317,6 +333,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     try? content.write(toFile: path, atomically: true, encoding: .utf8)
     saved = content
     onDirty(false)
+    gitGutter?.reload()  // refresh git diff after save
   }
 
   /// Synchronous, unconditional write — used by the unsaved-changes guard so "Save & Close" / quit always
@@ -415,6 +432,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     path = newPath
     languageOverride = nil  // new path → re-detect language
     highlighter = TextMateHighlighter.forPath(newPath)
+    gitGutter?.updatePath(newPath)  // update git gutter for new path
     if highlighter == nil {
       // New extension has no grammar — clear stale colours from the old type (requestHighlight
       // early-returns when there's no highlighter, so it won't reset them itself).
