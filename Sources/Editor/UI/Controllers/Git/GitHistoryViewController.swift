@@ -203,20 +203,28 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     private func makeCommitCell(_ entry: Git.LogEntry, isExpanded: Bool) -> NSView {
         // Chevron icon
         let chevron = NSImageView()
+        chevron.translatesAutoresizingMaskIntoConstraints = false
+        chevron.imageScaling = .scaleProportionallyDown
         let chevronSymbol = isExpanded ? "chevron.down" : "chevron.right"
         let chevImg = NSImage(systemSymbolName: chevronSymbol, accessibilityDescription: nil)?
             .withSymbolConfiguration(.init(pointSize: 8, weight: .semibold))
         chevron.image = chevImg
         chevron.contentTintColor = Theme.textDim
         chevron.setContentHuggingPriority(.required, for: .horizontal)
+        chevron.widthAnchor.constraint(equalToConstant: 10).isActive = true
+        chevron.heightAnchor.constraint(equalToConstant: 10).isActive = true
 
         // Git commit icon
         let gitIcon = NSImageView()
+        gitIcon.translatesAutoresizingMaskIntoConstraints = false
+        gitIcon.imageScaling = .scaleProportionallyDown
         let gitImg = NSImage(systemSymbolName: "git.commit", accessibilityDescription: nil)?
             .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
         gitIcon.image = gitImg
         gitIcon.contentTintColor = NSColor(srgbRed: 0.45, green: 0.62, blue: 0.96, alpha: 1)
         gitIcon.setContentHuggingPriority(.required, for: .horizontal)
+        gitIcon.widthAnchor.constraint(equalToConstant: 14).isActive = true
+        gitIcon.heightAnchor.constraint(equalToConstant: 14).isActive = true
 
         // Text labels (vertical stack)
         let msg = NSTextField(labelWithString: entry.message)
@@ -251,9 +259,13 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
 
         // File icon
         let icon = NSImageView()
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        icon.imageScaling = .scaleProportionallyDown
         icon.image = FileIcon.icon(forFilename: (path as NSString).lastPathComponent, size: 11)
         icon.contentTintColor = Theme.textMuted
         icon.setContentHuggingPriority(.required, for: .horizontal)
+        icon.widthAnchor.constraint(equalToConstant: 14).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 14).isActive = true
 
         // Label
         let label = NSTextField(labelWithString: path)
