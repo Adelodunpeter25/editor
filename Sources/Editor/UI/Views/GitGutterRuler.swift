@@ -2,7 +2,7 @@ import AppKit
 
 /// Git gutter indicators (VS Code-style): colored bars in the left margin showing added/modified/deleted
 /// lines relative to HEAD. Green = added, blue = modified, red = deleted (triangle marker).
-final class GitGutterRuler: NSRulerView {
+final class GitGutterRuler: NSView {
   private weak var textView: NSTextView?
   private var filePath: String
   private var gitDiff: GitDiffResult?
@@ -10,14 +10,13 @@ final class GitGutterRuler: NSRulerView {
 
   private static let barWidth: CGFloat = 3
 
+  override var isFlipped: Bool { return true }
+
   init(scrollView: NSScrollView, textView: NSTextView, filePath: String) {
     self.textView = textView
     self.filePath = filePath
-    super.init(scrollView: scrollView, orientation: .verticalRuler)
-    clientView = textView
-    ruleThickness = 5
+    super.init(frame: .zero)
 
-    // Redraw on scroll and text changes
     scrollView.contentView.postsBoundsChangedNotifications = true
     let nc = NotificationCenter.default
     nc.addObserver(
@@ -27,12 +26,11 @@ final class GitGutterRuler: NSRulerView {
       self, selector: #selector(textDidChange),
       name: NSText.didChangeNotification, object: textView)
 
-    // Initial diff computation
     recomputeDiff()
   }
 
   @available(*, unavailable)
-  required init(coder: NSCoder) { fatalError() }
+  required init?(coder: NSCoder) { fatalError() }
 
   deinit { NotificationCenter.default.removeObserver(self) }
 
@@ -59,7 +57,6 @@ final class GitGutterRuler: NSRulerView {
     guard diffDirty else { return }
     diffDirty = false
 
-    // Run git diff off-main to avoid blocking
     let path = filePath
     let currentText = textView?.string ?? ""
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -71,13 +68,12 @@ final class GitGutterRuler: NSRulerView {
     }
   }
 
-  override func drawHashMarksAndLabels(in rect: NSRect) {
-    guard let textView, let lm = textView.layoutManager,
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+
+    guard let textView = textView, let lm = textView.layoutManager,
       let diff = gitDiff
     else { return }
-
-    TMTheme.background.setFill()
-    bounds.fill()
 
     let visible = textView.visibleRect
     let inset = textView.textContainerInset.height
@@ -179,8 +175,6 @@ enum GitDiffComputer {
     let headLines = headContent.components(separatedBy: "\n")
     let currentLines = currentText.components(separatedBy: "\n")
 
-    // Simple line-by-line diff (this is a basic implementation)
-    // For production, you'd want to use a proper diff algorithm like Myers
     let maxLines = max(headLines.count, currentLines.count)
 
     for i in 0..<maxLines {
@@ -202,56 +196,17 @@ enum GitDiffComputer {
   }
 
   private static func getHeadContent(for path: String) -> String? {
-    // Get git repo root
     guard let repoRoot = getGitRoot(for: path) else { return nil }
-
-    // Get relative path from repo root
     let relativePath = path.hasPrefix(repoRoot) ? String(path.dropFirst(repoRoot.count + 1)) : path
-
-    // Run git show HEAD:path
-    let task = Process()
-    task.currentDirectoryURL = URL(fileURLWithPath: repoRoot)
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-    task.arguments = ["show", "HEAD:\(relativePath)"]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = Pipe()
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      guard task.terminationStatus == 0 else { return nil }
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      return String(data: data, encoding: .utf8)
-    } catch {
-      return nil
-    }
+    let gitPath = Env.resolve("git")
+    let output = Shell.run(gitPath, ["-C", repoRoot, "show", "HEAD:\(relativePath)"])
+    return output.isEmpty ? nil : output
   }
 
   private static func getGitRoot(for path: String) -> String? {
     let dir = (path as NSString).deletingLastPathComponent
-    let task = Process()
-    task.currentDirectoryURL = URL(fileURLWithPath: dir)
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-    task.arguments = ["rev-parse", "--show-toplevel"]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = Pipe()
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      guard task.terminationStatus == 0 else { return nil }
-
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-    } catch {
-      return nil
-    }
+    let gitPath = Env.resolve("git")
+    let output = Shell.run(gitPath, ["-C", dir, "rev-parse", "--show-toplevel"])
+    return output.isEmpty ? nil : output
   }
 }

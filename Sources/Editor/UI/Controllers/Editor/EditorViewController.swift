@@ -152,13 +152,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     // Git gutter (colored bars for added/modified/deleted lines)
     if !path.isEmpty {  // skip for untitled files
       let gutter = GitGutterRuler(scrollView: scroll, textView: tv, filePath: path)
-      scroll.addFloatingSubview(gutter, for: .horizontal)
+      scroll.addSubview(gutter)
       gutter.translatesAutoresizingMaskIntoConstraints = false
       NSLayoutConstraint.activate([
-        gutter.leadingAnchor.constraint(equalTo: scroll.leadingAnchor),
-        gutter.topAnchor.constraint(equalTo: scroll.topAnchor),
-        gutter.bottomAnchor.constraint(equalTo: scroll.bottomAnchor),
-        gutter.widthAnchor.constraint(equalToConstant: 5),
+        gutter.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor, constant: -5),
+        gutter.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+        gutter.bottomAnchor.constraint(equalTo: scroll.contentView.bottomAnchor),
+        gutter.widthAnchor.constraint(equalToConstant: 3),
       ])
       self.gitGutter = gutter
     }
