@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 // JSON snapshot persisted to UserDefaults("editor.state"). Tab/session ids are random UUIDs that
@@ -49,8 +48,5 @@ enum Persistence {
     paths.insert(resolved, at: 0)
     if paths.count > recentProjectsLimit { paths = Array(paths.prefix(recentProjectsLimit)) }
     UserDefaults.standard.set(paths, forKey: recentProjectsKey)
-    // Register with macOS so the dock right-click "Open Recent" list works even when the app
-    // is not running (same mechanism used by Xcode, VSCode, etc.).
-    NSDocumentController.shared.noteNewRecentDocumentURL(URL(fileURLWithPath: resolved))
   }
 }

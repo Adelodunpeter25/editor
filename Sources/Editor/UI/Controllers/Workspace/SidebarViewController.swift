@@ -45,7 +45,6 @@ final class SidebarViewController: NSViewController {
   private var changesMode: Bool { sidebarMode == .changes }
   private var fileActionsBar: NSStackView?  // new file / new folder / collapse-all (Files mode only)
   private var sidebarEmptyView: NSView?  // "Open Folder" prompt when no project is open
-  private var noGitEmptyView: NSView?  // "Not a git repository" overlay shown in the Changes pane
 
   init(model: AppModel) {
     self.model = model
@@ -317,17 +316,7 @@ final class SidebarViewController: NSViewController {
     if sidebarMode == .search {
       DispatchQueue.main.async { [weak self] in self?.searchVC?.focusField() }
     }
-    if sidebarMode == .changes {
-      // Show an empty state when the folder is not a git repository.
-      if !Git.isRepo(store.repo) {
-        showNoGitEmptyState(in: changesSplit!)
-      } else {
-        hideNoGitEmptyState()
-        historyVC.loadIfNeeded()
-      }
-    } else {
-      hideNoGitEmptyState()
-    }
+    if sidebarMode == .changes { historyVC.loadIfNeeded() }
   }
 
   // MARK: - Empty state
@@ -361,46 +350,6 @@ final class SidebarViewController: NSViewController {
     filesModeSeg.isHidden = true
   }
 
-  private func showNoGitEmptyState(in parent: NSView) {
-    guard noGitEmptyView == nil else { return }
-    // Git icon
-    let icon = NSImageView()
-    icon.image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)?
-      .withSymbolConfiguration(.init(pointSize: 28, weight: .light))
-    icon.contentTintColor = NSColor(white: 0.45, alpha: 1)
-
-    let title = NSTextField(labelWithString: "Not a git repository")
-    title.font = .systemFont(ofSize: 13, weight: .semibold)
-    title.textColor = .secondaryLabelColor
-    title.alignment = .center
-
-    let subtitle = NSTextField(
-      labelWithString: "Run \"git init\" in this folder to start\ntracking changes.")
-    subtitle.font = .systemFont(ofSize: 11)
-    subtitle.textColor = .tertiaryLabelColor
-    subtitle.alignment = .center
-    subtitle.cell?.wraps = true
-
-    let stack = NSStackView(views: [icon, title, subtitle])
-    stack.orientation = .vertical
-    stack.alignment = .centerX
-    stack.spacing = 6
-    stack.translatesAutoresizingMaskIntoConstraints = false
-
-    parent.addSubview(stack)
-    NSLayoutConstraint.activate([
-      stack.centerXAnchor.constraint(equalTo: parent.centerXAnchor),
-      stack.centerYAnchor.constraint(equalTo: parent.centerYAnchor),
-      stack.widthAnchor.constraint(lessThanOrEqualTo: parent.widthAnchor, constant: -24),
-    ])
-    noGitEmptyView = stack
-  }
-
-  private func hideNoGitEmptyState() {
-    noGitEmptyView?.removeFromSuperview()
-    noGitEmptyView = nil
-  }
-
   private func hideSidebarEmpty() {
     sidebarEmptyView?.removeFromSuperview()
     sidebarEmptyView = nil
@@ -414,7 +363,6 @@ final class SidebarViewController: NSViewController {
   private func teardownSidebarVCs() {
     store?.stop()
     store = nil
-    hideNoGitEmptyState()
     changesSplit?.removeFromSuperview()
     changesSplit = nil
     treeVC?.view.removeFromSuperview()
