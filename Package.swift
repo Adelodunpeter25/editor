@@ -8,16 +8,28 @@ let package = Package(
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.2.0"),
     ],
     targets: [
+        .target(
+            name: "Cfff",
+            path: "Sources/Cfff",
+            exclude: ["libfff_c.a"]
+        ),
         .executableTarget(
             name: "Editor",
             dependencies: [
                 .product(name: "SwiftTerm", package: "SwiftTerm"),
+                "Cfff",
             ],
             path: "Sources/Editor",
             // Grammar JSON for the native TextMate highlighter.
             // build.sh copies the generated Editor_Editor.bundle into Contents/Resources; the bundle
             // is resolved there at runtime (see GrammarBundle) to avoid Bundle.module's distributed-app crash.
-            resources: [.copy("TextMate/Grammars")]
+            resources: [.copy("TextMate/Grammars")],
+            linkerSettings: [
+                .linkedLibrary("fff_c"),
+                .linkedLibrary("z"),
+                .linkedLibrary("iconv"),
+                .unsafeFlags(["-L", "Sources/Cfff"])
+            ]
         ),
     ],
     swiftLanguageVersions: [.v5]
