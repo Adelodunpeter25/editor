@@ -94,6 +94,8 @@ final class TabBarView: NSView {
       .withSymbolConfiguration(.init(pointSize: size, weight: .regular))
     b.isBordered = false
     b.bezelStyle = .inline
+    b.focusRingType = .none
+    b.refusesFirstResponder = true
     b.contentTintColor = NSColor(white: 0.7, alpha: 1)
     b.toolTip = tip
     b.target = self
