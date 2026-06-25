@@ -73,4 +73,12 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     NSApp.terminate(nil)
     return false
   }
+
+  func windowDidResize(_ notification: Notification) {
+    window?.saveFrame(usingName: "EditorMainWindow")
+  }
+
+  func windowDidMove(_ notification: Notification) {
+    window?.saveFrame(usingName: "EditorMainWindow")
+  }
 }

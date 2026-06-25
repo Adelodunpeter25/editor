@@ -246,7 +246,7 @@ final class SidebarViewController: NSViewController {
           self?.model.activeSession?.openCommitSummary(hash)
         })
       let search = SearchViewController(
-        repo: session.url,
+        repo: session.url, fff: session.fff,
         onOpen: { [weak self] rel, line in self?.openSearchResult(rel, line) })
       search.onOpenAsTab = { [weak self] query, options in
         SearchSeed.pending = (query, options)

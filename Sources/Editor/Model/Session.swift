@@ -7,6 +7,7 @@ final class Session: ObservableObject, Identifiable {
   let id: String
   let url: String  // repo root path (absolute, standardized)
   let name: String  // last path component, shown in the SESSIONS list
+  let fff: FffInstance?
 
   @Published var tabs: [Tab]
   @Published var activeTabID: String
@@ -18,6 +19,7 @@ final class Session: ObservableObject, Identifiable {
     self.name = (url as NSString).lastPathComponent
     self.tabs = tabs
     self.activeTabID = activeTabID ?? tabs.first?.id ?? ""
+    self.fff = FffInstance(basePath: url, watch: true, enableContentIndexing: true)
   }
 
   var activeTab: Tab? { tabs.first { $0.id == activeTabID } }

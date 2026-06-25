@@ -32,6 +32,7 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
   static weak var currentTab: SearchViewController?
 
   private let repo: String
+  private let fff: FffInstance?
   private let isPrimary: Bool
   private let onOpen: (String, Int) -> Void
   private var options = ProjectSearch.Options()
@@ -75,8 +76,11 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
   private var runToken = 0
   private var debounce: DispatchWorkItem?
 
-  init(repo: String, isPrimary: Bool = true, onOpen: @escaping (String, Int) -> Void) {
+  init(
+    repo: String, fff: FffInstance?, isPrimary: Bool = true, onOpen: @escaping (String, Int) -> Void
+  ) {
     self.repo = repo
+    self.fff = fff
     self.isPrimary = isPrimary
     self.onOpen = onOpen
     super.init(nibName: nil, bundle: nil)
@@ -255,8 +259,9 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
     let token = runToken
     let opts = options
     let repo = self.repo
+    let fff = self.fff
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      let result = ProjectSearch.run(q, in: repo, options: opts)
+      let result = ProjectSearch.run(q, in: repo, fff: fff, options: opts)
       DispatchQueue.main.async {
         guard let self, token == self.runToken else { return }  // a newer query superseded this one
         self.applyResult(result, query: q)
@@ -395,7 +400,7 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
   /// Synchronous search for the harness (small scratch repos; deterministic — no debounce/async).
   func debugRun(_ query: String) {
     field.stringValue = query
-    applyResult(ProjectSearch.run(query, in: repo, options: options), query: query)
+    applyResult(ProjectSearch.run(query, in: repo, fff: fff, options: options), query: query)
   }
   /// Stand-in for the "Open as Tab" button click (HID can't drive it in the sandbox).
   func debugOpenAsTab() { onOpenAsTab?(field.stringValue, options) }

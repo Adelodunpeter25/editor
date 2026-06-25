@@ -38,15 +38,24 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
     guard let split = view as? NSSplitView, split.bounds.width > 100,
       split.arrangedSubviews.count > 1
     else { return }
-    let total = split.bounds.width
-    let sidebarW = split.arrangedSubviews[0].frame.width
     if !didSizeOnce {
       didSizeOnce = true
-      if sidebarW < 120 || sidebarW > total - 200 {
+      let saved = UserDefaults.standard.double(forKey: "editor.sidebarWidth")
+      let width = saved >= 120 ? CGFloat(saved) : 320
+      split.setPosition(width, ofDividerAt: 0)
+    } else {
+      let sidebarW = split.arrangedSubviews[0].frame.width
+      if sidebarW < 120 {
         split.setPosition(320, ofDividerAt: 0)
       }
-    } else if sidebarW < 120 {
-      split.setPosition(320, ofDividerAt: 0)
+    }
+  }
+
+  func splitViewDidResizeSubviews(_ notification: Notification) {
+    guard let split = view as? NSSplitView, split.arrangedSubviews.count > 0 else { return }
+    let width = split.arrangedSubviews[0].frame.width
+    if width >= 120 {
+      UserDefaults.standard.set(Double(width), forKey: "editor.sidebarWidth")
     }
   }
 

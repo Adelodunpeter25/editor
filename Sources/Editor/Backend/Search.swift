@@ -29,10 +29,31 @@ enum ProjectSearch {
 
   /// Run a search. Empty query → empty result (no subprocess). Caps total matches so a pathological
   /// query (a single char across a huge tree) stays light.
-  static func run(_ query: String, in repo: String, options: Options, maxMatches: Int = 5000)
+  static func run(_ query: String, in repo: String, fff: FffInstance?, options: Options, maxMatches: Int = 5000)
     -> Result
   {
     guard !query.isEmpty else { return Result(files: [], failed: false) }
+
+    if let fff = fff {
+      let mode: UInt8 = options.regex ? 1 : 0
+      let matches = fff.liveGrep(query: query, mode: mode, pageSize: maxMatches)
+
+      var grouped: [String: [Match]] = [:]
+      var order: [String] = []
+      for m in matches {
+        let match = Match(line: m.lineNumber, preview: m.lineContent)
+        if grouped[m.relativePath] == nil {
+          grouped[m.relativePath] = []
+          order.append(m.relativePath)
+        }
+        grouped[m.relativePath]?.append(match)
+      }
+
+      let files = order.map { file in
+        FileHits(file: file, matches: grouped[file] ?? [])
+      }
+      return Result(files: files, failed: false)
+    }
 
     var args = ["grep", "--no-color", "-n", "-I", "--untracked", "--full-name"]
     if !options.matchCase { args.append("-i") }

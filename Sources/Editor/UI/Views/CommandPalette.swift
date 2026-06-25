@@ -167,18 +167,23 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
       hits = openRows
     } else {
       mode = .file
-      hits =
-        allRows
-        .compactMap { row -> (Row, Int)? in Fuzzy.score(query, row.rel).map { (row, $0) } }
-        .sorted {
-          $0.1 != $1.1
-            ? $0.1 > $1.1
-            : ($0.0.rel.count != $1.0.rel.count
-              ? $0.0.rel.count < $1.0.rel.count
-              : $0.0.rel < $1.0.rel)
-        }
-        .prefix(50)
-        .map { $0.0 }
+      if let fff = model.activeSession?.fff {
+        let results = fff.search(query: query, maxResults: 50)
+        hits = results.map { Row(rel: $0.relativePath, status: .none) }
+      } else {
+        hits =
+          allRows
+          .compactMap { row -> (Row, Int)? in Fuzzy.score(query, row.rel).map { (row, $0) } }
+          .sorted {
+            $0.1 != $1.1
+              ? $0.1 > $1.1
+              : ($0.0.rel.count != $1.0.rel.count
+                ? $0.0.rel.count < $1.0.rel.count
+                : $0.0.rel < $1.0.rel)
+          }
+          .prefix(50)
+          .map { $0.0 }
+      }
     }
     selected = min(selected, max(0, resultCount - 1))
     table.reloadData()
