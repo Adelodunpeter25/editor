@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var settingsWC: SettingsWindowController?
   private let resourceMonitor = ResourceMonitor()
   private var attentionItem: AttentionItem!
+  private var pendingOpenPaths: [String] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Snappier tooltips (default is ~2s). Registered so it doesn't clobber a user override.
@@ -33,6 +34,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     buildMenu()
 
     windowController = MainWindowController(model: model)
+
+    if !pendingOpenPaths.isEmpty {
+      for path in pendingOpenPaths {
+        model.openRepo(path)
+      }
+      pendingOpenPaths.removeAll()
+    }
+
     windowController.showWindow(nil)
     NSApp.activate(ignoringOtherApps: true)
 
@@ -180,9 +189,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var isDir: ObjCBool = false
     guard FileManager.default.fileExists(atPath: filename, isDirectory: &isDir), isDir.boolValue
     else { return false }
-    model.openRepo(filename)
-    windowController.showWindow(nil)
-    NSApp.activate(ignoringOtherApps: true)
+    if let windowController {
+      model.openRepo(filename)
+      windowController.showWindow(nil)
+      NSApp.activate(ignoringOtherApps: true)
+    } else {
+      pendingOpenPaths.append(filename)
+    }
     return true
   }
 
