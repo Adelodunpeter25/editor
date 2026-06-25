@@ -134,10 +134,14 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
           return
         }
         self.roots = tree
+        // Preserve the scroll position so FSEvents reloads don't jump the user back to the top.
+        let savedScrollOrigin = self.scroll.contentView.bounds.origin
         self.restoring = true
         self.outline.reloadData()
         self.restoreExpansion(self.roots)
         self.restoring = false
+        self.scroll.contentView.scroll(to: savedScrollOrigin)
+        self.scroll.reflectScrolledClipView(self.scroll.contentView)
         self.applyReveal(scroll: false)
       }
     }
@@ -284,10 +288,13 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
   }
 
   func reloadAfterEdit() {
+    let savedScrollOrigin = scroll.contentView.bounds.origin
     restoring = true
     outline.reloadData()
     restoreExpansion(roots)
     restoring = false
+    scroll.contentView.scroll(to: savedScrollOrigin)
+    scroll.reflectScrolledClipView(scroll.contentView)
     if let files = pendingFiles {
       pendingFiles = nil
       applyFiles(files)

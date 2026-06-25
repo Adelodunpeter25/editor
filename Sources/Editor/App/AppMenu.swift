@@ -13,7 +13,10 @@ extension AppDelegate {
       item.target = self
       item.representedObject = path
       item.toolTip = path
-      item.image = FileIcon.folderIcon(expanded: false, size: 13)
+      // Use the real Finder folder icon for this path; fall back to the SF Symbol folder.
+      let icon = NSWorkspace.shared.icon(forFile: path)
+      icon.size = NSSize(width: 16, height: 16)
+      item.image = icon
       menu.addItem(item)
     }
     return menu
