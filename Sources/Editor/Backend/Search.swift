@@ -29,78 +29,35 @@ enum ProjectSearch {
 
   /// Run a search. Empty query → empty result (no subprocess). Caps total matches so a pathological
   /// query (a single char across a huge tree) stays light.
-  static func run(_ query: String, in repo: String, fff: FffInstance?, options: Options, maxMatches: Int = 5000)
+  static func run(
+    _ query: String, in repo: String, fff: FffInstance?, options: Options, maxMatches: Int = 5000
+  )
     -> Result
   {
     guard !query.isEmpty else { return Result(files: [], failed: false) }
 
-    if let fff = fff {
-      let mode: UInt8 = options.regex ? 1 : 0
-      let matches = fff.liveGrep(query: query, mode: mode, pageSize: maxMatches)
-
-      var grouped: [String: [Match]] = [:]
-      var order: [String] = []
-      for m in matches {
-        let match = Match(line: m.lineNumber, preview: m.lineContent)
-        if grouped[m.relativePath] == nil {
-          grouped[m.relativePath] = []
-          order.append(m.relativePath)
-        }
-        grouped[m.relativePath]?.append(match)
-      }
-
-      let files = order.map { file in
-        FileHits(file: file, matches: grouped[file] ?? [])
-      }
-      return Result(files: files, failed: false)
+    guard let fff = fff else {
+      print("WARNING: FFF not available in ProjectSearch!")
+      return Result(files: [], failed: true)
     }
 
-    var args = ["grep", "--no-color", "-n", "-I", "--untracked", "--full-name"]
-    if !options.matchCase { args.append("-i") }
-    if options.wholeWord { args.append("-w") }
-    args.append(options.regex ? "-E" : "-F")  // extended regex, or fixed-string literal
-    args.append(contentsOf: ["-e", query])
+    let mode: UInt8 = options.regex ? 1 : 0
+    let matches = fff.liveGrep(query: query, mode: mode, pageSize: maxMatches)
 
-    let r = Shell.runFull(Env.resolve("git"), args, cwd: repo)
-    // git grep exit codes: 0 = matches found, 1 = none, >1 = error (bad regex, not a repo, …).
-    if r.code > 1 { return Result(files: [], failed: true) }
-
-    var files: [FileHits] = []
-    var curFile: String?
-    var curMatches: [Match] = []
-    var total = 0
-    func flush() {
-      if let f = curFile, !curMatches.isEmpty {
-        files.append(FileHits(file: f, matches: curMatches))
+    var grouped: [String: [Match]] = [:]
+    var order: [String] = []
+    for m in matches {
+      let match = Match(line: m.lineNumber, preview: m.lineContent)
+      if grouped[m.relativePath] == nil {
+        grouped[m.relativePath] = []
+        order.append(m.relativePath)
       }
-      curMatches = []
+      grouped[m.relativePath]?.append(match)
     }
-    for raw in r.out.split(separator: "\n", omittingEmptySubsequences: false) {
-      if total >= maxMatches { break }
-      guard let parsed = parse(String(raw)) else { continue }
-      if parsed.file != curFile {
-        flush()
-        curFile = parsed.file
-      }  // git groups a file's matches together
-      curMatches.append(Match(line: parsed.line, preview: parsed.preview))
-      total += 1
+
+    let files = order.map { file in
+      FileHits(file: file, matches: grouped[file] ?? [])
     }
-    flush()
     return Result(files: files, failed: false)
-  }
-
-  /// Parse one `git grep -n` line: `FILE:LINE:TEXT`. Returns nil when the second field isn't numeric —
-  /// which also harmlessly drops the rare path-with-a-colon that would mis-split.
-  private static func parse(_ s: String) -> (file: String, line: Int, preview: String)? {
-    guard let c1 = s.firstIndex(of: ":") else { return nil }
-    let file = String(s[..<c1])
-    let afterFile = s[s.index(after: c1)...]
-    guard let c2 = afterFile.firstIndex(of: ":"), let line = Int(afterFile[..<c2]) else {
-      return nil
-    }
-    var text = String(afterFile[afterFile.index(after: c2)...])
-    text = String(text.drop(while: { $0 == " " || $0 == "\t" }))  // trim indentation so previews align
-    if text.count > 500 { text = String(text.prefix(500)) }  // clip minified/huge lines
-    return (file, line, text)
   }
 }
