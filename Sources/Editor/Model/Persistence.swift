@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 // JSON snapshot persisted to UserDefaults("editor.state"). Tab/session ids are random UUIDs that
@@ -48,5 +49,13 @@ enum Persistence {
     paths.insert(resolved, at: 0)
     if paths.count > recentProjectsLimit { paths = Array(paths.prefix(recentProjectsLimit)) }
     UserDefaults.standard.set(paths, forKey: recentProjectsKey)
+    // Register with macOS LaunchServices so the dock "Open Recent" list is populated
+    // even when the app is not running. Must be called on the main thread.
+    let url = URL(fileURLWithPath: resolved)
+    if Thread.isMainThread {
+      NSDocumentController.shared.noteNewRecentDocumentURL(url)
+    } else {
+      DispatchQueue.main.async { NSDocumentController.shared.noteNewRecentDocumentURL(url) }
+    }
   }
 }

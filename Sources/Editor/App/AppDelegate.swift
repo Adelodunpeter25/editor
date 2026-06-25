@@ -174,4 +174,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Reserved for future use (e.g. clearing badge counts when the app becomes active).
   }
 
+  /// macOS calls this when the app is launched (or re-activated) via a dock "Open Recent" item or
+  /// via Finder → Open With. Opens the folder as a new session, just like File → Open Folder.
+  func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+    var isDir: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: filename, isDirectory: &isDir), isDir.boolValue
+    else { return false }
+    model.openRepo(filename)
+    windowController.showWindow(nil)
+    NSApp.activate(ignoringOtherApps: true)
+    return true
+  }
+
 }
