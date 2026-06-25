@@ -79,15 +79,11 @@ enum GitDiff {
   }
 
   static func gutterChanges(head: String?, current: String) -> GitGutterChangeSet {
-    let currentLineCount = logicalLines(current).count
-    guard let head else {
-      return GitGutterChangeSet(
-        addedLines: currentLineCount > 0 ? Set(1...currentLineCount) : [],
-        modifiedLines: [],
-        deletedLines: []
-      )
-    }
+    // head == nil means the file is not tracked in git (new file or not a git repo).
+    // Return an empty changeset so no gutter bars are drawn.
+    guard let head else { return GitGutterChangeSet() }
 
+    let currentLineCount = logicalLines(current).count
     let rows = rows(old: head, new: current)
     var changes = GitGutterChangeSet()
     for row in rows {
