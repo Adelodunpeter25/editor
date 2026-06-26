@@ -1,5 +1,4 @@
 import AppKit
-import StringUtils
 
 /// Global hook so ⌘P (an AppDelegate menu item) can reach the single palette owned by the window
 /// controller — same static-hook pattern as `FormatterInstall` / `ActiveEditor`.
@@ -14,38 +13,29 @@ enum CommandPaletteHook {
 /// to dismiss. Empty query lists the currently-open file tabs (quick switch). The file list is fetched
 /// once per open via `Git.repoFiles` (off-main, gitignored dirs excluded) — no extra git poller, so it
 /// costs nothing until you press ⌘P.
+///
+/// Glob patterns are supported: `*.swift`, `test*.py`, `src/*.swift`.
+/// Search logic is delegated to `PaletteSearchEngine`.
 final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableViewDataSource,
   NSTableViewDelegate
 {
 
   private let model: AppModel
   private weak var host: NSView?
+  private let engine: PaletteSearchEngine
 
-  private struct Row {
-    let rel: String
-    let status: GitStatus
-  }
-  private struct PaletteCommand {
-    let title: String
-    let keepsOpen: Bool
-    let run: () -> Void
-  }
-  private enum Mode { case file, line, command }
-
-  private var allRows: [Row] = []  // full repo listing (lazy, fetched on present)
-  private var openRows: [Row] = []  // currently-open file tabs (shown for empty query)
-  private var hits: [Row] = []  // current filtered/sorted file results
-  private var commandHits: [PaletteCommand] = []  // filtered commands (`>` mode)
-  private var commandQuery = ""  // the text after `>` (for match highlighting)
-  private var mode: Mode = .file
-  private var lineJump: Int?  // set when the query is `:123` (jump in the active editor)
+  private var result = PaletteSearchResult()
   private var selected = 0
-  private var resultCount: Int { mode == .command ? commandHits.count : hits.count }
+  private var resultCount: Int {
+    result.mode == .command ? result.commandHits.count : result.fileHits.count
+  }
   private var loadToken = 0  // drops a stale async listing if the palette was reopened
 
   init(model: AppModel) {
     self.model = model
+    self.engine = PaletteSearchEngine(model: model)
     super.init()
+    engine.onEnterFileMode = { [weak self] in self?.enterFileMode() }
   }
 
   /// Remember where to mount the overlay (added only on present, removed on dismiss → zero idle cost).
@@ -57,7 +47,7 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
 
   /// ⌘⇧P — open straight into command mode (or toggle off if already there).
   func toggleCommand() {
-    if isShown && mode == .command {
+    if isShown && result.mode == .command {
       dismiss()
       return
     }
@@ -90,18 +80,14 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
   private var listHeight: NSLayoutConstraint!
 
   private func present() {
-    guard let host, let session = model.activeSession else { return }
+    guard let host, model.activeSession != nil else { return }
 
     if overlay == nil { buildUI() }
     guard let overlay else { return }
 
     // Seed the open-tabs quick-switch list, then fetch the full repo listing.
-    openRows = session.tabs
-      .filter { $0.kind == .file }
-      .compactMap { $0.path }
-      .map { Row(rel: relative($0, to: session.url), status: .none) }
-    allRows = []
-    loadFiles(repo: session.url)
+    engine.refreshOpenFiles()
+    loadFiles()
 
     overlay.translatesAutoresizingMaskIntoConstraints = false
     host.addSubview(overlay)
@@ -123,57 +109,19 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
     loadToken += 1  // ignore any in-flight listing
   }
 
-  private func loadFiles(repo: String) {
+  private func loadFiles() {
     loadToken += 1
     let token = loadToken
-    DispatchQueue.global().async { [weak self] in
-      let rows = Git.repoFiles(repo, expandIgnored: false)
-        .filter { !$0.isDir }
-        .map { Row(rel: $0.path, status: $0.status) }
-      DispatchQueue.main.async {
-        guard let self, token == self.loadToken else { return }  // reopened → drop stale result
-        self.allRows = rows
-        self.applyFilter()
-      }
+    engine.loadRepoFiles { [weak self] in
+      guard let self, token == self.loadToken else { return }  // reopened → drop stale result
+      self.applyFilter()
     }
   }
 
   // MARK: - Filtering
 
   private func applyFilter() {
-    let query = field.stringValue.trimmingCharacters(in: .whitespaces)
-    lineJump = nil
-    hits = []
-    commandHits = []
-    commandQuery = ""
-    if query.hasPrefix(">") {
-      // Command mode (`>`): run an action instead of opening a file.
-      mode = .command
-      commandQuery = String(query.dropFirst()).trimmingCharacters(in: .whitespaces)
-      let cmds = buildCommands()
-      commandHits =
-        commandQuery.isEmpty
-        ? cmds
-        : cmds.compactMap { c in Fuzzy.score(commandQuery, c.title).map { (c, $0) } }
-          .sorted { $0.1 > $1.1 }.map { $0.0 }
-    } else if query.hasPrefix(":") {
-      // Line-jump mode (`:123`): no file results — Enter jumps in the active editor.
-      mode = .line
-      let digits = query.dropFirst().filter(\.isNumber)
-      lineJump = digits.isEmpty ? nil : Int(digits)
-    } else if query.isEmpty {
-      mode = .file
-      hits = openRows
-    } else {
-      mode = .file
-      guard let fff = model.activeSession?.fff else {
-        print("WARNING: FFF not available in CommandPalette!")
-        hits = []
-        return
-      }
-      let results = fff.search(query: query, maxResults: 50)
-      hits = results.map { Row(rel: $0.relativePath, status: .none) }
-    }
+    result = engine.search(query: field.stringValue)
     selected = min(selected, max(0, resultCount - 1))
     table.reloadData()
     if resultCount > 0 { table.selectRowIndexes([selected], byExtendingSelection: false) }
@@ -181,7 +129,7 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
     let rows = max(1, min(resultCount, 12))
     listHeight.constant = CGFloat(rows) * rowHeight
     placeholder.isHidden = resultCount > 0
-    placeholder.stringValue = placeholderText(query)
+    placeholder.stringValue = placeholderText()
 
     // Resolve the panel→scroll resize synchronously and re-tile the table to its new clip — otherwise
     // the scroll/table frames lag the constant change for a frame (a shrinking list paints a stretched
@@ -190,51 +138,17 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
     table.tile()
   }
 
-  private func placeholderText(_ query: String) -> String {
-    switch mode {
+  private func placeholderText() -> String {
+    switch result.mode {
     case .command: return "No matching commands"
     case .line:
       return ActiveEditor.current == nil
         ? "Open a file first"
-        : lineJump == nil ? "Type a line number" : "Go to line \(lineJump!)  ⏎"
-    case .file: return query.isEmpty ? "No open files" : "No matching files"
+        : result.lineJump == nil ? "Type a line number" : "Go to line \(result.lineJump!)  ⏎"
+    case .file:
+      let query = field.stringValue.trimmingCharacters(in: .whitespaces)
+      return query.isEmpty ? "No open files" : "No matching files"
     }
-  }
-
-  /// Actions for command mode, built fresh each filter so availability tracks current state (e.g.
-  /// Format only with an editor open).
-  private func buildCommands() -> [PaletteCommand] {
-    var c: [PaletteCommand] = []
-    if let s = model.activeSession {
-      c.append(
-        PaletteCommand(title: "New Terminal", keepsOpen: false) {
-          s.addTab(Tab(kind: .terminal, title: "Terminal"))
-        })
-    }
-    if ActiveEditor.current != nil {
-      c.append(
-        PaletteCommand(title: "Format Document", keepsOpen: false) {
-          ActiveEditor.current?.formatDocument()
-        })
-    }
-    if model.activeSession != nil {
-      c.append(
-        PaletteCommand(title: "Find in Files…", keepsOpen: false) { SidebarSearchHook.reveal?() })
-    }
-    c.append(
-      PaletteCommand(title: "Go to File…", keepsOpen: true) { [weak self] in self?.enterFileMode() }
-    )
-    c.append(
-      PaletteCommand(title: "Settings…", keepsOpen: false) { [weak self] in
-        self?.model.showSettings = true
-      })
-    if let s = model.activeSession, let t = s.activeTab {
-      c.append(
-        PaletteCommand(title: "Close Tab", keepsOpen: false) {
-          if UnsavedGuard.confirmClose(t) { s.closeTab(t.id) }
-        })
-    }
-    return c
   }
 
   /// Switch back to file search from command mode (the "Go to File…" command).
@@ -253,15 +167,15 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
   }
 
   private func openSelected() {
-    switch mode {
+    switch result.mode {
     case .line:
-      if let line = lineJump, let editor = ActiveEditor.current {
+      if let line = result.lineJump, let editor = ActiveEditor.current {
         dismiss()
         editor.goToLine(line)
       }
     case .command:
-      guard commandHits.indices.contains(selected) else { return }
-      let cmd = commandHits[selected]
+      guard result.commandHits.indices.contains(selected) else { return }
+      let cmd = result.commandHits[selected]
       if cmd.keepsOpen {
         cmd.run()
       } else {
@@ -269,8 +183,8 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
         cmd.run()
       }  // Go to File… stays open
     case .file:
-      guard hits.indices.contains(selected) else { return }
-      let rel = hits[selected].rel
+      guard result.fileHits.indices.contains(selected) else { return }
+      let rel = result.fileHits[selected].rel
       dismiss()
       model.activeSession?.openFile(rel)
     }
@@ -317,22 +231,30 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
         c.identifier = id
         return c
       }()
-    if mode == .command {
-      let cmd = commandHits[row]
+    if result.mode == .command {
+      let cmd = result.commandHits[row]
       cell.configure(
         name: cmd.title, dir: "", status: .none,
-        nameMatches: Fuzzy.matches(commandQuery, cmd.title), dirMatches: [])
+        nameMatches: Fuzzy.matches(result.commandQuery, cmd.title), dirMatches: [])
       return cell
     }
-    let r = hits[row]
+    let r = result.fileHits[row]
     let name = (r.rel as NSString).lastPathComponent
     let dir = (r.rel as NSString).deletingLastPathComponent
+
+    // Glob results: no fuzzy highlight (the match is a regex, not a subsequence).
+    if result.isGlob {
+      cell.configure(name: name, dir: dir, status: r.status)
+      return cell
+    }
+
     // Map the full-path match positions onto the name (after the last "/") and dir segments so each
     // field bolds its own matched chars. The char at baseStart-1 is the "/" separator (never bolded).
+    let query = field.stringValue.trimmingCharacters(in: .whitespaces)
     let baseStart = r.rel.count - name.count
     var nameMatches: [Int] = []
     var dirMatches: [Int] = []
-    for m in Fuzzy.matches(field.stringValue.trimmingCharacters(in: .whitespaces), r.rel) {
+    for m in Fuzzy.matches(query, r.rel) {
       if m >= baseStart {
         nameMatches.append(m - baseStart)
       } else if m < baseStart - 1 {
@@ -384,7 +306,7 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
     field.focusRingType = .none
     field.font = .systemFont(ofSize: 15)
     field.textColor = NSColor(white: 0.95, alpha: 1)
-    field.placeholderString = "Search files by name"
+    field.placeholderString = "Search files by name (glob: *.swift, test*.py)"
     field.delegate = self
     panel.addSubview(field)
 
@@ -451,137 +373,5 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
       placeholder.centerYAnchor.constraint(equalTo: scroll.centerYAnchor),
     ])
     self.overlay = overlay
-  }
-
-  private func relative(_ abs: String, to repo: String) -> String {
-    let prefix = repo.hasSuffix("/") ? repo : repo + "/"
-    return abs.hasPrefix(prefix)
-      ? String(abs.dropFirst(prefix.count)) : (abs as NSString).lastPathComponent
-  }
-}
-
-/// Full-host click catcher: a click outside the panel dismisses (handled by the controller).
-private final class ScrimView: NSView {
-  var onClickOutside: ((NSPoint) -> Void)?
-  override func mouseDown(with event: NSEvent) {
-    onClickOutside?(convert(event.locationInWindow, from: nil))
-  }
-}
-
-/// One result row: filename (git-status tinted) + a dim parent dir, vertically centered. Colors brighten
-/// when selected so the dim dir text stays legible on the accent-blue background (`backgroundStyle`
-/// flips to `.emphasized`, driven by the row view's `interiorBackgroundStyle` below).
-private final class PaletteCellView: NSTableCellView {
-  private let nameField = NSTextField(labelWithString: "")
-  private let dirField = NSTextField(labelWithString: "")
-  private var status: GitStatus = .none
-  private var name = "", dir = ""
-  private var nameMatches: Set<Int> = [], dirMatches: Set<Int> = []
-
-  override init(frame: NSRect) {
-    super.init(frame: frame)
-    nameField.setContentCompressionResistancePriority(.required, for: .horizontal)
-    dirField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-    let stack = NSStackView(views: [nameField, dirField])
-    stack.orientation = .horizontal
-    stack.alignment = .firstBaseline
-    stack.spacing = 8
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(stack)
-    NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-      stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -10),
-      stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-    ])
-  }
-
-  @available(*, unavailable)
-  required init?(coder: NSCoder) { fatalError() }
-
-  func configure(
-    name: String, dir: String, status: GitStatus, nameMatches: [Int], dirMatches: [Int]
-  ) {
-    self.name = name
-    self.dir = dir
-    self.status = status
-    self.nameMatches = Set(nameMatches)
-    self.dirMatches = Set(dirMatches)
-    dirField.isHidden = dir.isEmpty
-    applyColors()
-  }
-
-  override var backgroundStyle: NSView.BackgroundStyle { didSet { applyColors() } }
-
-  /// Rebuilds both labels' attributed text: base color from selection + git status, with matched chars
-  /// brightened and bold. Re-run on selection change so the highlight tracks the accent background.
-  private func applyColors() {
-    let selected = backgroundStyle == .emphasized
-    nameField.attributedStringValue = styled(
-      name, size: 13, truncate: .byTruncatingTail,
-      base: selected ? NSColor(white: 1, alpha: 0.85) : nsStatusColor(status),
-      match: .white, matches: nameMatches)
-    dirField.attributedStringValue = styled(
-      dir, size: 11, truncate: .byTruncatingMiddle,
-      base: selected ? NSColor(white: 1, alpha: 0.75) : NSColor(white: 0.5, alpha: 1),
-      match: selected ? .white : NSColor(white: 0.85, alpha: 1), matches: dirMatches)
-  }
-
-  private func styled(
-    _ s: String, size: CGFloat, truncate: NSLineBreakMode,
-    base: NSColor, match: NSColor, matches: Set<Int>
-  ) -> NSAttributedString {
-    let para = NSMutableParagraphStyle()
-    para.lineBreakMode = truncate
-    let a = NSMutableAttributedString(
-      string: s,
-      attributes: [
-        .foregroundColor: base, .font: NSFont.systemFont(ofSize: size), .paragraphStyle: para,
-      ])
-    if !matches.isEmpty {
-      let bold = NSFont.systemFont(ofSize: size, weight: .bold)
-      var u16 = 0  // matched indices are Character offsets; map each to its UTF-16 range
-      for (ci, ch) in s.enumerated() {
-        let len = String(ch).utf16.count
-        if matches.contains(ci) {
-          a.addAttributes(
-            [.font: bold, .foregroundColor: match],
-            range: NSRange(location: u16, length: len))
-        }
-        u16 += len
-      }
-    }
-    return a
-  }
-}
-
-/// Accent-tinted selection that fills the row (and forces `.emphasized` so cell text brightens even when
-/// the window isn't key — e.g. while the harness drives it).
-private final class PaletteRowView: NSTableRowView {
-  override var interiorBackgroundStyle: NSView.BackgroundStyle {
-    isSelected ? .emphasized : .normal
-  }
-  override func drawSelection(in dirtyRect: NSRect) {
-    guard isSelected else { return }
-    NSColor.controlAccentColor.withAlphaComponent(0.85).setFill()
-    bounds.fill()
-  }
-}
-
-// MARK: - Fuzzy scoring (thin wrappers around StringUtils.abbreviatedMatch)
-
-enum Fuzzy {
-  /// Subsequence match of `query` in `candidate` (case-insensitive). Returns nil if not all query
-  /// chars appear in order; otherwise a score where higher = better (shorter match span ranks higher).
-  static func score(_ query: String, _ candidate: String) -> Int? {
-    guard let result = candidate.abbreviatedMatch(with: query) else { return nil }
-    return -result.score
-  }
-
-  /// The character indices `query` matches in `candidate`, in order. Empty if not a full subsequence.
-  static func matches(_ query: String, _ candidate: String) -> [Int] {
-    guard let ranges = candidate.abbreviatedMatchedRanges(with: query) else { return [] }
-    return ranges.map { range in
-      candidate.distance(from: candidate.startIndex, to: range.lowerBound)
-    }
   }
 }
