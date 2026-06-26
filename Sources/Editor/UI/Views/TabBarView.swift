@@ -2,6 +2,7 @@ import AppKit
 
 extension NSPasteboard.PasteboardType {
   static let editorTab = NSPasteboard.PasteboardType("com.editor.tab")
+  static let editorFilePath = NSPasteboard.PasteboardType("com.editor.file-path")
 }
 
 /// The tab strip above the workspace content: tab chips on the left, and new-terminal button on the
@@ -16,6 +17,8 @@ final class TabBarView: NSView {
   var onNewTerminal: (() -> Void)?
   /// Reorder: move `dragged` to just before `beforeID` (nil = move to the end).
   var onReorder: ((_ dragged: String, _ beforeID: String?) -> Void)?
+  /// Called when a file is dragged from the sidebar and dropped onto the tab bar.
+  var onOpenFilePath: ((String) -> Void)?
 
   private let chips = NSStackView()
   private let scrollView = NSScrollView()
@@ -80,7 +83,7 @@ final class TabBarView: NSView {
     dropIndicator.layer?.cornerRadius = 1
     dropIndicator.isHidden = true
     addSubview(dropIndicator)  // floats above the chips while dragging
-    registerForDraggedTypes([.editorTab])
+    registerForDraggedTypes([.editorTab, .editorFilePath])
   }
 
   @available(*, unavailable)
@@ -151,10 +154,18 @@ final class TabBarView: NSView {
   // MARK: - Drag reorder (drop target)
 
   override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+    if sender.draggingPasteboard.availableType(from: [.editorFilePath]) != nil {
+      showFilePathDrop(sender)
+      return .copy
+    }
     showDrop(sender)
     return .move
   }
   override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+    if sender.draggingPasteboard.availableType(from: [.editorFilePath]) != nil {
+      showFilePathDrop(sender)
+      return .copy
+    }
     showDrop(sender)
     return .move
   }
@@ -163,7 +174,14 @@ final class TabBarView: NSView {
 
   override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
     dropIndicator.isHidden = true
-    guard let dragged = sender.draggingPasteboard.string(forType: .editorTab) else { return false }
+    let pb = sender.draggingPasteboard
+    // File dragged from the sidebar → open it as a new tab.
+    if let path = pb.string(forType: .editorFilePath) {
+      onOpenFilePath?(path)
+      return true
+    }
+    // Tab chip dragged for reorder.
+    guard let dragged = pb.string(forType: .editorTab) else { return false }
     let (beforeID, _) = insertionPoint(at: sender.draggingLocation)
     if beforeID != dragged { onReorder?(dragged, beforeID) }
     return true
@@ -172,6 +190,13 @@ final class TabBarView: NSView {
   private func showDrop(_ sender: NSDraggingInfo) {
     let (_, x) = insertionPoint(at: sender.draggingLocation)
     dropIndicator.frame = NSRect(x: x - 1, y: 5, width: 2, height: max(0, bounds.height - 11))
+    dropIndicator.isHidden = false
+  }
+
+  private func showFilePathDrop(_ sender: NSDraggingInfo) {
+    let chipViews = chips.arrangedSubviews.compactMap { $0 as? TabChipView }
+    let endX = chipViews.last.map { $0.convert($0.bounds, to: self).maxX + 2 } ?? 8
+    dropIndicator.frame = NSRect(x: endX - 1, y: 5, width: 2, height: max(0, bounds.height - 11))
     dropIndicator.isHidden = false
   }
 

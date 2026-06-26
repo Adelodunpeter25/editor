@@ -67,6 +67,8 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
     outline.backgroundColor = Theme.sidebarBg
     outline.dataSource = self
     outline.delegate = self
+    outline.setDraggingSourceOperationMask(.copy, forLocal: false)
+    outline.setDraggingSourceOperationMask(.copy, forLocal: true)
     outline.target = self
     outline.action = #selector(rowClicked)
     outline.autoresizingMask = [.width, .height]
@@ -320,6 +322,39 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
   }
   func outlineView(_ ov: NSOutlineView, isItemExpandable item: Any) -> Bool {
     (item as? TreeNode)?.isFolder ?? false
+  }
+
+  // MARK: - Drag source (sidebar → tab bar)
+
+  func outlineView(_ ov: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+    guard let node = item as? TreeNode, !node.isFolder, !node.isDir else { return nil }
+    let abs = (store.repo as NSString).appendingPathComponent(node.id)
+    let item = NSPasteboardItem()
+    // com.editor.file-path carries the absolute path; the tab bar reads this type.
+    item.setString(abs, forType: NSPasteboard.PasteboardType("com.editor.file-path"))
+    return item
+  }
+
+  func outlineView(
+    _ ov: NSOutlineView, draggingSession session: NSDraggingSession,
+    willBeginAt screenPoint: NSPoint, forItems draggedItems: [Any]
+  ) {
+    // Use just the file icon + name as the drag image for a tidy ghost.
+    guard let node = draggedItems.first as? TreeNode,
+      let row = draggedItems.compactMap({ ov.row(forItem: $0) }).first,
+      row >= 0,
+      let cellView = ov.view(atColumn: 0, row: row, makeIfNecessary: false) as? NSView
+    else { return }
+    let img = NSImage(size: cellView.bounds.size)
+    img.lockFocus()
+    cellView.draw(cellView.bounds)
+    img.unlockFocus()
+    session.enumerateDraggingItems(
+      options: [], for: nil, classes: [NSPasteboardItem.self], searchOptions: [:]
+    ) { item, _, _ in
+      item.setDraggingFrame(CGRect(origin: .zero, size: cellView.bounds.size), contents: img)
+    }
+    _ = node  // silence unused warning
   }
 
   // MARK: - Delegate

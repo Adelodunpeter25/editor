@@ -152,6 +152,11 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
         session.moveTabToEnd(dragged)
       }
     }
+    // File dragged from the sidebar and dropped onto the tab bar: open it in the active session.
+    // Session.openFile accepts absolute paths directly and handles dedup / replace-if-fresh logic.
+    tabBar.onOpenFilePath = { [weak self] absolutePath in
+      self?.model.activeSession?.openFile(absolutePath)
+    }
   }
 
   @objc private func openFolderTapped() {
