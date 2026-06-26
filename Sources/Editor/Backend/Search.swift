@@ -63,34 +63,44 @@ enum ProjectSearch {
   }
 
   /// Replace all occurrences of `query` with `replacement` across the given files (from a prior
-  /// `run` result). Returns the number of files modified. Uses the same options (matchCase/wholeWord/
-  /// regex) as `run`. For non-regex mode the query is treated as a literal string. For regex mode,
-  /// `$1`/`$2` capture groups are supported.
+  /// `run` result). Returns the number of files modified. Uses `TextFind` from EditorCore for
+  /// proper full-word, case-sensitivity, and regex capture-group handling.
   static func replaceAll(
     _ query: String, with replacement: String, in repo: String,
     options: Options, files: [FileHits]
   ) -> Int {
     guard !query.isEmpty, !files.isEmpty else { return 0 }
 
-    // Build the regex for replacement.
-    var pattern = options.regex ? query : NSRegularExpression.escapedPattern(for: query)
-    if options.wholeWord { pattern = "\\b" + pattern + "\\b" }
-    let regexOpts: NSRegularExpression.Options = options.matchCase ? [] : [.caseInsensitive]
-    guard let regex = try? NSRegularExpression(pattern: pattern, options: regexOpts) else { return 0 }
+    // Map our Options to TextFind.Mode.
+    let mode: TextFind.Mode
+    if options.regex {
+      let regexOpts: NSRegularExpression.Options = options.matchCase ? [] : [.caseInsensitive]
+      mode = .regularExpression(options: regexOpts, unescapesReplacement: true)
+    } else {
+      let compareOpts: String.CompareOptions = options.matchCase ? [] : [.caseInsensitive]
+      mode = .textual(options: compareOpts, fullWord: options.wholeWord)
+    }
 
     var changedCount = 0
     for hit in files {
       let absPath = (repo as NSString).appendingPathComponent(hit.file)
       guard let content = try? String(contentsOfFile: absPath, encoding: .utf8) else { continue }
-      let mutable = NSMutableString(string: content)
-      let range = NSRange(location: 0, length: mutable.length)
-      let replaced = regex.replaceMatches(
-        in: mutable, range: range, withTemplate: replacement)
-      if replaced > 0 {
-        let newContent = mutable as String
-        try? newContent.write(toFile: absPath, atomically: true, encoding: .utf8)
-        changedCount += 1
+      guard let finder = try? TextFind(
+        for: content, findString: query, mode: mode, inSelection: false,
+        selectedRanges: [content.range])
+      else { continue }
+
+      let (items, _) = finder.replaceAll(with: replacement) { _, _, _ in }
+      guard !items.isEmpty else { continue }
+
+      // Apply the replacement items to build the new content.
+      let mutable = NSMutableAttributedString(string: content)
+      for item in items.reversed() {
+        mutable.replaceCharacters(in: item.range, with: item.value)
       }
+      let newContent = mutable.string
+      try? newContent.write(toFile: absPath, atomically: true, encoding: .utf8)
+      changedCount += 1
     }
     return changedCount
   }
