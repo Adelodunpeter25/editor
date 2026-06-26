@@ -33,7 +33,7 @@ extension Query.Definition {
 }
 
 
-public final class LanguageRegistry: Sendable {
+public final class LanguageRegistry {
     
     enum RegistryError: Error {
         

@@ -190,7 +190,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     let path = self.path
     let commitHash = self.commitHash
     let hl = TreeSitterHighlighter.forPath(path)
-    DispatchQueue.global().async { [weak self] in
+    Task { [weak self] in
       let v: (old: String, new: String)
       if let commitHash {
         v = Git.versions(repo, path, commitHash: commitHash)
@@ -202,7 +202,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
       }
       let rows = computeDiff(old: v.old, new: v.new)
 
-      // tree-sitter parsing is async (actor); use a Task group to run both in parallel
+      // tree-sitter parsing is async (actor); run both in parallel
       async let oSpansAsync = hl?.spans(for: v.old) ?? []
       async let nSpansAsync = hl?.spans(for: v.new) ?? []
       let oSpans = await oSpansAsync
@@ -210,7 +210,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
 
       let oOffsets = Self.lineOffsets(v.old)
       let nOffsets = Self.lineOffsets(v.new)
-      DispatchQueue.main.async {
+      await MainActor.run { [weak self] in
         guard let self, seq == self.loadSeq else { return }
         self.highlighter = hl
         self.rows = rows
