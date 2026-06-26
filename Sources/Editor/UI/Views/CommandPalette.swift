@@ -1,4 +1,5 @@
 import AppKit
+import StringUtils
 
 /// Global hook so ⌘P (an AppDelegate menu item) can reach the single palette owned by the window
 /// controller — same static-hook pattern as `FormatterInstall` / `ActiveEditor`.
@@ -588,62 +589,21 @@ private final class PaletteRowView: NSTableRowView {
   }
 }
 
-// MARK: - Fuzzy scoring
+// MARK: - Fuzzy scoring (thin wrappers around StringUtils.abbreviatedMatch)
 
 enum Fuzzy {
   /// Subsequence match of `query` in `candidate` (case-insensitive). Returns nil if not all query
-  /// chars appear in order; otherwise a score where higher = better. Bonuses: consecutive runs,
-  /// word-boundary / camelCase starts, and matches in the filename (last path component). Greedy
-  /// earliest-match — complete for detecting a subsequence, good-enough for ranking.
+  /// chars appear in order; otherwise a score where higher = better (shorter match span ranks higher).
   static func score(_ query: String, _ candidate: String) -> Int? {
-    let q = Array(query.lowercased())
-    if q.isEmpty { return 0 }
-    let orig = Array(candidate)
-    let lower = Array(candidate.lowercased())
-    let baseStart = lower.count - ((candidate as NSString).lastPathComponent.count)
-
-    var qi = 0
-    var total = 0
-    var prevMatch = -2
-    var i = 0
-    while i < lower.count && qi < q.count {
-      if lower[i] == q[qi] {
-        var s = 1
-        if i == prevMatch + 1 { s += 5 }  // consecutive
-        let prev: Character = i > 0 ? orig[i - 1] : "/"
-        if "/._- ".contains(prev) {
-          s += 8
-        }  // word boundary
-        else if orig[i].isUppercase && !orig[i - 1].isUppercase {
-          s += 4
-        }  // camelCase
-        if i >= baseStart { s += 3 }  // filename region
-        total += s
-        prevMatch = i
-        qi += 1
-      }
-      i += 1
-    }
-    guard qi == q.count else { return nil }
-    return total - lower.count / 40  // mild preference for shorter paths
+    guard let result = candidate.abbreviatedMatch(with: query) else { return nil }
+    return -result.score
   }
 
-  /// The character indices `query` matches in `candidate` (same greedy earliest-match as `score`, so the
-  /// highlighted chars are exactly the ones that earned the score). Empty if not a full subsequence.
+  /// The character indices `query` matches in `candidate`, in order. Empty if not a full subsequence.
   static func matches(_ query: String, _ candidate: String) -> [Int] {
-    let q = Array(query.lowercased())
-    if q.isEmpty { return [] }
-    let lower = Array(candidate.lowercased())
-    var qi = 0
-    var out: [Int] = []
-    var i = 0
-    while i < lower.count && qi < q.count {
-      if lower[i] == q[qi] {
-        out.append(i)
-        qi += 1
-      }
-      i += 1
+    guard let ranges = candidate.abbreviatedMatchedRanges(with: query) else { return [] }
+    return ranges.map { range in
+      candidate.distance(from: candidate.startIndex, to: range.lowerBound)
     }
-    return qi == q.count ? out : []
   }
 }
