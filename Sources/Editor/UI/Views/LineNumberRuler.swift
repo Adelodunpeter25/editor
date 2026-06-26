@@ -170,17 +170,22 @@ final class LineNumberRuler: NSRulerView {
     let charRange = lm.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
     ensureLineStarts(upTo: charRange.upperBound)
 
-    // Everything below is in *viewport* coordinates: y == 0 is the top of the visible area, growing
-    // downward (the ruler is flipped). `textView.visibleRect.minY` is the current scroll offset
-    // (the clip view's bounds origin is NOT reliable here), so a line fragment at container-y `F`
-    // sits at viewport-y `inset + F - scrollOffset`.
+    // Find the first visible line by asking the layout manager directly which glyph is at the
+    // top of the viewport, then mapping that glyph back to a character index and line number.
+    // This avoids the old binary search over fragmentRects which could probe lines outside the
+    // laid-out range and return bogus rects (causing the first few line numbers to be skipped
+    // when scrolling up from the bottom of a large file).
+    let viewTop = visible.minY
+    let topPoint = NSPoint(x: 0, y: viewTop)
+    let topGlyphIndex = lm.glyphIndex(for: topPoint, in: tc)
+    let topCharIndex = lm.characterIndexForGlyph(at: topGlyphIndex)
+    let startLine = max(0, lineNumber(for: topCharIndex) - 1)
+
     let curLine = lineNumber(for: textView.selectedRange().location)
 
-    // Start at the first logical line whose fragment reaches the viewport top — a binary search over
-    // fragment tops (O(log n)), so a deep scroll doesn't scan every line above the fold each redraw.
-    // Back up one line to catch partially-visible lines at the top edge of the viewport.
-    var line = max(0, firstVisibleLine(at: visible.minY, inset: inset, lm: lm, ns: ns) - 1)
-
+    // Walk forward from the first visible line, drawing each line's number at its fragment rect.
+    // Stop when we pass the bottom of the viewport.
+    var line = startLine
     while line < lineStarts.count {
       let fragRect = fragmentRect(forLine: line, lm: lm, ns: ns)
       let y = inset + fragRect.minY - visible.minY
@@ -230,25 +235,5 @@ final class LineNumberRuler: NSRulerView {
     guard startChar < ns.length else { return lm.extraLineFragmentRect }
     return lm.lineFragmentRect(
       forGlyphAt: lm.glyphIndexForCharacter(at: startChar), effectiveRange: nil)
-  }
-
-  /// Greatest line index whose fragment top is at/above `viewTop` — i.e. the first line to draw.
-  /// Binary search so a deep scroll costs O(log n) layout probes, not one per line above the fold.
-  private func firstVisibleLine(
-    at viewTop: CGFloat, inset: CGFloat, lm: NSLayoutManager, ns: NSString
-  ) -> Int {
-    var lo = 0
-    var hi = lineStarts.count - 1
-    var ans = 0
-    while lo <= hi {
-      let mid = (lo + hi) / 2
-      if fragmentRect(forLine: mid, lm: lm, ns: ns).minY + inset <= viewTop {
-        ans = mid
-        lo = mid + 1
-      } else {
-        hi = mid - 1
-      }
-    }
-    return ans
   }
 }
