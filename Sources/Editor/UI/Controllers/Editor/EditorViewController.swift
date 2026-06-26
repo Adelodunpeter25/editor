@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import LineEnding
 
 /// DEV harness hook: the editor for the currently-active file tab (set by CenterViewController).
 enum ActiveEditor { static weak var current: EditorViewController? }
@@ -33,7 +34,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   var path: String  // absolute file path (mutable: a rename retargets it in place; "" while untitled)
   private var untitled: UntitledFile?  // non-nil until a blank "New File" tab is first saved
-  private(set) var lineEnding = "LF"  // status bar — detected on load
+  private(set) var lineEnding: LineEnding = .lf  // status bar — detected on load
   private(set) var indentStyle = "Spaces: 4"
   private var languageOverride: String?  // status-bar language picker (nil = auto-detect from extension)
   var settings: Settings
@@ -122,7 +123,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
         string: content, attributes: [.font: mono(fontSize), .foregroundColor: TMTheme.base]))
     saved = content
     tv.setSelectedRange(NSRange(location: 0, length: 0))  // caret at the top on open (setAttributedString parks it at the end)
-    lineEnding = content.contains("\r\n") ? "CRLF" : "LF"  // status bar (detected once on load)
+    lineEnding = LineEnding.detect(in: content) ?? .lf  // status bar (detected once on load)
     indentStyle = EditorViewController.detectIndent(content)
     tv.onSave = { [weak self] in self?.save() }
     tv.onFormat = { [weak self] in self?.formatDocument() }
@@ -204,10 +205,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   /// Convert the document's line endings (status-bar LF/CRLF click). One undoable edit; marks dirty so
   /// it persists on save. Normalizes to LF first, then to CRLF if requested.
-  func convertLineEndings(to eol: String) {
+  func convertLineEndings(to eol: LineEnding) {
     guard let tv = textView, eol != lineEnding else { return }
-    let lf = (tv.string as NSString).replacingOccurrences(of: "\r\n", with: "\n")
-    let converted = eol == "CRLF" ? lf.replacingOccurrences(of: "\n", with: "\r\n") : lf
+    let converted = tv.string.convertingLineEndings(to: eol)
     let full = NSRange(location: 0, length: (tv.string as NSString).length)
     if tv.shouldChangeText(in: full, replacementString: converted) {
       tv.textStorage?.replaceCharacters(in: full, with: converted)

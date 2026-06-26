@@ -18,7 +18,8 @@ let package = Package(
             name: "Editor",
             dependencies: [
                 .product(name: "SwiftTerm", package: "SwiftTerm"),
-                .product(name: "EditorCore", package: "EditorCore"),
+                .product(name: "LineEnding", package: "EditorCore"),
+                .product(name: "TextFind", package: "EditorCore"),
                 "Cfff",
             ],
             path: "Sources/Editor",

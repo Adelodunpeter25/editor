@@ -121,6 +121,16 @@ public extension StringProtocol {
         
         self.replacingOccurrences(of: LineEnding.allRegexPattern, with: lineEnding.string, options: .regularExpression)
     }
+    
+    
+    /// Returns a new string in which all line endings in the receiver are converted to the given line ending.
+    ///
+    /// - Parameter lineEnding: The target line ending type.
+    /// - Returns: String with converted line endings.
+    func convertingLineEndings(to lineEnding: LineEnding) -> String {
+        
+        self.replacingLineEndings(with: lineEnding)
+    }
 }
 
 

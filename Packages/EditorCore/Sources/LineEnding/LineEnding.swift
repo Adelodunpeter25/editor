@@ -77,4 +77,22 @@ public enum LineEnding: Character, Sendable, CaseIterable {
             case .paragraphSeparator: "PS"
         }
     }
+    
+    
+    /// The localized name to display.
+    public var localizedName: String {
+        
+        self.label
+    }
+    
+    
+    /// Detect the line ending type from a string.
+    ///
+    /// - Parameter string: The string to detect line endings from.
+    /// - Returns: The detected line ending type, or nil if no line endings found.
+    public static func detect(in string: String) -> LineEnding? {
+        
+        let ranges = string.lineEndingRanges()
+        return ranges.first?.value
+    }
 }

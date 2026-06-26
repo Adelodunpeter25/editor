@@ -26,6 +26,8 @@ let package = Package(
             "ValueRange",
         ]),
         
+        .library(name: "ValueRange", targets: ["ValueRange"]),
+        
         .library(name: "CharacterInfo", targets: ["CharacterInfo"]),
         .library(name: "Defaults", targets: ["Defaults"]),
         .library(name: "DocumentFile", targets: ["DocumentFile"]),

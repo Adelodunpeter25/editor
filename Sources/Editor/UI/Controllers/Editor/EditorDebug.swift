@@ -1,4 +1,5 @@
 import AppKit
+import LineEnding
 
 extension EditorViewController {
 
@@ -38,8 +39,11 @@ extension EditorViewController {
   }
   var debugFindCount: Int { findMatches.count }
   var debugFindCurrent: Int { findCurrent }
-  var debugHasCRLF: Bool { (textView?.string ?? "").contains("\r\n") }
-  func debugConvertEol(_ eol: String) { convertLineEndings(to: eol) }
+  var debugHasCRLF: Bool { lineEnding == .crlf }
+  func debugConvertEol(_ eol: String) {
+    let ending: LineEnding = eol == "CRLF" ? .crlf : .lf
+    convertLineEndings(to: ending)
+  }
   /// The currently selected substring (dev harness — to verify a find landed on a match).
   var debugSelectedText: String {
     guard let tv = textView else { return "" }

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import LineEnding
 
 /// Editor → status bar nudge: the active editor calls this when its caret/selection moves, so the bar
 /// refreshes Ln/Col without polling.
@@ -97,7 +98,7 @@ final class StatusBarView: NSView {
       let lc = ed.cursorLineColumn()
       setTitle(lnColButton, "Ln \(lc.line), Col \(lc.column)")
       setTitle(indentButton, ed.indentStyle)
-      setTitle(eolButton, ed.lineEnding)
+      setTitle(eolButton, ed.lineEnding.label)
       setTitle(langButton, ed.languageDisplayName)
       editorItems.forEach { $0.isHidden = false }
     } else {
@@ -111,11 +112,20 @@ final class StatusBarView: NSView {
 
   @objc private func eolClicked() {
     guard let ed = ActiveEditor.current else { return }
-    popUp(
-      ["LF", "CRLF"], current: ed.lineEnding, from: eolButton, action: #selector(eolPicked(_:)))
+    let options = [LineEnding.lf, LineEnding.crlf]
+    let current = ed.lineEnding
+    let menu = NSMenu()
+    for opt in options {
+      let item = menu.addItem(
+        withTitle: opt.label, action: #selector(eolPicked(_:)), keyEquivalent: "")
+      item.target = self
+      item.representedObject = opt
+      item.state = opt.rawValue == current.rawValue ? .on : .off
+    }
+    menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -4), in: eolButton)
   }
   @objc private func eolPicked(_ item: NSMenuItem) {
-    ActiveEditor.current?.convertLineEndings(to: item.representedObject as! String)
+    ActiveEditor.current?.convertLineEndings(to: item.representedObject as! LineEnding)
     render()
   }
 
