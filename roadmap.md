@@ -1,7 +1,6 @@
 ## Planned Features (in no particular order)
 
 - view .db, .sqlite, .sqlite3 files directly in the editor
-- drag a file and drop in the tab bar view to add a new tab
 - extension api 
 - colored icons in the sidebar(or directly using macos finder icons for files)
 - editor minimap

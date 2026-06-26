@@ -16,6 +16,12 @@ final class LineNumberRuler: NSRulerView {
   private var lineStartsDirty = true
   /// The character index up to which `lineStarts` has been populated from `lineCounter`.
   private var lineStartsParsedUpTo = 0
+  /// How many entries of `lineCounter.lineEndings` we have already appended to `lineStarts`.
+  /// Lets the accumulation loop skip previously-seen endings instead of re-walking the whole array.
+  private var lineEndingsProcessed: Int = 0
+  /// Last known total line count — updated by `textDidChange` (fast scan) and `reload` (full parse).
+  /// Used by `recomputeThickness` so the gutter width never forces a full LineCounter parse.
+  private var cachedLineCount: Int = 1
 
   private static let numberColor = Theme.gutterNumber
   private static let currentColor = Theme.gutterCurrent
@@ -65,13 +71,29 @@ final class LineNumberRuler: NSRulerView {
   @objc private func selectionDidChange() { needsDisplay = true }
   @objc private func textDidChange() {
     lineStartsDirty = true
-    recomputeThickness()
+    // Fast O(n) newline scan — no LineCounter parse, no allocations.
+    // Keeps the gutter width accurate on every edit without the full-document
+    // parse that the old `totalLineCount` triggered on every keypress.
+    if let s = textView?.string {
+      var count = 1
+      for c in s.utf16 where c == 10 { count += 1 }  // 10 == '\n'
+      if count != cachedLineCount {
+        cachedLineCount = count
+        recomputeThickness()
+      }
+    }
     needsDisplay = true
   }
 
   /// Called when the document is replaced wholesale (initial load, retarget) without a text edit.
   func reload() {
     lineStartsDirty = true
+    // Full newline scan is fine here — reload is called on load/file-switch, not on keypress.
+    if let s = textView?.string {
+      var count = 1
+      for c in s.utf16 where c == 10 { count += 1 }
+      cachedLineCount = max(1, count)
+    }
     recomputeThickness()
     needsDisplay = true
   }
@@ -88,38 +110,36 @@ final class LineNumberRuler: NSRulerView {
       lineCounter = LineCounter(string: s)
       lineStarts = [0]
       lineStartsParsedUpTo = 0
+      lineEndingsProcessed = 0  // reset so we re-walk from the beginning on next append
     }
     guard let counter = lineCounter else { return }
     let target = min(charIndex + 1, counter.length)
     if target <= lineStartsParsedUpTo { return }
 
-    // Use the public LineRangeCalculating API which lazily parses line endings internally.
-    // Asking for the line number at the target index forces parsing up to that point.
+    // Force the lazy parser to cover up to `target`.
     _ = counter.lineNumber(at: target)
 
-    // Convert the cached line endings into line-start offsets, appending new ones.
-    // lineEndings is sorted by location; each line ending's upperBound is the start of the next line.
-    for le in counter.lineEndings {
-      let start = le.upperBound
-      if start > lineStarts.last! {
-        lineStarts.append(start)
-      }
+    // Only iterate endings we haven't seen yet — counter.lineEndings grows monotonically
+    // as more of the document is parsed. Skipping already-processed entries keeps this O(new) per call.
+    let endings = counter.lineEndings
+    for le in endings[lineEndingsProcessed...] {
+      lineStarts.append(le.upperBound)
     }
+    lineEndingsProcessed = endings.count
     lineStartsParsedUpTo = target
   }
 
   /// 1-based (line, column) for a character index — for the status bar. Reuses the cached line index.
+  /// Note: both `charIndex` and `lineStarts` use UTF-16 code-unit offsets (NSRange semantics), so the
+  /// column value counts UTF-16 units, not grapheme clusters. This matches VS Code's behaviour.
   func lineColumn(at charIndex: Int) -> (line: Int, column: Int) {
     ensureLineStarts(upTo: charIndex)
     let line = lineNumber(for: charIndex)
     return (line, charIndex - lineStarts[line - 1] + 1)
   }
 
-  /// Total line count (forces a full parse — used only for width sizing, which happens on text change).
-  private var totalLineCount: Int {
-    ensureLineStarts(upTo: lineCounter?.length ?? 0)
-    return lineStarts.count
-  }
+  // totalLineCount removed — it forced a full LineCounter parse on every keypress.
+  // Gutter width is now driven by cachedLineCount (updated via fast utf16 scan in textDidChange/reload).
 
   /// 1-based line number containing `charIndex` (binary search for the greatest start ≤ charIndex).
   private func lineNumber(for charIndex: Int) -> Int {
@@ -139,12 +159,12 @@ final class LineNumberRuler: NSRulerView {
   }
 
   private func recomputeThickness() {
-    let count = totalLineCount
-    let digits = max(2, String(count).count)
-    let sample = String(repeating: "8", count: digits)
-    let w = sample.size(withAttributes: [.font: font]).width
+    let digits = max(2, String(cachedLineCount).count)
+    // Font is monospaced: measure one digit and multiply — avoids a string alloc per recompute.
+    let digitWidth = ("8" as NSString).size(withAttributes: [.font: font]).width
     let gitPadding = gitBarLeading + gitBarWidth + 4
-    ruleThickness = ceil(w) + leftPadding + rightPadding + gitPadding
+    let newThickness = ceil(digitWidth * CGFloat(digits)) + leftPadding + rightPadding + gitPadding
+    if newThickness != ruleThickness { ruleThickness = newThickness }  // skip layout if unchanged
   }
 
   // MARK: Drawing
@@ -178,8 +198,15 @@ final class LineNumberRuler: NSRulerView {
     let viewTop = visible.minY
     let topPoint = NSPoint(x: 0, y: viewTop)
     let topGlyphIndex = lm.glyphIndex(for: topPoint, in: tc)
-    let topCharIndex = lm.characterIndexForGlyph(at: topGlyphIndex)
-    let startLine = max(0, lineNumber(for: topCharIndex) - 1)
+    // glyphIndex(for:in:) returns NSNotFound when the point is outside the laid-out range.
+    // Passing NSNotFound to characterIndexForGlyph is undefined behaviour and can crash.
+    let startLine: Int
+    if topGlyphIndex == NSNotFound {
+      startLine = 0
+    } else {
+      let topCharIndex = lm.characterIndexForGlyph(at: topGlyphIndex)
+      startLine = max(0, lineNumber(for: topCharIndex) - 1)
+    }
 
     let curLine = lineNumber(for: textView.selectedRange().location)
 
@@ -204,6 +231,13 @@ final class LineNumberRuler: NSRulerView {
         s.draw(at: NSPoint(x: drawX, y: drawY), withAttributes: attrs)
       }
       line += 1
+    }
+
+    // After each draw pass, expand cachedLineCount if we've parsed more lines than we knew about.
+    // This self-corrects the gutter width without a separate full parse.
+    if lineStarts.count > cachedLineCount {
+      cachedLineCount = lineStarts.count
+      recomputeThickness()
     }
   }
 
