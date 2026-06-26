@@ -1,16 +1,21 @@
 import AppKit
+import LineEnding
 
 /// A VS Code-style line-number gutter for the editor, drawn as the scroll view's vertical `NSRulerView`.
 ///
 /// Performance: only the lines intersecting the visible rect are drawn on each pass (not the whole
-/// file), and the mapping "character index → line number" is a binary search over a cached array of
-/// line-start offsets (`lineStarts`) that is rebuilt only when the text changes — so scrolling a
-/// 100k-line file stays cheap. Wrapped logical lines show their number once (on the first visual row),
-/// matching VS Code; a trailing empty line (file ends in a newline) gets its own number too.
+/// file). Line endings are tracked via `LineCounter` (from EditorCore), which lazily parses only up
+/// to the visible region and caches the rest — so scrolling a 100k-line file stays cheap without
+/// scanning the entire document on every text change. Wrapped logical lines show their number once
+/// (on the first visual row), matching VS Code; a trailing empty line (file ends in a newline) gets
+/// its own number too.
 final class LineNumberRuler: NSRulerView {
   private weak var textView: NSTextView?
+  private var lineCounter: LineCounter?
   private var lineStarts: [Int] = [0]  // char offset of each logical line start; always begins with 0
   private var lineStartsDirty = true
+  /// The character index up to which `lineStarts` has been populated from `lineCounter`.
+  private var lineStartsParsedUpTo = 0
 
   private static let numberColor = Theme.gutterNumber
   private static let currentColor = Theme.gutterCurrent
@@ -71,28 +76,49 @@ final class LineNumberRuler: NSRulerView {
     needsDisplay = true
   }
 
-  // MARK: Line-start index (cached; rebuilt only on text change)
+  // MARK: Line-start index (lazily built from LineCounter; rebuilt only on text change)
 
-  private func rebuildLineStartsIfNeeded() {
-    guard lineStartsDirty, let ns = textView?.string as NSString? else { return }
-    lineStartsDirty = false
-    var starts: [Int] = [0]
-    var idx = 0
-    while idx < ns.length {
-      let r = ns.range(
-        of: "\n", options: [], range: NSRange(location: idx, length: ns.length - idx))
-      if r.location == NSNotFound { break }
-      starts.append(r.location + 1)  // start of the line after this newline
-      idx = r.location + 1
+  /// Rebuild the `lineCounter` if the text changed, then ensure `lineStarts` covers at least up to
+  /// the last visible character. LineCounter parses line endings lazily — only the range we ask for
+  /// — and caches what it has already parsed, so a deep scroll only costs the newly-entered region.
+  private func ensureLineStarts(upTo charIndex: Int) {
+    if lineStartsDirty {
+      lineStartsDirty = false
+      let s = textView?.string ?? ""
+      lineCounter = LineCounter(string: s)
+      lineStarts = [0]
+      lineStartsParsedUpTo = 0
     }
-    lineStarts = starts  // a trailing "\n" leaves a final start == length (empty last line)
+    guard let counter = lineCounter else { return }
+    let target = min(charIndex + 1, counter.length)
+    if target <= lineStartsParsedUpTo { return }
+
+    // Use the public LineRangeCalculating API which lazily parses line endings internally.
+    // Asking for the line number at the target index forces parsing up to that point.
+    _ = counter.lineNumber(at: target)
+
+    // Convert the cached line endings into line-start offsets, appending new ones.
+    // lineEndings is sorted by location; each line ending's upperBound is the start of the next line.
+    for le in counter.lineEndings {
+      let start = le.upperBound
+      if start > lineStarts.last! {
+        lineStarts.append(start)
+      }
+    }
+    lineStartsParsedUpTo = target
   }
 
   /// 1-based (line, column) for a character index — for the status bar. Reuses the cached line index.
   func lineColumn(at charIndex: Int) -> (line: Int, column: Int) {
-    rebuildLineStartsIfNeeded()
+    ensureLineStarts(upTo: charIndex)
     let line = lineNumber(for: charIndex)
     return (line, charIndex - lineStarts[line - 1] + 1)
+  }
+
+  /// Total line count (forces a full parse — used only for width sizing, which happens on text change).
+  private var totalLineCount: Int {
+    ensureLineStarts(upTo: lineCounter?.length ?? 0)
+    return lineStarts.count
   }
 
   /// 1-based line number containing `charIndex` (binary search for the greatest start ≤ charIndex).
@@ -113,8 +139,8 @@ final class LineNumberRuler: NSRulerView {
   }
 
   private func recomputeThickness() {
-    rebuildLineStartsIfNeeded()
-    let digits = max(2, String(lineStarts.count).count)
+    let count = totalLineCount
+    let digits = max(2, String(count).count)
     let sample = String(repeating: "8", count: digits)
     let w = sample.size(withAttributes: [.font: font]).width
     let gitPadding = gitBarLeading + gitBarWidth + 4
@@ -127,7 +153,6 @@ final class LineNumberRuler: NSRulerView {
     guard let textView, let lm = textView.layoutManager,
       let tc = textView.textContainer
     else { return }
-    rebuildLineStartsIfNeeded()
 
     // Ensure layout is complete for the visible region before reading fragment rects.
     let visible = textView.visibleRect
@@ -139,6 +164,12 @@ final class LineNumberRuler: NSRulerView {
 
     let ns = textView.string as NSString
     let inset = textView.textContainerInset.height
+
+    // Ensure line starts are parsed up to the last visible character — only the visible region,
+    // not the whole document.
+    let charRange = lm.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+    ensureLineStarts(upTo: charRange.upperBound)
+
     // Everything below is in *viewport* coordinates: y == 0 is the top of the visible area, growing
     // downward (the ruler is flipped). `textView.visibleRect.minY` is the current scroll offset
     // (the clip view's bounds origin is NOT reliable here), so a line fragment at container-y `F`

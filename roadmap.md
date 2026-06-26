@@ -10,3 +10,4 @@
 - integration with macos "open width dropdown" - register support for all developoer file types including .db files
 - multi window/multi prject support
 - editor autocomplete
+- cli "ed ." to open current directory in the editor (should be added to path)
