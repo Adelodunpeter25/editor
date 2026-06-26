@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import LineEnding
+import TextEditing
 
 /// DEV harness hook: the editor for the currently-active file tab (set by CenterViewController).
 enum ActiveEditor { static weak var current: EditorViewController? }
@@ -275,24 +276,20 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     return LanguageUtil.displayName(forKey: key)
   }
 
-  /// Tabs vs spaces (+ unit) from the file's leading whitespace — a quick heuristic over the first lines.
+  /// Tabs vs spaces (+ unit) from the file's leading whitespace — delegates style detection to
+  /// TextEditing.detectedIndentStyle, then derives the space width from the minimum indent.
   private static func detectIndent(_ s: String) -> String {
-    var tabLines = 0
-    var spaceLines = 0
-    var unit = Int.max
-    for line in s.split(separator: "\n", omittingEmptySubsequences: true).prefix(1000) {
-      if line.first == "\t" {
-        tabLines += 1
-      } else {
+    guard let style = s.detectedIndentStyle else { return "Spaces: 4" }
+    switch style {
+    case .tab: return "Tabs"
+    case .space:
+      var unit = Int.max
+      for line in s.split(separator: "\n", omittingEmptySubsequences: true).prefix(1000) {
         let n = line.prefix { $0 == " " }.count
-        if n > 0 {
-          spaceLines += 1
-          unit = min(unit, n)
-        }
+        if n > 0 { unit = min(unit, n) }
       }
+      return "Spaces: \(unit == Int.max ? 4 : min(unit, 8))"
     }
-    if tabLines > spaceLines { return "Tabs" }
-    return spaceLines == 0 ? "Spaces: 4" : "Spaces: \(min(unit, 8))"
   }
 
   func save() {
