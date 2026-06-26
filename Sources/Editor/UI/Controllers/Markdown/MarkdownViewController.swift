@@ -1,9 +1,9 @@
 import AppKit
 
-/// Viewer/editor for Markdown files (routed here by extension from a `.file` tab). Shows a rendered
-/// preview by default with a **Preview / Source** toggle; Source is the real editor (editable,
-/// syntax-highlighted, Cmd+S save, dirty dot, line numbers). Switching back to Preview re-renders live
-/// from the editor's current text, so edits show immediately — saved or not. The preview text view uses
+/// Viewer/editor for Markdown files (routed here by extension from a `.file` tab). Shows the
+/// editable source by default with a **Source / Preview** toggle; Preview renders the Markdown
+/// (tables, images, fenced code highlighting). Switching to Preview re-renders live from the
+/// editor's current text, so edits show immediately — saved or not. The preview text view uses
 /// an explicit TextKit 1 stack so `NSTextTable` (tables) and image attachments lay out correctly.
 final class MarkdownViewController: NSViewController, SourceEditing {
   private var path: String
@@ -49,12 +49,12 @@ final class MarkdownViewController: NSViewController, SourceEditing {
     previewScroll = makePreview(MarkdownRenderer.render(source, baseURL: baseURL))
     addChild(editor)
     sourceScroll = editor.view  // the editor IS the editable source pane
-    sourceScroll.isHidden = true
+    previewScroll.isHidden = true  // source is visible by default
 
     toggle = PointerSegmentedControl(
-      labels: ["Preview", "Source"], trackingMode: .selectOne,
+      labels: ["Source", "Preview"], trackingMode: .selectOne,
       target: self, action: #selector(modeChanged))
-    toggle.selectedSegment = 0
+    toggle.selectedSegment = 0  // Source
     toggle.controlSize = .small
     toggle.segmentStyle = .rounded
 
@@ -128,18 +128,19 @@ final class MarkdownViewController: NSViewController, SourceEditing {
   }
 
   @objc private func modeChanged(_ sender: NSSegmentedControl) {
-    let showSource = sender.selectedSegment == 1
-    if !showSource {  // returning to Preview: re-render live from the editor's current text
+    let showPreview = sender.selectedSegment == 1
+    if showPreview {  // switching to Preview: re-render live from the editor's current text
       previewTextView.textStorage?.setAttributedString(
         MarkdownRenderer.render(editor.text, baseURL: baseURL))
     }
-    sourceScroll.isHidden = !showSource
-    previewScroll.isHidden = showSource
+    sourceScroll.isHidden = showPreview
+    previewScroll.isHidden = !showPreview
   }
 
-  /// Show the Preview (false) or the editable Source (true) — used by "open at line" from search and the harness.
+  /// Show the editable Source (true) or the rendered Preview (false) — used by "open at line" from
+  /// search and the harness.
   func setSourceVisible(_ visible: Bool) {
-    toggle.selectedSegment = visible ? 1 : 0
+    toggle.selectedSegment = visible ? 0 : 1
     modeChanged(toggle)
   }
 }
