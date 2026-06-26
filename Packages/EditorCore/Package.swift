@@ -47,47 +47,33 @@ let package = Package(
     ],
     targets: [
         .target(name: "CharacterInfo"),
-        .testTarget(name: "CharacterInfoTests", dependencies: ["CharacterInfo"]),
         
         .target(name: "Defaults"),
-        .testTarget(name: "DefaultsTests", dependencies: ["Defaults"]),
         
         .target(name: "DocumentFile", dependencies: ["FileEncoding", "URLUtils"]),
-        .testTarget(name: "DocumentFileTests", dependencies: ["DocumentFile"]),
         
         .target(name: "FileEncoding", dependencies: ["ValueRange"]),
-        .testTarget(name: "FileEncodingTests", dependencies: ["FileEncoding"]),
         
         .target(name: "FolderFind", dependencies: ["DocumentFile", "FileEncoding", "LineEnding", "StringUtils", "TextFind"]),
-        .testTarget(name: "FolderFindTests", dependencies: ["FolderFind"]),
         
         .target(name: "Invisible"),
         
         .target(name: "LineEnding", dependencies: ["StringUtils", "ValueRange"]),
-        .testTarget(name: "LineEndingTests", dependencies: ["LineEnding", "StringUtils"]),
         
         .target(name: "LineSort", dependencies: ["StringUtils"]),
-        .testTarget(name: "LineSortTests", dependencies: ["LineSort"]),
         
         .target(name: "SemanticVersioning"),
-        .testTarget(name: "SemanticVersioningTests", dependencies: ["SemanticVersioning"]),
         
         .target(name: "StringUtils"),
-        .testTarget(name: "StringUtilsTests", dependencies: ["StringUtils"]),
         
         .target(name: "TextClipping"),
-        .testTarget(name: "TextClippingTests", dependencies: ["TextClipping"]),
         
         .target(name: "TextEditing", dependencies: ["StringUtils"]),
-        .testTarget(name: "TextEditingTests", dependencies: ["TextEditing"]),
         
         .target(name: "TextFind", dependencies: ["StringUtils", "ValueRange"]),
-        .testTarget(name: "TextFindTests", dependencies: ["TextFind"]),
         
         .target(name: "URLUtils"),
-        .testTarget(name: "URLUtilsTests", dependencies: ["URLUtils"]),
         
         .target(name: "ValueRange"),
-        .testTarget(name: "ValueRangeTests", dependencies: ["ValueRange"]),
     ]
 )
