@@ -335,53 +335,9 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
     return item
   }
 
-  func outlineView(
-    _ ov: NSOutlineView, draggingSession session: NSDraggingSession,
-    willBeginAt screenPoint: NSPoint, forItems draggedItems: [Any]
-  ) {
-    // Build the drag ghost from scratch — bitmapImageRepForCachingDisplay
-    // silently fails on layer-backed views, which causes AppKit to fall back
-    // to the app icon. Instead we draw a pill label (icon + filename) ourselves,
-    // which is always guaranteed to render correctly.
-    guard let node = draggedItems.first as? TreeNode else { return }
-    let title = node.name
-    let font = NSFont.systemFont(ofSize: 12)
-    let attrs: [NSAttributedString.Key: Any] = [
-      .font: font, .foregroundColor: NSColor.labelColor,
-    ]
-    let str = NSAttributedString(string: title, attributes: attrs)
-    let textSize = str.size()
-    let iconSize: CGFloat = 14
-    let hPad: CGFloat = 8
-    let gap: CGFloat = 5
-    let vPad: CGFloat = 4
-    let totalW = ceil(hPad + iconSize + gap + textSize.width + hPad)
-    let totalH = ceil(max(iconSize, textSize.height) + vPad * 2)
-    let size = NSSize(width: totalW, height: totalH)
-
-    let img = NSImage(size: size)
-    img.lockFocus()
-    // subtle dark pill background
-    NSColor(white: 0.18, alpha: 0.95).setFill()
-    NSBezierPath(roundedRect: NSRect(origin: .zero, size: size), xRadius: 5, yRadius: 5).fill()
-    // file icon on the left
-    if let icon = FileIcon.icon(forFilename: title, size: iconSize) {
-      icon.draw(in: NSRect(
-        x: hPad, y: (totalH - iconSize) / 2, width: iconSize, height: iconSize))
-    }
-    // filename label
-    str.draw(at: NSPoint(x: hPad + iconSize + gap, y: (totalH - textSize.height) / 2))
-    img.unlockFocus()
-
-    session.enumerateDraggingItems(
-      options: [], for: nil, classes: [NSPasteboardItem.self], searchOptions: [:]
-    ) { item, _, stop in
-      item.setDraggingFrame(CGRect(origin: .zero, size: size), contents: img)
-      stop.pointee = true
-    }
-  }
 
   // MARK: - Delegate
+
 
   func outlineView(_ ov: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
     guard let node = item as? TreeNode else { return nil }
