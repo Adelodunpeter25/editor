@@ -16,6 +16,7 @@ final class GitCommitSummaryViewController: NSViewController, NSTableViewDataSou
     case header
     case sectionTitle
     case file(Git.FileStat)
+    case total(additions: Int, deletions: Int)
   }
   private var rows: [RowType] = []
 
@@ -95,9 +96,14 @@ final class GitCommitSummaryViewController: NSViewController, NSTableViewDataSou
   private func rebuildRows() {
     guard let summary = summary else { return }
     var newRows: [RowType] = [.header, .sectionTitle]
+    var totalAdd = 0
+    var totalDel = 0
     for file in summary.files {
       newRows.append(.file(file))
+      totalAdd += file.additions
+      totalDel += file.deletions
     }
+    newRows.append(.total(additions: totalAdd, deletions: totalDel))
     self.rows = newRows
     tableView.reloadData()
   }
@@ -108,6 +114,13 @@ final class GitCommitSummaryViewController: NSViewController, NSTableViewDataSou
     if case .file(let stat) = rows[row] {
       DiffNavigator.revealDiff?(stat.path, commitHash)
     }
+  }
+
+  // The total row is not selectable/clickable.
+  func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool {
+    guard row < rows.count else { return false }
+    if case .total = rows[row] { return false }
+    return true
   }
 
   // MARK: - Data Source & Delegate
@@ -133,6 +146,8 @@ final class GitCommitSummaryViewController: NSViewController, NSTableViewDataSou
       return 36
     case .file:
       return 26
+    case .total:
+      return 28
     }
   }
 
@@ -153,6 +168,8 @@ final class GitCommitSummaryViewController: NSViewController, NSTableViewDataSou
       return stack
     case .file(let stat):
       return FileStatRowView(stat: stat)
+    case .total(let additions, let deletions):
+      return TotalStatRowView(additions: additions, deletions: deletions)
     }
   }
 }
@@ -267,6 +284,57 @@ private final class FileStatRowView: NSView {
 
     NSLayoutConstraint.activate([
       stack.topAnchor.constraint(equalTo: topAnchor),
+      stack.bottomAnchor.constraint(equalTo: bottomAnchor),
+      stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+      stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+    ])
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError() }
+}
+
+// MARK: - TotalStatRowView
+
+private final class TotalStatRowView: NSView {
+  init(additions: Int, deletions: Int) {
+    super.init(frame: .zero)
+    wantsLayer = true
+    layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
+
+    let separator = NSView()
+    separator.wantsLayer = true
+    separator.layer?.backgroundColor = NSColor(white: 0.22, alpha: 1).cgColor
+    separator.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(separator)
+
+    let label = NSTextField(labelWithString: "TOTAL")
+    label.font = .systemFont(ofSize: 11, weight: .bold)
+    label.textColor = Theme.textDim
+
+    let addLabel = NSTextField(labelWithString: "+\(additions)")
+    addLabel.font = .systemFont(ofSize: 11, weight: .bold)
+    addLabel.textColor = Theme.gitNew
+
+    let delLabel = NSTextField(labelWithString: "-\(deletions)")
+    delLabel.font = .systemFont(ofSize: 11, weight: .bold)
+    delLabel.textColor = Theme.gitDeleted
+
+    let stack = NSStackView(views: [label, NSView(), addLabel, delLabel])
+    stack.orientation = .horizontal
+    stack.spacing = 6
+    stack.alignment = .centerY
+    stack.edgeInsets = NSEdgeInsets(top: 2, left: 20, bottom: 2, right: 20)
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(stack)
+
+    NSLayoutConstraint.activate([
+      separator.topAnchor.constraint(equalTo: topAnchor),
+      separator.leadingAnchor.constraint(equalTo: leadingAnchor),
+      separator.trailingAnchor.constraint(equalTo: trailingAnchor),
+      separator.heightAnchor.constraint(equalToConstant: 1),
+
+      stack.topAnchor.constraint(equalTo: separator.bottomAnchor),
       stack.bottomAnchor.constraint(equalTo: bottomAnchor),
       stack.leadingAnchor.constraint(equalTo: leadingAnchor),
       stack.trailingAnchor.constraint(equalTo: trailingAnchor),
