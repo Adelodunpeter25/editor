@@ -17,7 +17,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   private var cancellables = Set<AnyCancellable>()
   private var activeSessionObserver: AnyCancellable?
 
-  private let tabBar = TabBarView()
+  private lazy var tabBar = TabBarController(model: model)
   private let contentArea = NSView()
   /// Vertical split hosting the content area, with the quick terminal docked below it in "bottom" mode.
   private let centerSplit = NSSplitView()
@@ -53,7 +53,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     root.wantsLayer = true
     root.layer?.backgroundColor = NSColor(white: 0.11, alpha: 1).cgColor
 
-    tabBar.translatesAutoresizingMaskIntoConstraints = false
+    tabBar.view.translatesAutoresizingMaskIntoConstraints = false
     contentArea.translatesAutoresizingMaskIntoConstraints = false
     contentArea.wantsLayer = true
     contentArea.layer?.backgroundColor = NSColor(white: 0.11, alpha: 1).cgColor
@@ -71,7 +71,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     // overlap — manual top/bottom constraints were collapsing the bar to zero height. The status bar
     // sits at the bottom of the *center* pane only (so it doesn't span the sidebar).
     statusBar.translatesAutoresizingMaskIntoConstraints = false
-    let vstack = NSStackView(views: [tabBar, centerSplit, statusBar])
+    let vstack = NSStackView(views: [tabBar.view, centerSplit, statusBar])
     vstack.orientation = .vertical
     vstack.spacing = 0
     vstack.distribution = .fill
@@ -121,8 +121,8 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
       vstack.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       vstack.bottomAnchor.constraint(equalTo: root.bottomAnchor),
 
-      tabBar.heightAnchor.constraint(equalToConstant: 34),
-      tabBar.widthAnchor.constraint(equalTo: vstack.widthAnchor),
+      tabBar.view.heightAnchor.constraint(equalToConstant: 34),
+      tabBar.view.widthAnchor.constraint(equalTo: vstack.widthAnchor),
       centerSplit.widthAnchor.constraint(equalTo: vstack.widthAnchor),  // contentArea fills the split
       statusBar.widthAnchor.constraint(equalTo: vstack.widthAnchor),  // height = StatusBarView intrinsic (font-driven)
 
@@ -130,41 +130,6 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
       emptyStack.centerYAnchor.constraint(equalTo: contentArea.centerYAnchor),
     ])
     self.view = root
-
-    tabBar.onSelect = { [weak self] id in self?.model.activeSession?.activate(id) }
-    tabBar.onClose = { [weak self] id in
-      guard let session = self?.model.activeSession,
-        let tab = session.tabs.first(where: { $0.id == id })
-      else { return }
-      if UnsavedGuard.confirmClose(tab) { session.closeTab(id) }
-    }
-    tabBar.onPin = { [weak self] id in self?.model.activeSession?.togglePin(id) }
-    tabBar.onCloseOthers = { [weak self] id in self?.model.activeSession?.closeOthers(id) }
-    tabBar.onCloseAll = { [weak self] in self?.model.activeSession?.closeAll() }
-    tabBar.onNewTerminal = { [weak self] in
-      self?.model.activeSession?.addTab(Tab(kind: .terminal, title: "Terminal"))
-    }
-    tabBar.onReorder = { [weak self] dragged, beforeID in
-      guard let session = self?.model.activeSession else { return }
-      if let beforeID {
-        session.moveTab(dragged, before: beforeID)
-      } else {
-        session.moveTabToEnd(dragged)
-      }
-    }
-    // File dragged from the sidebar and dropped onto the tab bar: ALWAYS open as a new tab.
-    // We bypass session.openFile() (which can silently replace a fresh tab) because a drag
-    // is an explicit intent — the user wants a new tab for that file.
-    // If the file is already open we just focus it; otherwise we add a fresh tab.
-    tabBar.onOpenFilePath = { [weak self] absolutePath in
-      guard let session = self?.model.activeSession else { return }
-      if let existing = session.tabs.first(where: { $0.kind == .file && $0.path == absolutePath }) {
-        session.activate(existing.id)
-      } else {
-        let title = (absolutePath as NSString).lastPathComponent
-        session.addTab(Tab(kind: .file, title: title, path: absolutePath))
-      }
-    }
   }
 
   @objc private func openFolderTapped() {
@@ -248,7 +213,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
 
     // No session at all → the open-a-folder empty state (no tab bar).
     guard let session = model.activeSession else {
-      tabBar.isHidden = true
+      tabBar.view.isHidden = true
       emptyStack?.isHidden = false
       emptyLabel.stringValue = "Open a folder to start  (⌘O)"
       openButton.isHidden = false
@@ -260,8 +225,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
 
     // A session is open → the tab bar stays visible (so you can always start a new tab), even
     // when every tab is closed.
-    tabBar.isHidden = false
-    tabBar.render(session: session, activeTabID: session.activeTabID)
+    tabBar.render()
 
     guard let tab = session.activeTab else {
       emptyStack?.isHidden = false
