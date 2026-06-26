@@ -13,20 +13,12 @@ extension EditorViewController {
     highlightSeq += 1
     let seq = highlightSeq
     rehighlightWork?.cancel()
-    // Initial open of a small file: tokenize synchronously so it appears already-coloured (no
-    // plain-text flash). Safe on main because the grammar's regexes are precompiled. Large files
-    // and all edits go off-main below.
-    if !debounced, (textView.string as NSString).length <= 20_000 {
-      let content = textView.string
-      applySpans(highlighter.spans(for: content), expecting: content)
-      return
-    }
     let work = DispatchWorkItem { [weak self] in
       guard let self else { return }
       let content = self.textView.string
-      EditorViewController.highlightQueue.async {
-        let spans = highlighter.spans(for: content)
-        DispatchQueue.main.async { [weak self] in
+      Task {
+        let spans = await highlighter.spans(for: content)
+        await MainActor.run { [weak self] in
           guard let self, self.highlightSeq == seq else { return }  // a newer edit won
           self.applySpans(spans, expecting: content)
         }
@@ -47,7 +39,7 @@ extension EditorViewController {
     guard (content as NSString).length == length else { return }
     textStorage.beginEditing()
     textStorage.addAttribute(
-      .foregroundColor, value: TMTheme.base, range: NSRange(location: 0, length: length))
+      .foregroundColor, value: TreeSitterTheme.base, range: NSRange(location: 0, length: length))
     for (range, color) in spans where NSMaxRange(range) <= length {
       textStorage.addAttribute(.foregroundColor, value: color, range: range)
     }

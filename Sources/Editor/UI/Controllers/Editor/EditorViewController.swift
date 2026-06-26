@@ -45,7 +45,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   var textStorage: NSTextStorage!
   var lineRuler: LineNumberRuler!
   var gitGutter: GitGutterRuler?
-  var highlighter: TextMateHighlighter?
+  var highlighter: TreeSitterHighlighter?
   var saved = ""
   var lastFontSize: Double
   private var cancellables = Set<AnyCancellable>()
@@ -79,7 +79,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     self.settings = settings
     self.onDirty = onDirty
     self.lastFontSize = settings.fontSize
-    self.highlighter = TextMateHighlighter.forPath(path)
+    self.highlighter = TreeSitterHighlighter.forPath(path)
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -100,7 +100,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     let tv = CodeTextView(frame: .zero, textContainer: container)
     tv.isRichText = false
     tv.allowsUndo = true
-    tv.backgroundColor = TMTheme.background
+    tv.backgroundColor = TreeSitterTheme.background
     tv.insertionPointColor = .white
     tv.isAutomaticQuoteSubstitutionEnabled = false
     tv.isAutomaticDashSubstitutionEnabled = false
@@ -113,14 +113,14 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     tv.autoresizingMask = NSView.AutoresizingMask.width
     tv.textContainerInset = NSSize(width: 6, height: 8)
     tv.font = mono(fontSize)
-    tv.typingAttributes = [.font: mono(fontSize), .foregroundColor: TMTheme.base]
+    tv.typingAttributes = [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base]
     tv.delegate = self
     self.textView = tv
 
     let content = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
     textStorage.setAttributedString(
       NSAttributedString(
-        string: content, attributes: [.font: mono(fontSize), .foregroundColor: TMTheme.base]))
+        string: content, attributes: [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base]))
     saved = content
     tv.setSelectedRange(NSRange(location: 0, length: 0))  // caret at the top on open (setAttributedString parks it at the end)
     lineEnding = LineEnding.detect(in: content) ?? .lf  // status bar (detected once on load)
@@ -138,7 +138,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     scroll.autohidesScrollers = false
     scroll.borderType = .noBorder
     scroll.drawsBackground = true
-    scroll.backgroundColor = TMTheme.background
+    scroll.backgroundColor = TreeSitterTheme.background
     scroll.documentView = tv
 
     // Line-number gutter (VS Code-style), drawn as the scroll view's vertical ruler.
@@ -221,10 +221,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   func setLanguageOverride(_ key: String?) {
     languageOverride = key
     highlighter =
-      key.map { TextMateHighlighter.forLanguage($0) } ?? TextMateHighlighter.forPath(path)
+      key.map { TreeSitterHighlighter.forLanguage($0) } ?? TreeSitterHighlighter.forPath(path)
     if highlighter == nil {
       textStorage.addAttribute(
-        .foregroundColor, value: TMTheme.base,
+        .foregroundColor, value: TreeSitterTheme.base,
         range: NSRange(location: 0, length: textStorage.length))
     } else {
       requestHighlight(debounced: false)
@@ -234,7 +234,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   /// All bundled grammar keys + their display names, for the status-bar language menu.
   static func availableLanguages() -> [(key: String, name: String)] {
-    TextMateHighlighter.availableLanguages.map {
+    TreeSitterHighlighter.availableLanguages.map {
       (key: $0, name: LanguageUtil.displayName(forKey: $0))
     }
   }
@@ -425,13 +425,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     guard newPath != path else { return }
     path = newPath
     languageOverride = nil  // new path → re-detect language
-    highlighter = TextMateHighlighter.forPath(newPath)
+    highlighter = TreeSitterHighlighter.forPath(newPath)
     gitGutter?.updatePath(newPath)  // update git gutter for new path
     if highlighter == nil {
       // New extension has no grammar — clear stale colours from the old type (requestHighlight
       // early-returns when there's no highlighter, so it won't reset them itself).
       textStorage.addAttribute(
-        .foregroundColor, value: TMTheme.base,
+        .foregroundColor, value: TreeSitterTheme.base,
         range: NSRange(location: 0, length: textStorage.length))
     } else {
       requestHighlight(debounced: false)

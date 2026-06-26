@@ -7,6 +7,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.2.0"),
         .package(name: "EditorCore", path: "Packages/EditorCore"),
+        .package(name: "Syntax", path: "Packages/Syntax"),
     ],
     targets: [
         .target(
@@ -21,6 +22,8 @@ let package = Package(
                 .product(name: "LineEnding", package: "EditorCore"),
                 .product(name: "TextFind", package: "EditorCore"),
                 .product(name: "ValueRange", package: "EditorCore"),
+                .product(name: "SyntaxParsers", package: "Syntax"),
+                .product(name: "SyntaxFormat", package: "Syntax"),
                 "Cfff",
             ],
             path: "Sources/Editor",

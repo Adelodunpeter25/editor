@@ -4,7 +4,7 @@ import AppKit
 /// these constants so the theme is consistent and easy to tweak.
 enum Theme {
   // MARK: - Backgrounds
-  static let editorBg = TMTheme.background  // #282C34
+  static let editorBg = TreeSitterTheme.background  // #282C34
   static let sidebarBg = NSColor(white: 0.145, alpha: 1)
   static let panelBg = NSColor(white: 0.118, alpha: 1)
   static let contentBg = NSColor(white: 0.11, alpha: 1)

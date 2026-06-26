@@ -35,7 +35,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
   private var loaded = false
   private var reloadWork: DispatchWorkItem?
   private var loadSeq = 0
-  private var highlighter: TextMateHighlighter?
+  private var highlighter: TreeSitterHighlighter?
   private var newSpans: [(NSRange, NSColor)] = []  // syntax spans for the new file content
   private var oldSpans: [(NSRange, NSColor)] = []  // syntax spans for the old file content
   private var newLineOffsets: [Int] = []  // char offset of each line start in the new text
@@ -189,7 +189,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     let repo = self.repo
     let path = self.path
     let commitHash = self.commitHash
-    let hl = TextMateHighlighter.forPath(path)
+    let hl = TreeSitterHighlighter.forPath(path)
     DispatchQueue.global().async { [weak self] in
       let v: (old: String, new: String)
       if let commitHash {
@@ -202,23 +202,11 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
       }
       let rows = computeDiff(old: v.old, new: v.new)
 
-      var oSpans: [(NSRange, NSColor)] = []
-      var nSpans: [(NSRange, NSColor)] = []
-      let group = DispatchGroup()
-
-      group.enter()
-      DispatchQueue.global().async {
-        oSpans = hl?.spans(for: v.old) ?? []
-        group.leave()
-      }
-
-      group.enter()
-      DispatchQueue.global().async {
-        nSpans = hl?.spans(for: v.new) ?? []
-        group.leave()
-      }
-
-      group.wait()
+      // tree-sitter parsing is async (actor); use a Task group to run both in parallel
+      async let oSpansAsync = hl?.spans(for: v.old) ?? []
+      async let nSpansAsync = hl?.spans(for: v.new) ?? []
+      let oSpans = await oSpansAsync
+      let nSpans = await nSpansAsync
 
       let oOffsets = Self.lineOffsets(v.old)
       let nOffsets = Self.lineOffsets(v.new)

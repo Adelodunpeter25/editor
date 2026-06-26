@@ -134,7 +134,7 @@ final class LineNumberRuler: NSRulerView {
     let glyphRange = lm.glyphRange(forBoundingRect: visible, in: tc)
     lm.ensureLayout(forGlyphRange: glyphRange)
 
-    TMTheme.background.setFill()
+    TreeSitterTheme.background.setFill()
     bounds.fill()
 
     let ns = textView.string as NSString
