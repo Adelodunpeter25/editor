@@ -25,67 +25,70 @@
 //
 
 import Foundation
-import ValueRange
 import StringUtils
+import ValueRange
 
-public extension RangeReplaceableCollection where Self: RandomAccessCollection {
-    
-    /// Replace the elements in the specified range with the given items.
-    ///
-    /// This API assumes the elements are sorted by range location.
-    ///
-    /// - Parameters:
-    ///   - items: The items to replace with.
-    ///   - editedRange: The edited range.
-    ///   - delta: The change in length.
-    mutating func replace<Value>(items: [Element], in editedRange: NSRange, changeInLength delta: Int = 0) where Element == ValueRange<Value> {
-        
-        let lowerEditedIndex = try! self.partitioningIndex { $0.lowerBound >= editedRange.lowerBound }
-        
-        guard lowerEditedIndex < self.endIndex else {
-            self += items
-            return
-        }
-        
-        let upperEditedIndex = try! self.partitioningIndex(in: lowerEditedIndex..<self.endIndex) { $0.lowerBound >= editedRange.upperBound - delta }
-        if upperEditedIndex < self.endIndex {
-            let shiftedElements = self[upperEditedIndex...].map { $0.shifted(by: delta) }
-            self.replaceSubrange(lowerEditedIndex..., with: shiftedElements)
-        } else {
-            self.removeSubrange(lowerEditedIndex...)
-        }
-        
-        self.insert(contentsOf: items, at: lowerEditedIndex)
+extension RangeReplaceableCollection where Self: RandomAccessCollection {
+
+  /// Replace the elements in the specified range with the given items.
+  ///
+  /// This API assumes the elements are sorted by range location.
+  ///
+  /// - Parameters:
+  ///   - items: The items to replace with.
+  ///   - editedRange: The edited range.
+  ///   - delta: The change in length.
+  public mutating func replace<Value>(
+    items: [Element], in editedRange: NSRange, changeInLength delta: Int = 0
+  ) where Element == ValueRange<Value> {
+
+    let lowerEditedIndex = try! self.partitioningIndex { $0.lowerBound >= editedRange.lowerBound }
+
+    guard lowerEditedIndex < self.endIndex else {
+      self += items
+      return
     }
-    
-    
-    /// Returns whether the collection contains an element whose range starts at `location`.
-    ///
-    /// This API assumes the elements are sorted by range location.
-    ///
-    /// - Parameter location: The start location to look up.
-    /// - Returns: `true` if an element starts at `location`; otherwise `false`.
-    func contains<Value>(rangeStartingAt location: Int) -> Bool where Element == ValueRange<Value> {
-        
-        let index = try! self.partitioningIndex { $0.lowerBound >= location }
-        
-        guard index < self.endIndex else { return false }
-        
-        return self[index].lowerBound == location
+
+    let upperEditedIndex = try! self.partitioningIndex(in: lowerEditedIndex..<self.endIndex) {
+      $0.lowerBound >= editedRange.upperBound - delta
     }
+    if upperEditedIndex < self.endIndex {
+      let shiftedElements = self[upperEditedIndex...].map { $0.shifted(by: delta) }
+      self.replaceSubrange(lowerEditedIndex..., with: shiftedElements)
+    } else {
+      self.removeSubrange(lowerEditedIndex...)
+    }
+
+    self.insert(contentsOf: items, at: lowerEditedIndex)
+  }
+
+  /// Returns whether the collection contains an element whose range starts at `location`.
+  ///
+  /// This API assumes the elements are sorted by range location.
+  ///
+  /// - Parameter location: The start location to look up.
+  /// - Returns: `true` if an element starts at `location`; otherwise `false`.
+  public func contains<Value>(rangeStartingAt location: Int) -> Bool
+  where Element == ValueRange<Value> {
+
+    let index = try! self.partitioningIndex { $0.lowerBound >= location }
+
+    guard index < self.endIndex else { return false }
+
+    return self[index].lowerBound == location
+  }
 }
 
+extension Sequence {
 
-public extension Sequence {
-    
-    /// Returns the Value mostly occurred in the collection.
-    ///
-    /// - Returns: The most frequent value, or `nil` if the sequence is empty.
-    func majorValue<Value: Hashable>() -> Value? where Element == ValueRange<Value> {
-        
-        Dictionary(grouping: self, by: \.value)
-            .sorted(using: KeyPathComparator(\.value.first?.lowerBound))
-            .max { $0.value.count < $1.value.count }?
-            .key
-    }
+  /// Returns the Value mostly occurred in the collection.
+  ///
+  /// - Returns: The most frequent value, or `nil` if the sequence is empty.
+  public func majorValue<Value: Hashable>() -> Value? where Element == ValueRange<Value> {
+
+    Dictionary(grouping: self, by: \.value)
+      .sorted(using: KeyPathComparator(\.value.first?.lowerBound))
+      .max { $0.value.count < $1.value.count }?
+      .key
+  }
 }

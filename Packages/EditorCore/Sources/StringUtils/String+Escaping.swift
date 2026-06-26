@@ -26,88 +26,86 @@
 
 import Foundation
 
-public extension String {
-    
-    /// Unescaped version of the string by unescaping the characters with backslashes.
-    ///
-    /// This method does not support Unicode scalar escape (`\u{n}`).
-    var unescaped: String {
-        
-        let regex = try! NSRegularExpression(pattern: "\\\\([0tnr\"'\\\\])")
-        let range = NSRange(self.startIndex..<self.endIndex, in: self)
-        let mutableString = NSMutableString(string: self)
-        regex.replaceMatches(in: mutableString, options: [], range: range, withTemplate: "$1")
-        // -> This doesn't work for unescaping, so do manual replacement
-        var result = ""
-        var i = self.startIndex
-        while i < self.endIndex {
-            if self[i] == "\\", self.index(after: i) < self.endIndex {
-                let next = self[self.index(after: i)]
-                switch next {
-                    case "0": result.append("\0")
-                    case "t": result.append("\t")
-                    case "n": result.append("\n")
-                    case "r": result.append("\r")
-                    case "\"": result.append("\"")
-                    case "'": result.append("'")
-                    case "\\": result.append("\\")
-                    default:
-                        result.append(self[i])
-                        result.append(next)
-                }
-                i = self.index(i, offsetBy: 2)
-            } else {
-                result.append(self[i])
-                i = self.index(after: i)
-            }
-        }
-        return result
-    }
-}
+extension String {
 
+  /// Unescaped version of the string by unescaping the characters with backslashes.
+  ///
+  /// This method does not support Unicode scalar escape (`\u{n}`).
+  public var unescaped: String {
+
+    let regex = try! NSRegularExpression(pattern: "\\\\([0tnr\"'\\\\])")
+    let range = NSRange(self.startIndex..<self.endIndex, in: self)
+    let mutableString = NSMutableString(string: self)
+    regex.replaceMatches(in: mutableString, options: [], range: range, withTemplate: "$1")
+    // -> This doesn't work for unescaping, so do manual replacement
+    var result = ""
+    var i = self.startIndex
+    while i < self.endIndex {
+      if self[i] == "\\", self.index(after: i) < self.endIndex {
+        let next = self[self.index(after: i)]
+        switch next {
+        case "0": result.append("\0")
+        case "t": result.append("\t")
+        case "n": result.append("\n")
+        case "r": result.append("\r")
+        case "\"": result.append("\"")
+        case "'": result.append("'")
+        case "\\": result.append("\\")
+        default:
+          result.append(self[i])
+          result.append(next)
+        }
+        i = self.index(i, offsetBy: 2)
+      } else {
+        result.append(self[i])
+        i = self.index(after: i)
+      }
+    }
+    return result
+  }
+}
 
 private let maxEscapesCheckLength = 8
 
-public extension StringProtocol {
-    
-    /// Checks if character at the index is escaped with the given character.
-    ///
-    /// - Parameters:
-    ///   - index: The index of the character to check.
-    ///   - character: The escape character.
-    /// - Returns: `true` when the character at the given index is escaped.
-    func isEscaped(at index: Index, by character: Character = "\\") -> Bool {
-        
-        let count = self[..<index].suffix(maxEscapesCheckLength)
-            .reversed()
-            .prefix { $0 == character }
-            .count
-        
-        return !count.isMultiple(of: 2)
-    }
+extension StringProtocol {
+
+  /// Checks if character at the index is escaped with the given character.
+  ///
+  /// - Parameters:
+  ///   - index: The index of the character to check.
+  ///   - character: The escape character.
+  /// - Returns: `true` when the character at the given index is escaped.
+  public func isEscaped(at index: Index, by character: Character = "\\") -> Bool {
+
+    let count = self[..<index].suffix(maxEscapesCheckLength)
+      .reversed()
+      .prefix { $0 == character }
+      .count
+
+    return !count.isMultiple(of: 2)
+  }
 }
 
+extension NSString {
 
-public extension NSString {
-    
-    /// Checks if character at the location is escaped with the given character.
-    ///
-    /// - Parameters:
-    ///   - location: The UTF16-based location of the character to check.
-    ///   - escapeCharacter: The escape character.
-    /// - Returns: `true` when the character at the given index is escaped.
-    final func isEscaped(at location: Int, by escapeCharacter: Character = "\\") -> Bool {
-        
-        assert(escapeCharacter.utf16.count == 1)
-        
-        guard let codeUnit = escapeCharacter.utf16.first else { return false }
-        
-        let lowerBound = max(location - maxEscapesCheckLength, 0)
-        let count = (lowerBound..<location)
-            .reversed()
-            .prefix { self.character(at: $0) == codeUnit }
-            .count
-        
-        return !count.isMultiple(of: 2)
-    }
+  /// Checks if character at the location is escaped with the given character.
+  ///
+  /// - Parameters:
+  ///   - location: The UTF16-based location of the character to check.
+  ///   - escapeCharacter: The escape character.
+  /// - Returns: `true` when the character at the given index is escaped.
+  public final func isEscaped(at location: Int, by escapeCharacter: Character = "\\") -> Bool {
+
+    assert(escapeCharacter.utf16.count == 1)
+
+    guard let codeUnit = escapeCharacter.utf16.first else { return false }
+
+    let lowerBound = max(location - maxEscapesCheckLength, 0)
+    let count = (lowerBound..<location)
+      .reversed()
+      .prefix { self.character(at: $0) == codeUnit }
+      .count
+
+    return !count.isMultiple(of: 2)
+  }
 }

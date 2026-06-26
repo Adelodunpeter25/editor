@@ -27,53 +27,49 @@
 import Foundation
 
 public final class FolderFindProgress: Sendable {
-    
-    // MARK: Private Properties
-    
-    private let lock = NSLock()
-    private var storage: FolderFind.Metrics
-    
-    
-    // MARK: Lifecycle
-    
-    /// Initializes folder find progress.
-    ///
-    /// - Parameter findString: The string to search for.
-    public init(findString: String) {
-        
-        self.storage = FolderFind.Metrics(findString: findString)
-    }
-    
-    
-    // MARK: Public Methods
-    
-    /// The current progress snapshot.
-    public var snapshot: FolderFind.Metrics {
-        
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.storage
-    }
-    
-    
-    // MARK: Internal Methods
-    
-    /// Updates the current progress snapshot.
-    ///
-    /// - Parameter snapshot: The new progress snapshot.
-    func update(snapshot: FolderFind.Metrics) {
-        
-        self.lock.lock()
-        self.storage = snapshot
-        self.lock.unlock()
-    }
+
+  // MARK: Private Properties
+
+  private let lock = NSLock()
+  private var storage: FolderFind.Metrics
+
+  // MARK: Lifecycle
+
+  /// Initializes folder find progress.
+  ///
+  /// - Parameter findString: The string to search for.
+  public init(findString: String) {
+
+    self.storage = FolderFind.Metrics(findString: findString)
+  }
+
+  // MARK: Public Methods
+
+  /// The current progress snapshot.
+  public var snapshot: FolderFind.Metrics {
+
+    self.lock.lock()
+    defer { self.lock.unlock() }
+    return self.storage
+  }
+
+  // MARK: Internal Methods
+
+  /// Updates the current progress snapshot.
+  ///
+  /// - Parameter snapshot: The new progress snapshot.
+  func update(snapshot: FolderFind.Metrics) {
+
+    self.lock.lock()
+    self.storage = snapshot
+    self.lock.unlock()
+  }
 }
 
-
 extension FolderFindProgress: Equatable {
-    
-    public static func == (lhs: FolderFindProgress, rhs: FolderFindProgress) -> Bool {
-        
-        lhs === rhs
-    }
+
+  public static func == (lhs: FolderFindProgress, rhs: FolderFindProgress) -> Bool {
+
+    lhs === rhs
+  }
 }

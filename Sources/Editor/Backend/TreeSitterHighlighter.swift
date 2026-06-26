@@ -1,6 +1,6 @@
 import AppKit
-import SyntaxParsers
 import SyntaxFormat
+import SyntaxParsers
 import ValueRange
 
 /// Maps a file path or language key to a tree-sitter parser and converts the parser's `Highlight`
@@ -37,8 +37,9 @@ final class TreeSitterHighlighter {
   }
 
   /// All tree-sitter-supported language keys, sorted (for the status-bar picker).
+  /// Uses the primary (first) language key for each syntax.
   static var availableLanguages: [String] {
-    TreeSitterSyntax.allCases.map(\.rawValue).sorted()
+    TreeSitterSyntax.allCases.compactMap { $0.languageKeys.first }.sorted()
   }
 
   private static func load(language: String) -> TreeSitterHighlighter? {
@@ -49,8 +50,8 @@ final class TreeSitterHighlighter {
     }
     cacheLock.unlock()
 
-    // Map our language keys to TreeSitterSyntax cases.
-    guard let syntax = Self.syntax(for: language) else { return nil }
+    // Resolve the language key to a TreeSitterSyntax via the Syntax package's built-in mapping.
+    guard let syntax = TreeSitterSyntax(languageKey: language) else { return nil }
 
     do {
       let parser = try LanguageRegistry.shared.parser(syntax: syntax)
@@ -61,34 +62,6 @@ final class TreeSitterHighlighter {
       return hl
     } catch {
       return nil
-    }
-  }
-
-  /// Resolve our internal language key to a `TreeSitterSyntax` case.
-  private static func syntax(for language: String) -> TreeSitterSyntax? {
-    switch language.lowercased() {
-    case "swift": return .swift
-    case "python", "py": return .python
-    case "javascript", "js": return .javaScript
-    case "typescript", "ts": return .typeScript
-    case "go": return .go
-    case "rust", "rs": return .rust
-    case "c": return .c
-    case "cpp", "c++": return .cpp
-    case "java": return .java
-    case "ruby", "rb": return .ruby
-    case "php": return .php
-    case "html": return .html
-    case "css": return .css
-    case "shell", "bash", "sh", "zsh": return .bash
-    case "markdown", "md": return .markdown
-    case "sql": return .sql
-    case "lua": return .lua
-    case "makefile", "mk": return .makefile
-    case "kotlin": return .kotlin
-    case "scala": return .scala
-    case "latex", "tex": return .latex
-    default: return nil
     }
   }
 

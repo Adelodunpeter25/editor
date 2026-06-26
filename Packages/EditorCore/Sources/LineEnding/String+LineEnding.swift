@@ -27,142 +27,143 @@
 import Foundation
 import ValueRange
 
-public extension String {
-    
-    /// Collects ranges of all line endings with line ending types in the specified range.
-    ///
-    /// - Parameters:
-    ///     - range: The range to parse, or `nil` for the entire range.
-    /// - Returns: Ranges of line endings.
-    func lineEndingRanges(in range: NSRange? = nil) -> [ValueRange<LineEnding>] {
-        
-        guard !self.isEmpty else { return [] }
-        
-        var lineEndingRanges: [ValueRange<LineEnding>] = []
-        let string = self as NSString
-        let range = range ?? NSRange(..<string.length)
-        
-        string.enumerateSubstrings(in: range, options: [.byLines, .substringNotRequired]) { _, substringRange, enclosingRange, _ in
-            guard enclosingRange.length > 0 else { return }
-            
-            let lineEndingRange = NSRange(substringRange.upperBound..<enclosingRange.upperBound)
-            
-            guard
-                lineEndingRange.length > 0,
-                let lineEnding = LineEnding(codeUnitsIn: lineEndingRange, of: string)
-            else { return }
-            
-            lineEndingRanges.append(.init(value: lineEnding, range: lineEndingRange))
-        }
-        
-        return lineEndingRanges
+extension String {
+
+  /// Collects ranges of all line endings with line ending types in the specified range.
+  ///
+  /// - Parameters:
+  ///     - range: The range to parse, or `nil` for the entire range.
+  /// - Returns: Ranges of line endings.
+  public func lineEndingRanges(in range: NSRange? = nil) -> [ValueRange<LineEnding>] {
+
+    guard !self.isEmpty else { return [] }
+
+    var lineEndingRanges: [ValueRange<LineEnding>] = []
+    let string = self as NSString
+    let range = range ?? NSRange(..<string.length)
+
+    string.enumerateSubstrings(in: range, options: [.byLines, .substringNotRequired]) {
+      _, substringRange, enclosingRange, _ in
+      guard enclosingRange.length > 0 else { return }
+
+      let lineEndingRange = NSRange(substringRange.upperBound..<enclosingRange.upperBound)
+
+      guard
+        lineEndingRange.length > 0,
+        let lineEnding = LineEnding(codeUnitsIn: lineEndingRange, of: string)
+      else { return }
+
+      lineEndingRanges.append(.init(value: lineEnding, range: lineEndingRange))
     }
-    
-    
-    /// Collects ranges of all line endings with line ending types in the specified range.
-    ///
-    /// This API can return line endings out of the specified range by considering the possibility
-    /// that the boundary of the specified range lies between CRLF.
-    ///
-    /// - Parameters:
-    ///   - range: The range to parse.
-    ///   - effectiveRange: Upon return, the actual range of line endings collected.
-    /// - Returns: Ranges of line endings.
-    func lineEndingRanges(in range: NSRange, effectiveRange: inout NSRange) -> [ValueRange<LineEnding>] {
-        
-        let nsString = self as NSString
-        let lowerScanBound = (0..<range.lowerBound).reversed().lazy
-            .prefix { [0xA, 0xD].contains(nsString.character(at: $0)) }
-            .last ?? range.lowerBound
-        let upperScanBound = (range.upperBound..<nsString.length)
-            .prefix { [0xA, 0xD].contains(nsString.character(at: $0)) }
-            .last?.advanced(by: 1) ?? range.upperBound
-        
-        effectiveRange = NSRange(lowerScanBound..<upperScanBound)
-        
-        return self.lineEndingRanges(in: effectiveRange)
-    }
-    
-    
-    /// Returns the next line ending with its range after the given character `location`.
-    ///
-    /// The method returns `nil` if there is no line ending until the end of the string.
-    ///
-    /// - Parameter location: The character location.
-    /// - Returns: The line ending type and the character range.
-    func nextLineEnding(at location: Int) -> ValueRange<LineEnding>? {
-        
-        let nsString = self as NSString
-        
-        var end: Int = 0
-        var contentsEnd: Int = 0
-        nsString.getLineStart(nil, end: &end, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
-        
-        let range = NSRange(contentsEnd..<end)
-        
-        guard
-            range.length > 0,
-            let lineEnding = LineEnding(codeUnitsIn: range, of: nsString)
-        else { return nil }
-        
-        return ValueRange(value: lineEnding, range: range)
-    }
+
+    return lineEndingRanges
+  }
+
+  /// Collects ranges of all line endings with line ending types in the specified range.
+  ///
+  /// This API can return line endings out of the specified range by considering the possibility
+  /// that the boundary of the specified range lies between CRLF.
+  ///
+  /// - Parameters:
+  ///   - range: The range to parse.
+  ///   - effectiveRange: Upon return, the actual range of line endings collected.
+  /// - Returns: Ranges of line endings.
+  public func lineEndingRanges(in range: NSRange, effectiveRange: inout NSRange) -> [ValueRange<
+    LineEnding
+  >] {
+
+    let nsString = self as NSString
+    let lowerScanBound =
+      (0..<range.lowerBound).reversed().lazy
+      .prefix { [0xA, 0xD].contains(nsString.character(at: $0)) }
+      .last ?? range.lowerBound
+    let upperScanBound =
+      (range.upperBound..<nsString.length)
+      .prefix { [0xA, 0xD].contains(nsString.character(at: $0)) }
+      .last?.advanced(by: 1) ?? range.upperBound
+
+    effectiveRange = NSRange(lowerScanBound..<upperScanBound)
+
+    return self.lineEndingRanges(in: effectiveRange)
+  }
+
+  /// Returns the next line ending with its range after the given character `location`.
+  ///
+  /// The method returns `nil` if there is no line ending until the end of the string.
+  ///
+  /// - Parameter location: The character location.
+  /// - Returns: The line ending type and the character range.
+  public func nextLineEnding(at location: Int) -> ValueRange<LineEnding>? {
+
+    let nsString = self as NSString
+
+    var end: Int = 0
+    var contentsEnd: Int = 0
+    nsString.getLineStart(
+      nil, end: &end, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
+
+    let range = NSRange(contentsEnd..<end)
+
+    guard
+      range.length > 0,
+      let lineEnding = LineEnding(codeUnitsIn: range, of: nsString)
+    else { return nil }
+
+    return ValueRange(value: lineEnding, range: range)
+  }
 }
 
+extension StringProtocol {
 
-public extension StringProtocol {
-    
-    /// Returns a new string in which all line endings in the receiver are replaced with the given line endings.
-    ///
-    /// - Parameters:
-    ///     - lineEnding: The line ending type with which to replace the target.
-    /// - Returns: String replacing line ending characters.
-    func replacingLineEndings(with lineEnding: LineEnding) -> String {
-        
-        self.replacingOccurrences(of: LineEnding.allRegexPattern, with: lineEnding.string, options: .regularExpression)
-    }
-    
-    
-    /// Returns a new string in which all line endings in the receiver are converted to the given line ending.
-    ///
-    /// - Parameter lineEnding: The target line ending type.
-    /// - Returns: String with converted line endings.
-    func convertingLineEndings(to lineEnding: LineEnding) -> String {
-        
-        self.replacingLineEndings(with: lineEnding)
-    }
+  /// Returns a new string in which all line endings in the receiver are replaced with the given line endings.
+  ///
+  /// - Parameters:
+  ///     - lineEnding: The line ending type with which to replace the target.
+  /// - Returns: String replacing line ending characters.
+  public func replacingLineEndings(with lineEnding: LineEnding) -> String {
+
+    self.replacingOccurrences(
+      of: LineEnding.allRegexPattern, with: lineEnding.string, options: .regularExpression)
+  }
+
+  /// Returns a new string in which all line endings in the receiver are converted to the given line ending.
+  ///
+  /// - Parameter lineEnding: The target line ending type.
+  /// - Returns: String with converted line endings.
+  public func convertingLineEndings(to lineEnding: LineEnding) -> String {
+
+    self.replacingLineEndings(with: lineEnding)
+  }
 }
 
+extension LineEnding {
 
-private extension LineEnding {
-    
-    static let allRegexPattern = "\r\n|[\r\n\u{0085}\u{2028}\u{2029}]"
-    
-    
-    /// Creates a line ending from UTF-16 code units in the given range.
-    ///
-    /// - Parameters:
-    ///   - range: The range of line ending code units.
-    ///   - string: The string that contains the line ending.
-    init?(codeUnitsIn range: NSRange, of string: NSString) {
-        
-        assert(range.upperBound <= string.length)
-        
-        guard range.length > 0 else { return nil }
-        
-        switch string.character(at: range.location) {
-            case 0xA:
-                self = .lf
-            case 0xD:
-                self = (range.length > 1 && string.character(at: range.location + 1) == 0xA) ? .crlf : .cr
-            case 0x85:
-                self = .nel
-            case 0x2028:
-                self = .lineSeparator
-            case 0x2029:
-                self = .paragraphSeparator
-            default:
-                return nil
-        }
+  fileprivate static let allRegexPattern = "\r\n|[\r\n\u{0085}\u{2028}\u{2029}]"
+
+  /// Creates a line ending from UTF-16 code units in the given range.
+  ///
+  /// - Parameters:
+  ///   - range: The range of line ending code units.
+  ///   - string: The string that contains the line ending.
+  fileprivate init?(codeUnitsIn range: NSRange, of string: NSString) {
+
+    assert(range.upperBound <= string.length)
+
+    guard range.length > 0 else { return nil }
+
+    switch string.character(at: range.location) {
+    case 0xA:
+      self = .lf
+    case 0xD:
+      self = (range.length > 1 && string.character(at: range.location + 1) == 0xA) ? .crlf : .cr
+    case 0x85:
+      self = .nel
+    case 0x2028:
+      self = .lineSeparator
+    case 0x2029:
+      self = .paragraphSeparator
+    default:
+      return nil
     }
+  }
 }

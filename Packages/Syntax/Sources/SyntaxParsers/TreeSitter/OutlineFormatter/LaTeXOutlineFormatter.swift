@@ -25,80 +25,81 @@
 //
 
 import Foundation
-import SyntaxFormat
 import SwiftTreeSitter
+import SyntaxFormat
 
 enum LaTeXOutlineFormatter: TreeSitterOutlineFormatting {
-    
-    static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (title: String, range: NSRange)? {
-        
-        guard let range = Self.titleRange(for: match) else {
-            return Self.defaultTitle(capture: capture, source: source)
-        }
-        
-        return (title: source.substring(with: range), range: range)
+
+  static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (
+    title: String, range: NSRange
+  )? {
+
+    guard let range = Self.titleRange(for: match) else {
+      return Self.defaultTitle(capture: capture, source: source)
     }
-    
-    
-    static func formatTitle(_ title: String, kind: Syntax.Outline.Kind) -> String? {
-        
-        let normalized = title
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        return normalized.isEmpty ? nil : normalized
-    }
+
+    return (title: source.substring(with: range), range: range)
+  }
+
+  static func formatTitle(_ title: String, kind: Syntax.Outline.Kind) -> String? {
+
+    let normalized =
+      title
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    return normalized.isEmpty ? nil : normalized
+  }
 }
 
+extension LaTeXOutlineFormatter {
 
-private extension LaTeXOutlineFormatter {
-    
-    /// Returns the content range for the node matched by the outline query.
-    ///
-    /// - Parameter match: The query match.
-    /// - Returns: The content range for the node matched by the outline query.
-    static func titleRange(for match: QueryMatch) -> NSRange? {
-        
-        guard
-            let node = match.outlineNode,
-            let nodeType = node.nodeType
-        else { return nil }
-        
-        let fieldName: String? = switch nodeType {
-            case "title_declaration",
-                 "part",
-                 "chapter",
-                 "section",
-                 "subsection",
-                 "subsubsection",
-                 "paragraph",
-                 "subparagraph":
-                "text"
-            case "caption":
-                "long"
-            case "environment_definition":
-                "name"
-            default:
-                nil
-        }
-        
-        guard
-            let fieldName,
-            let fieldNode = node.child(byFieldName: fieldName)
-        else { return nil }
-        
-        return Self.innerRange(of: fieldNode)
-    }
-    
-    
-    /// Strips the outer braces, `\{` and `}`, from a LaTeX group node range.
-    ///
-    /// - Parameter node: The tree-sitter node.
-    /// - Returns: The range inside the braces.
-    static func innerRange(of node: Node) -> NSRange {
-        
-        guard node.range.length >= 2 else { return node.range }
-        
-        return NSRange(location: node.range.location + 1, length: node.range.length - 2)
-    }
+  /// Returns the content range for the node matched by the outline query.
+  ///
+  /// - Parameter match: The query match.
+  /// - Returns: The content range for the node matched by the outline query.
+  fileprivate static func titleRange(for match: QueryMatch) -> NSRange? {
+
+    guard
+      let node = match.outlineNode,
+      let nodeType = node.nodeType
+    else { return nil }
+
+    let fieldName: String? =
+      switch nodeType {
+      case "title_declaration",
+        "part",
+        "chapter",
+        "section",
+        "subsection",
+        "subsubsection",
+        "paragraph",
+        "subparagraph":
+        "text"
+      case "caption":
+        "long"
+      case "environment_definition":
+        "name"
+      default:
+        nil
+      }
+
+    guard
+      let fieldName,
+      let fieldNode = node.child(byFieldName: fieldName)
+    else { return nil }
+
+    return Self.innerRange(of: fieldNode)
+  }
+
+  /// Strips the outer braces, `\{` and `}`, from a LaTeX group node range.
+  ///
+  /// - Parameter node: The tree-sitter node.
+  /// - Returns: The range inside the braces.
+  fileprivate static func innerRange(of node: Node) -> NSRange {
+
+    guard node.range.length >= 2 else { return node.range }
+
+    return NSRange(location: node.range.location + 1, length: node.range.length - 2)
+  }
 }

@@ -120,7 +120,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     let content = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
     textStorage.setAttributedString(
       NSAttributedString(
-        string: content, attributes: [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base]))
+        string: content,
+        attributes: [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base]))
     saved = content
     tv.setSelectedRange(NSRange(location: 0, length: 0))  // caret at the top on open (setAttributedString parks it at the end)
     lineEnding = LineEnding.detect(in: content) ?? .lf  // status bar (detected once on load)

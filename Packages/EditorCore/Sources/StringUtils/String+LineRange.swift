@@ -26,107 +26,101 @@
 
 import Foundation
 
-public extension String {
-    
-    /// The first appeared line ending character.
-    var firstLineEnding: Character? {
-        
-        let regex = try! Regex("\\R")
-        guard let match = self.firstMatch(of: regex) else { return nil }
-        let substring = match.output[0].substring
-        return substring?.first
-    }
+extension String {
+
+  /// The first appeared line ending character.
+  public var firstLineEnding: Character? {
+
+    let regex = try! Regex("\\R")
+    guard let match = self.firstMatch(of: regex) else { return nil }
+    let substring = match.output[0].substring
+    return substring?.first
+  }
 }
 
+extension StringProtocol {
 
-public extension StringProtocol {
-    
-    /// Returns the range of the line containing a given index.
-    ///
-    /// - Parameter index: The character index within the receiver.
-    /// - Returns: The character range of the line.
-    func lineRange(at index: Index) -> Range<Index> {
-        
-        self.lineRange(for: index..<index)
-    }
-    
-    
-    /// Returns the range of the contents of the line containing a given index.
-    ///
-    /// - Parameter index: The character index within the receiver.
-    /// - Returns: The character range of the line contents.
-    func lineContentsRange(at index: Index) -> Range<Index> {
-        
-        self.lineContentsRange(for: index..<index)
-    }
-    
-    
-    /// Returns line range excluding last line ending character if exists.
-    ///
-    /// - Parameter range: A range within the receiver.
-    /// - Returns: The range of characters representing the line or lines containing a given range.
-    func lineContentsRange(for range: Range<Index>) -> Range<Index> {
-        
-        var start = self.startIndex
-        var end = self.startIndex
-        var contentsEnd = self.startIndex
-        self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: range)
-        
-        return start..<contentsEnd
-    }
-    
-    
-    /// Returns the index of the first character of the line touched by the given index.
-    ///
-    /// - Note: Unlike NSString's one, this method does not have the performance advantage.
-    ///
-    /// - Parameters:
-    ///   - index: The index of character for finding the line start.
-    /// - Returns: The character index of the nearest line start.
-    func lineStartIndex(at index: Index) -> Index {
-        
-        var start = self.startIndex
-        var end = self.startIndex
-        var contentsEnd = self.startIndex
-        self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
-        
-        return start
-    }
-    
-    
-    /// Returns the index of the last character before the line ending of the line touched by the given index.
-    ///
-    /// - Note: Unlike NSString's one, this method does not have the performance advantage.
-    ///
-    /// - Parameters:
-    ///   - index: The index of character for finding the line contents end.
-    /// - Returns: The character index of the nearest line contents end.
-    func lineContentsEndIndex(at index: Index) -> Index {
-        
-        var start = self.startIndex
-        var end = self.startIndex
-        var contentsEnd = self.startIndex
-        self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
-        
-        return contentsEnd
-    }
+  /// Returns the range of the line containing a given index.
+  ///
+  /// - Parameter index: The character index within the receiver.
+  /// - Returns: The character range of the line.
+  public func lineRange(at index: Index) -> Range<Index> {
+
+    self.lineRange(for: index..<index)
+  }
+
+  /// Returns the range of the contents of the line containing a given index.
+  ///
+  /// - Parameter index: The character index within the receiver.
+  /// - Returns: The character range of the line contents.
+  public func lineContentsRange(at index: Index) -> Range<Index> {
+
+    self.lineContentsRange(for: index..<index)
+  }
+
+  /// Returns line range excluding last line ending character if exists.
+  ///
+  /// - Parameter range: A range within the receiver.
+  /// - Returns: The range of characters representing the line or lines containing a given range.
+  public func lineContentsRange(for range: Range<Index>) -> Range<Index> {
+
+    var start = self.startIndex
+    var end = self.startIndex
+    var contentsEnd = self.startIndex
+    self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: range)
+
+    return start..<contentsEnd
+  }
+
+  /// Returns the index of the first character of the line touched by the given index.
+  ///
+  /// - Note: Unlike NSString's one, this method does not have the performance advantage.
+  ///
+  /// - Parameters:
+  ///   - index: The index of character for finding the line start.
+  /// - Returns: The character index of the nearest line start.
+  public func lineStartIndex(at index: Index) -> Index {
+
+    var start = self.startIndex
+    var end = self.startIndex
+    var contentsEnd = self.startIndex
+    self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
+
+    return start
+  }
+
+  /// Returns the index of the last character before the line ending of the line touched by the given index.
+  ///
+  /// - Note: Unlike NSString's one, this method does not have the performance advantage.
+  ///
+  /// - Parameters:
+  ///   - index: The index of character for finding the line contents end.
+  /// - Returns: The character index of the nearest line contents end.
+  public func lineContentsEndIndex(at index: Index) -> Index {
+
+    var start = self.startIndex
+    var end = self.startIndex
+    var contentsEnd = self.startIndex
+    self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
+
+    return contentsEnd
+  }
 }
-
 
 // MARK: NSRange based
 
-public extension String {
-    
-    /// Divides the given range into logical line contents ranges.
-    ///
-    /// - Parameter range: The range to divide or `nil`.
-    /// - Returns: Logical line ranges.
-    func lineContentsRanges(for range: NSRange? = nil) -> [NSRange] {
-        
-        // prefer using NSRegularExpression over `enumerateSubstrings(in:...)` for performance
-        let range = range ?? NSRange(..<self.utf16.count)
-        let regex = try! NSRegularExpression(pattern: "^.*", options: [.anchorsMatchLines])
-        
-        return regex.matches(in: self, range: range).map(\.range)
-    }
+extension String {
+
+  /// Divides the given range into logical line contents ranges.
+  ///
+  /// - Parameter range: The range to divide or `nil`.
+  /// - Returns: Logical line ranges.
+  public func lineContentsRanges(for range: NSRange? = nil) -> [NSRange] {
+
+    // prefer using NSRegularExpression over `enumerateSubstrings(in:...)` for performance
+    let range = range ?? NSRange(..<self.utf16.count)
+    let regex = try! NSRegularExpression(pattern: "^.*", options: [.anchorsMatchLines])
+
+    return regex.matches(in: self, range: range).map(\.range)
+  }
 }

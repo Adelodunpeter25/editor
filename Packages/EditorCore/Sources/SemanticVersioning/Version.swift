@@ -25,236 +25,227 @@
 //
 
 public struct Version: Sendable {
-    
-    public enum Prerelease: Sendable {
-        
-        case alpha(Int?)
-        case beta(Int?)
-        case rc(Int?)
-        case other(String)
-        
-        static let alpha = Self.alpha(nil)
-        static let beta = Self.beta(nil)
-        static let rc = Self.rc(nil)
-    }
-    
-    
-    public var major: Int
-    public var minor: Int
-    public var patch: Int
-    public var prereleaseIdentifier: String?
-    
-    public var isPrerelease: Bool  { self.prereleaseIdentifier != nil }
-    
-    
-    public init(_ major: Int, _ minor: Int, _ patch: Int, prereleaseIdentifier: String? = nil) {
-        
-        self.major = major
-        self.minor = minor
-        self.patch = patch
-        self.prereleaseIdentifier = prereleaseIdentifier
-    }
-    
-    
-    public init(_ major: Int, _ minor: Int, _ patch: Int, prerelease: Prerelease?) {
-        
-        self.major = major
-        self.minor = minor
-        self.patch = patch
-        self.prereleaseIdentifier = prerelease?.rawValue
-    }
-    
-    
-    public init?(_ string: String) {
-        
-        let regex = try! Regex("(?<major>0|[1-9][0-9]*)\\.(?<minor>0|[1-9][0-9]*)\\.(?<patch>0|[1-9][0-9]*)(-(?<prerelease>.+))?")
-        guard
-            let match = string.wholeMatch(of: regex),
-            let major = Int(match["major"]?.substring ?? ""),
-            let minor = Int(match["minor"]?.substring ?? ""),
-            let patch = Int(match["patch"]?.substring ?? "")
-        else { return nil }
-        
-        let prerelease = match["prerelease"]?.substring.map(String.init)
-        
-        if let prerelease, prerelease.prereleaseIdentifiers == nil {
-            return nil
-        }
-        
-        self.major = major
-        self.minor = minor
-        self.patch = patch
-        self.prereleaseIdentifier = prerelease
-    }
-}
 
+  public enum Prerelease: Sendable {
+
+    case alpha(Int?)
+    case beta(Int?)
+    case rc(Int?)
+    case other(String)
+
+    static let alpha = Self.alpha(nil)
+    static let beta = Self.beta(nil)
+    static let rc = Self.rc(nil)
+  }
+
+  public var major: Int
+  public var minor: Int
+  public var patch: Int
+  public var prereleaseIdentifier: String?
+
+  public var isPrerelease: Bool { self.prereleaseIdentifier != nil }
+
+  public init(_ major: Int, _ minor: Int, _ patch: Int, prereleaseIdentifier: String? = nil) {
+
+    self.major = major
+    self.minor = minor
+    self.patch = patch
+    self.prereleaseIdentifier = prereleaseIdentifier
+  }
+
+  public init(_ major: Int, _ minor: Int, _ patch: Int, prerelease: Prerelease?) {
+
+    self.major = major
+    self.minor = minor
+    self.patch = patch
+    self.prereleaseIdentifier = prerelease?.rawValue
+  }
+
+  public init?(_ string: String) {
+
+    let regex = try! Regex(
+      "(?<major>0|[1-9][0-9]*)\\.(?<minor>0|[1-9][0-9]*)\\.(?<patch>0|[1-9][0-9]*)(-(?<prerelease>.+))?"
+    )
+    guard
+      let match = string.wholeMatch(of: regex),
+      let major = Int(match["major"]?.substring ?? ""),
+      let minor = Int(match["minor"]?.substring ?? ""),
+      let patch = Int(match["patch"]?.substring ?? "")
+    else { return nil }
+
+    let prerelease = match["prerelease"]?.substring.map(String.init)
+
+    if let prerelease, prerelease.prereleaseIdentifiers == nil {
+      return nil
+    }
+
+    self.major = major
+    self.minor = minor
+    self.patch = patch
+    self.prereleaseIdentifier = prerelease
+  }
+}
 
 extension Version.Prerelease {
-    
-    init(rawValue: String) {
-        
-        let regex = try! Regex("(?<token>[a-z]+)(\\.(?<number>[0-9]+))?")
-        if let match = rawValue.wholeMatch(of: regex) {
-            let rawNumber = match["number"]?.substring.map(String.init)
-            
-            if let rawNumber, rawNumber.count > 1, rawNumber.first == "0" {
-                self = .other(rawValue)
-                return
-            }
-            
-            let number = rawNumber.flatMap(Int.init)
-            let token = String(match["token"]?.substring ?? "")
-            
-            self = switch token {
-                case "alpha": .alpha(number)
-                case "beta": .beta(number)
-                case "rc": .rc(number)
-                default: .other(rawValue)
-            }
-        } else {
-            self = .other(rawValue)
-        }
-    }
-    
-    
-    var rawValue: String {
-        
-        switch self {
-            case .alpha(let number):
-                if let number { "alpha.\(number)" } else { "alpha" }
-            case .beta(let number):
-                if let number { "beta.\(number)" } else { "beta" }
-            case .rc(let number):
-                if let number { "rc.\(number)" } else { "rc" }
-            case .other(let string):
-                string
-        }
-    }
-}
 
+  init(rawValue: String) {
+
+    let regex = try! Regex("(?<token>[a-z]+)(\\.(?<number>[0-9]+))?")
+    if let match = rawValue.wholeMatch(of: regex) {
+      let rawNumber = match["number"]?.substring.map(String.init)
+
+      if let rawNumber, rawNumber.count > 1, rawNumber.first == "0" {
+        self = .other(rawValue)
+        return
+      }
+
+      let number = rawNumber.flatMap(Int.init)
+      let token = String(match["token"]?.substring ?? "")
+
+      self =
+        switch token {
+        case "alpha": .alpha(number)
+        case "beta": .beta(number)
+        case "rc": .rc(number)
+        default: .other(rawValue)
+        }
+    } else {
+      self = .other(rawValue)
+    }
+  }
+
+  var rawValue: String {
+
+    switch self {
+    case .alpha(let number):
+      if let number { "alpha.\(number)" } else { "alpha" }
+    case .beta(let number):
+      if let number { "beta.\(number)" } else { "beta" }
+    case .rc(let number):
+      if let number { "rc.\(number)" } else { "rc" }
+    case .other(let string):
+      string
+    }
+  }
+}
 
 // MARK: Comparable
 
 extension Version: Comparable {
-    
-    public static func < (lhs: Version, rhs: Version) -> Bool {
-        
-        if lhs.major != rhs.major {
-            lhs.major < rhs.major
-        } else if lhs.minor != rhs.minor {
-            lhs.minor < rhs.minor
-        } else if lhs.patch != rhs.patch {
-            lhs.patch < rhs.patch
-        } else {
-            switch (lhs.prereleaseIdentifier, rhs.prereleaseIdentifier) {
-                case (.none, .none): false
-                case (.some, .none): true
-                case (.none, .some): false
-                case (.some(let lPrerelease), .some(let rPrerelease)):
-                    Self.comparePrerelease(lPrerelease, rPrerelease)
-            }
-        }
-    }
-}
 
+  public static func < (lhs: Version, rhs: Version) -> Bool {
+
+    if lhs.major != rhs.major {
+      lhs.major < rhs.major
+    } else if lhs.minor != rhs.minor {
+      lhs.minor < rhs.minor
+    } else if lhs.patch != rhs.patch {
+      lhs.patch < rhs.patch
+    } else {
+      switch (lhs.prereleaseIdentifier, rhs.prereleaseIdentifier) {
+      case (.none, .none): false
+      case (.some, .none): true
+      case (.none, .some): false
+      case (.some(let lPrerelease), .some(let rPrerelease)):
+        Self.comparePrerelease(lPrerelease, rPrerelease)
+      }
+    }
+  }
+}
 
 extension Version.Prerelease: Comparable {
-    
-    public static func < (lhs: Self, rhs: Self) -> Bool {
-        
-        Version.comparePrerelease(lhs.rawValue, rhs.rawValue)
-    }
+
+  public static func < (lhs: Self, rhs: Self) -> Bool {
+
+    Version.comparePrerelease(lhs.rawValue, rhs.rawValue)
+  }
 }
 
+extension Version {
 
-private extension Version {
-    
-    /// Compares two prerelease identifiers.
-    ///
-    /// - Parameters:
-    ///   - lhs: The left prerelease identifier.
-    ///   - rhs: The right prerelease identifier.
-    /// - Returns: Whether `lhs` has lower precedence than `rhs`.
-    static func comparePrerelease(_ lhs: String, _ rhs: String) -> Bool {
-        
-        guard
-            let lhsIdentifiers = lhs.prereleaseIdentifiers,
-            let rhsIdentifiers = rhs.prereleaseIdentifiers
-        else { return lhs < rhs }
-        
-        for (lhsIdentifier, rhsIdentifier) in zip(lhsIdentifiers, rhsIdentifiers) where lhsIdentifier != rhsIdentifier {
-            return lhsIdentifier.precedesPrereleaseIdentifier(rhsIdentifier)
-        }
-        
-        return lhsIdentifiers.count < rhsIdentifiers.count
+  /// Compares two prerelease identifiers.
+  ///
+  /// - Parameters:
+  ///   - lhs: The left prerelease identifier.
+  ///   - rhs: The right prerelease identifier.
+  /// - Returns: Whether `lhs` has lower precedence than `rhs`.
+  fileprivate static func comparePrerelease(_ lhs: String, _ rhs: String) -> Bool {
+
+    guard
+      let lhsIdentifiers = lhs.prereleaseIdentifiers,
+      let rhsIdentifiers = rhs.prereleaseIdentifiers
+    else { return lhs < rhs }
+
+    for (lhsIdentifier, rhsIdentifier) in zip(lhsIdentifiers, rhsIdentifiers)
+    where lhsIdentifier != rhsIdentifier {
+      return lhsIdentifier.precedesPrereleaseIdentifier(rhsIdentifier)
     }
+
+    return lhsIdentifiers.count < rhsIdentifiers.count
+  }
 }
 
+extension String {
 
-private extension String {
-    
-    /// The SemVer prerelease identifiers.
-    var prereleaseIdentifiers: [Substring]? {
-        
-        let identifiers = self.split(separator: ".", omittingEmptySubsequences: false)
-        
-        guard
-            !identifiers.isEmpty,
-            identifiers.allSatisfy(\.isPrereleaseIdentifier)
-        else { return nil }
-        
-        return identifiers
-    }
+  /// The SemVer prerelease identifiers.
+  fileprivate var prereleaseIdentifiers: [Substring]? {
+
+    let identifiers = self.split(separator: ".", omittingEmptySubsequences: false)
+
+    guard
+      !identifiers.isEmpty,
+      identifiers.allSatisfy(\.isPrereleaseIdentifier)
+    else { return nil }
+
+    return identifiers
+  }
 }
 
+extension Substring {
 
-private extension Substring {
-    
-    /// Whether the string is a SemVer prerelease identifier.
-    var isPrereleaseIdentifier: Bool {
-        
-        guard !self.isEmpty else { return false }
-        
-        var isNumeric = true
-        for scalar in self.unicodeScalars {
-            switch scalar {
-                case "0"..."9":
-                    break
-                case "-", "A"..."Z", "a"..."z":
-                    isNumeric = false
-                default:
-                    return false
-            }
-        }
-        
-        return !(isNumeric && self.count > 1 && self.first == "0")
+  /// Whether the string is a SemVer prerelease identifier.
+  fileprivate var isPrereleaseIdentifier: Bool {
+
+    guard !self.isEmpty else { return false }
+
+    var isNumeric = true
+    for scalar in self.unicodeScalars {
+      switch scalar {
+      case "0"..."9":
+        break
+      case "-", "A"..."Z", "a"..."z":
+        isNumeric = false
+      default:
+        return false
+      }
     }
-    
-    
-    /// The numeric value of the SemVer prerelease identifier.
-    var numericPrereleaseIdentifier: Int? {
-        
-        guard self.unicodeScalars.allSatisfy({ "0"..."9" ~= $0 }) else { return nil }
-        
-        return Int(self)
+
+    return !(isNumeric && self.count > 1 && self.first == "0")
+  }
+
+  /// The numeric value of the SemVer prerelease identifier.
+  fileprivate var numericPrereleaseIdentifier: Int? {
+
+    guard self.unicodeScalars.allSatisfy({ "0"..."9" ~= $0 }) else { return nil }
+
+    return Int(self)
+  }
+
+  /// Returns whether the receiver has lower precedence than another prerelease identifier.
+  ///
+  /// - Parameter other: The other prerelease identifier.
+  /// - Returns: Whether the receiver has lower precedence than `other`.
+  fileprivate func precedesPrereleaseIdentifier(_ other: Self) -> Bool {
+
+    switch (self.numericPrereleaseIdentifier, other.numericPrereleaseIdentifier) {
+    case (.some(let lhs), .some(let rhs)):
+      lhs < rhs
+    case (.some, .none):
+      true
+    case (.none, .some):
+      false
+    case (.none, .none):
+      self.unicodeScalars.lexicographicallyPrecedes(other.unicodeScalars)
     }
-    
-    
-    /// Returns whether the receiver has lower precedence than another prerelease identifier.
-    ///
-    /// - Parameter other: The other prerelease identifier.
-    /// - Returns: Whether the receiver has lower precedence than `other`.
-    func precedesPrereleaseIdentifier(_ other: Self) -> Bool {
-        
-        switch (self.numericPrereleaseIdentifier, other.numericPrereleaseIdentifier) {
-            case (.some(let lhs), .some(let rhs)):
-                lhs < rhs
-            case (.some, .none):
-                true
-            case (.none, .some):
-                false
-            case (.none, .none):
-                self.unicodeScalars.lexicographicallyPrecedes(other.unicodeScalars)
-        }
-    }
+  }
 }

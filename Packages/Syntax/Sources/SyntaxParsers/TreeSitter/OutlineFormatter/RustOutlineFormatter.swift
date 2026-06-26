@@ -25,88 +25,93 @@
 //
 
 import Foundation
-import SyntaxFormat
 import StringUtils
 import SwiftTreeSitter
+import SyntaxFormat
 
 enum RustOutlineFormatter: TreeSitterOutlineFormatting {
-    
-    static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (title: String, range: NSRange)? {
-        
-        switch capture.kind {
-            case .function:
-                return (title: Self.functionTitle(for: match, title: source.substring(with: capture.range), source: source),
-                        range: Self.signatureRange(for: match, nameRange: capture.range))
-            default:
-                return Self.defaultTitle(capture: capture, source: source)
-        }
+
+  static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (
+    title: String, range: NSRange
+  )? {
+
+    switch capture.kind {
+    case .function:
+      return (
+        title: Self.functionTitle(
+          for: match, title: source.substring(with: capture.range), source: source),
+        range: Self.signatureRange(for: match, nameRange: capture.range)
+      )
+    default:
+      return Self.defaultTitle(capture: capture, source: source)
     }
+  }
 }
 
+extension RustOutlineFormatter {
 
-private extension RustOutlineFormatter {
-    
-    /// Builds the displayed Rust function title from a query match.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - title: The raw title capture text.
-    ///   - source: The source text as `NSString`.
-    /// - Returns: The displayed Rust function title.
-    static func functionTitle(for match: QueryMatch, title: String, source: NSString) -> String {
-        
-        let typeParameters = Self.typeParametersRange(for: match)
-            .map(source.substring(with:))
-            .map(Self.normalizedClause)
-            ?? ""
-        let parameters = Self.parametersRange(for: match)
-            .map(source.substring(with:))
-            .map(Self.normalizedClause)
-            ?? "()"
-        
-        return "\(title)\(typeParameters)\(parameters)"
-    }
-    
-    
-    /// Returns the signature range spanning the Rust function name through its parameter list.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - nameRange: The captured function name range.
-    /// - Returns: The signature range.
-    static func signatureRange(for match: QueryMatch, nameRange: NSRange) -> NSRange {
-        
-        nameRange.union(with: [
-            Self.typeParametersRange(for: match),
-            Self.parametersRange(for: match),
-        ])
-    }
-    
-    
-    /// Returns the type parameter list range for a Rust function item.
-    ///
-    /// - Parameter match: The resolved query match.
-    /// - Returns: The type parameter list range, or `nil` if none exists.
-    private static func typeParametersRange(for match: QueryMatch) -> NSRange? {
-        
-        match.outlineNode?.parent?.child(byFieldName: "type_parameters")?.range
-    }
-    
-    
-    /// Returns a whitespace-normalized Rust signature clause.
-    ///
-    /// - Parameter clause: The raw clause text.
-    /// - Returns: The clause with normalized spacing.
-    private static func normalizedClause(_ clause: String) -> String {
-        
-        clause
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
-            .replacingOccurrences(of: "\\[\\s+", with: "[", options: .regularExpression)
-            .replacingOccurrences(of: "<\\s+", with: "<", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+\\]", with: "]", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+>", with: ">", options: .regularExpression)
-            .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
-    }
+  /// Builds the displayed Rust function title from a query match.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - title: The raw title capture text.
+  ///   - source: The source text as `NSString`.
+  /// - Returns: The displayed Rust function title.
+  fileprivate static func functionTitle(for match: QueryMatch, title: String, source: NSString)
+    -> String
+  {
+
+    let typeParameters =
+      Self.typeParametersRange(for: match)
+      .map(source.substring(with:))
+      .map(Self.normalizedClause)
+      ?? ""
+    let parameters =
+      Self.parametersRange(for: match)
+      .map(source.substring(with:))
+      .map(Self.normalizedClause)
+      ?? "()"
+
+    return "\(title)\(typeParameters)\(parameters)"
+  }
+
+  /// Returns the signature range spanning the Rust function name through its parameter list.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - nameRange: The captured function name range.
+  /// - Returns: The signature range.
+  fileprivate static func signatureRange(for match: QueryMatch, nameRange: NSRange) -> NSRange {
+
+    nameRange.union(with: [
+      Self.typeParametersRange(for: match),
+      Self.parametersRange(for: match),
+    ])
+  }
+
+  /// Returns the type parameter list range for a Rust function item.
+  ///
+  /// - Parameter match: The resolved query match.
+  /// - Returns: The type parameter list range, or `nil` if none exists.
+  private static func typeParametersRange(for match: QueryMatch) -> NSRange? {
+
+    match.outlineNode?.parent?.child(byFieldName: "type_parameters")?.range
+  }
+
+  /// Returns a whitespace-normalized Rust signature clause.
+  ///
+  /// - Parameter clause: The raw clause text.
+  /// - Returns: The clause with normalized spacing.
+  private static func normalizedClause(_ clause: String) -> String {
+
+    clause
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
+      .replacingOccurrences(of: "\\[\\s+", with: "[", options: .regularExpression)
+      .replacingOccurrences(of: "<\\s+", with: "<", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+\\]", with: "]", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+>", with: ">", options: .regularExpression)
+      .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
+  }
 }

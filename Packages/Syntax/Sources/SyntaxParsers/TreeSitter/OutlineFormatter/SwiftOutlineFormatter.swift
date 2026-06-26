@@ -25,121 +25,125 @@
 //
 
 import Foundation
-import SyntaxFormat
 import SwiftTreeSitter
+import SyntaxFormat
 
 enum SwiftOutlineFormatter: TreeSitterOutlineFormatting {
-    
-    static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (title: String, range: NSRange)? {
-        
-        switch capture.kind {
-            case .value:
-                return Self.propertyName(for: match, source: source)
-                    ?? Self.defaultTitle(capture: capture, source: source)
-            case .function:
-                let title = source.substring(with: capture.range)
-                return (title: Self.functionTitle(for: match, title: title, source: source),
-                        range: match.range ?? capture.range)
-            default:
-                return Self.defaultTitle(capture: capture, source: source)
-        }
+
+  static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (
+    title: String, range: NSRange
+  )? {
+
+    switch capture.kind {
+    case .value:
+      return Self.propertyName(for: match, source: source)
+        ?? Self.defaultTitle(capture: capture, source: source)
+    case .function:
+      let title = source.substring(with: capture.range)
+      return (
+        title: Self.functionTitle(for: match, title: title, source: source),
+        range: match.range ?? capture.range
+      )
+    default:
+      return Self.defaultTitle(capture: capture, source: source)
     }
-    
-    
-    /// Formats a Swift outline title with comment marker handling.
-    static func formatTitle(_ title: String, kind: Syntax.Outline.Kind) -> String? {
+  }
 
-        guard kind == .mark else { return title }
+  /// Formats a Swift outline title with comment marker handling.
+  static func formatTitle(_ title: String, kind: Syntax.Outline.Kind) -> String? {
 
-        let comment = Self.commentContent(in: title)
-            .replacingOccurrences(of: "^MARK:\\s*-?\\s*", with: "", options: .regularExpression)
+    guard kind == .mark else { return title }
 
-        return comment.isEmpty ? nil : comment
-    }
+    let comment = Self.commentContent(in: title)
+      .replacingOccurrences(of: "^MARK:\\s*-?\\s*", with: "", options: .regularExpression)
+
+    return comment.isEmpty ? nil : comment
+  }
 }
 
+extension SwiftOutlineFormatter {
 
-private extension SwiftOutlineFormatter {
-    
-    /// Returns the title text with surrounding comment delimiters removed.
-    ///
-    /// - Parameter title: The raw outline title.
-    /// - Returns: The title text without surrounding comment delimiters.
-    static func commentContent(in title: String) -> String {
-        
-        if let match = title.wholeMatch(of: try! Regex("\\/\\/\\s*(.+)")) {  // inline comment
-            let group1: Substring = match.output[1].substring ?? Substring()
-            return String(group1).trimmingCharacters(in: .whitespacesAndNewlines)
-        } else if let match = title.wholeMatch(of: try! Regex("\\/\\*+\\s*(.+)\\s*\\*\\/")) {  // block comment
-            let group1: Substring = match.output[1].substring ?? Substring()
-            return String(group1).trimmingCharacters(in: .whitespacesAndNewlines)
-        } else {
-            return title
-        }
+  /// Returns the title text with surrounding comment delimiters removed.
+  ///
+  /// - Parameter title: The raw outline title.
+  /// - Returns: The title text without surrounding comment delimiters.
+  fileprivate static func commentContent(in title: String) -> String {
+
+    if let match = title.wholeMatch(of: try! Regex("\\/\\/\\s*(.+)")) {  // inline comment
+      let group1: Substring = match.output[1].substring ?? Substring()
+      return String(group1).trimmingCharacters(in: .whitespacesAndNewlines)
+    } else if let match = title.wholeMatch(of: try! Regex("\\/\\*+\\s*(.+)\\s*\\*\\/")) {  // block comment
+      let group1: Substring = match.output[1].substring ?? Substring()
+      return String(group1).trimmingCharacters(in: .whitespacesAndNewlines)
+    } else {
+      return title
     }
-    
-    
-    /// Returns the property name capture used for Swift outline items.
-    ///
-    /// - Parameters:
-    ///   - match: The query match.
-    ///   - source: The source text as `NSString`.
-    /// - Returns: The property title and range, or `nil` if no property name capture exists.
-    static func propertyName(for match: QueryMatch, source: NSString) -> (title: String, range: NSRange)? {
-        
-        match.captures
-            .first { $0.name == "outline.name" }
-            .map { (title: source.substring(with: $0.range), range: $0.range) }
+  }
+
+  /// Returns the property name capture used for Swift outline items.
+  ///
+  /// - Parameters:
+  ///   - match: The query match.
+  ///   - source: The source text as `NSString`.
+  /// - Returns: The property title and range, or `nil` if no property name capture exists.
+  fileprivate static func propertyName(for match: QueryMatch, source: NSString) -> (
+    title: String, range: NSRange
+  )? {
+
+    match.captures
+      .first { $0.name == "outline.name" }
+      .map { (title: source.substring(with: $0.range), range: $0.range) }
+  }
+
+  /// Builds the displayed Swift function title from a query match.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - title: The raw title capture text.
+  ///   - source: The source text as `NSString`.
+  /// - Returns: The displayed Swift function title.
+  fileprivate static func functionTitle(for match: QueryMatch, title: String, source: NSString)
+    -> String
+  {
+
+    if title == "deinit" {
+      return "deinit"
     }
-    
-    
-    /// Builds the displayed Swift function title from a query match.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - title: The raw title capture text.
-    ///   - source: The source text as `NSString`.
-    /// - Returns: The displayed Swift function title.
-    static func functionTitle(for match: QueryMatch, title: String, source: NSString) -> String {
-        
-        if title == "deinit" {
-            return "deinit"
-        }
-        
-        let signatureText = match.range.map(source.substring(with:)) ?? title
-        let baseName = (title == "init")
-            ? Self.initializerBaseName(in: signatureText) ?? title
-            : title
-        let labels = match.captures(named: "outline.signature.parameter")
-            .compactMap { Self.parameterLabel(for: $0.node, source: source) }
-        
-        return labels.isEmpty
-            ? "\(baseName)()"
-            : "\(baseName)(\(labels.map { "\($0):" }.joined()))"
-    }
-    
-    
-    /// Returns the display base name for a Swift initializer signature.
-    ///
-    /// - Parameter signatureText: The signature text spanning the initializer name through the closing parenthesis.
-    /// - Returns: The initializer display name, if it can be derived.
-    private static func initializerBaseName(in signatureText: String) -> String? {
-        
-        guard let match = signatureText.firstMatch(of: try! Regex("^init[!?]?")) else { return nil }
-        return String(describing: match.output)
-    }
-    
-    
-    /// Returns the call-site label represented by a Swift parameter node.
-    ///
-    /// - Parameters:
-    ///   - parameter: The Swift parameter node.
-    ///   - source: The source text as `NSString`.
-    /// - Returns: The displayed call-site label, or `nil` when it cannot be resolved.
-    private static func parameterLabel(for parameter: Node, source: NSString) -> String? {
-        
-        let labelNode = parameter.child(byFieldName: "external_name") ?? parameter.child(byFieldName: "name")
-        
-        return labelNode.map { source.substring(with: $0.range) }
-    }
+
+    let signatureText = match.range.map(source.substring(with:)) ?? title
+    let baseName =
+      (title == "init")
+      ? Self.initializerBaseName(in: signatureText) ?? title
+      : title
+    let labels = match.captures(named: "outline.signature.parameter")
+      .compactMap { Self.parameterLabel(for: $0.node, source: source) }
+
+    return labels.isEmpty
+      ? "\(baseName)()"
+      : "\(baseName)(\(labels.map { "\($0):" }.joined()))"
+  }
+
+  /// Returns the display base name for a Swift initializer signature.
+  ///
+  /// - Parameter signatureText: The signature text spanning the initializer name through the closing parenthesis.
+  /// - Returns: The initializer display name, if it can be derived.
+  private static func initializerBaseName(in signatureText: String) -> String? {
+
+    guard let match = signatureText.firstMatch(of: try! Regex("^init[!?]?")) else { return nil }
+    return String(describing: match.output)
+  }
+
+  /// Returns the call-site label represented by a Swift parameter node.
+  ///
+  /// - Parameters:
+  ///   - parameter: The Swift parameter node.
+  ///   - source: The source text as `NSString`.
+  /// - Returns: The displayed call-site label, or `nil` when it cannot be resolved.
+  private static func parameterLabel(for parameter: Node, source: NSString) -> String? {
+
+    let labelNode =
+      parameter.child(byFieldName: "external_name") ?? parameter.child(byFieldName: "name")
+
+    return labelNode.map { source.substring(with: $0.range) }
+  }
 }

@@ -106,7 +106,7 @@ extension EditorViewController {
   func replaceCurrent() {
     guard let bar = findBar, findMatches.indices.contains(findCurrent) else { return }
     let r = findMatches[findCurrent]
-    
+
     let mode: TextFind.Mode
     if bar.regex {
       var opts: NSRegularExpression.Options = []
@@ -117,7 +117,7 @@ extension EditorViewController {
       if !bar.matchCase { opts.insert(.caseInsensitive) }
       mode = .textual(options: opts, fullWord: bar.wholeWord)
     }
-    
+
     do {
       let textFind = try TextFind(
         for: textView.string,
@@ -144,7 +144,7 @@ extension EditorViewController {
   /// Replace every match in a single undoable edit (reverse order keeps the earlier ranges valid).
   func replaceAll() {
     guard let bar = findBar, !findMatches.isEmpty else { return }
-    
+
     let mode: TextFind.Mode
     if bar.regex {
       var opts: NSRegularExpression.Options = []
@@ -155,7 +155,7 @@ extension EditorViewController {
       if !bar.matchCase { opts.insert(.caseInsensitive) }
       mode = .textual(options: opts, fullWord: bar.wholeWord)
     }
-    
+
     do {
       let textFind = try TextFind(
         for: textView.string,
@@ -165,7 +165,7 @@ extension EditorViewController {
         selectedRanges: [NSRange(location: 0, length: (textView.string as NSString).length)]
       )
       let (replacementItems, _) = textFind.replaceAll(with: bar.replaceText) { _, _, _ in }
-      
+
       // Apply replacements in reverse order to keep ranges valid
       for item in replacementItems.reversed() {
         if textView.shouldChangeText(in: item.range, replacementString: item.value) {

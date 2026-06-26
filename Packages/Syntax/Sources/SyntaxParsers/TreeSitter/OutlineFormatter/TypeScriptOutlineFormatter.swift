@@ -25,106 +25,105 @@
 //
 
 import Foundation
-import SyntaxFormat
 import StringUtils
 import SwiftTreeSitter
+import SyntaxFormat
 
 enum TypeScriptOutlineFormatter: TreeSitterOutlineFormatting {
-    
-    static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (title: String, range: NSRange)? {
-        
-        switch capture.kind {
-            case .value:
-                return Self.defaultTitle(capture: capture, source: source)
-            case .container:
-                if let title = Self.moduleTitle(for: match, source: source) {
-                    return title
-                }
-                return Self.defaultTitle(capture: capture, source: source)
-            case .function:
-                if Self.isAssignedFunction(match) {
-                    return Self.defaultTitle(capture: capture, source: source)
-                }
-                let range = Self.signatureRange(for: match, nameRange: capture.range)
-                let title = Self.normalizedClause(source.substring(with: range))
-                return (title, range)
-            default:
-                return Self.defaultTitle(capture: capture, source: source)
-        }
+
+  static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (
+    title: String, range: NSRange
+  )? {
+
+    switch capture.kind {
+    case .value:
+      return Self.defaultTitle(capture: capture, source: source)
+    case .container:
+      if let title = Self.moduleTitle(for: match, source: source) {
+        return title
+      }
+      return Self.defaultTitle(capture: capture, source: source)
+    case .function:
+      if Self.isAssignedFunction(match) {
+        return Self.defaultTitle(capture: capture, source: source)
+      }
+      let range = Self.signatureRange(for: match, nameRange: capture.range)
+      let title = Self.normalizedClause(source.substring(with: range))
+      return (title, range)
+    default:
+      return Self.defaultTitle(capture: capture, source: source)
     }
+  }
 }
 
+extension TypeScriptOutlineFormatter {
 
-private extension TypeScriptOutlineFormatter {
-    
-    /// Returns the display title for a TypeScript module or namespace declaration.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - source: The source text as `NSString`.
-    /// - Returns: The declaration name and range, or `nil` if the match is not a module-like container.
-    static func moduleTitle(for match: QueryMatch, source: NSString) -> (title: String, range: NSRange)? {
-        
-        guard
-            ["internal_module", "module"].contains(match.outlineNode?.nodeType ?? ""),
-            let nameRange = match.outlineNode?.child(byFieldName: "name")?.range
-        else { return nil }
-        
-        return (source.substring(with: nameRange), nameRange)
-    }
-    
-    
-    /// Returns the signature range spanning the TypeScript function name through its parameter list.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - nameRange: The captured function or method name range.
-    /// - Returns: The signature range.
-    static func signatureRange(for match: QueryMatch, nameRange: NSRange) -> NSRange {
-        
-        nameRange.union(with: [
-            Self.typeParametersRange(for: match),
-            Self.parametersRange(for: match),
-        ])
-    }
-    
-    
-    /// Returns the type parameter list range for a TypeScript function-like declaration.
-    ///
-    /// - Parameter match: The resolved query match.
-    /// - Returns: The type parameter list range, or `nil` if none exists.
-    private static func typeParametersRange(for match: QueryMatch) -> NSRange? {
-        
-        match.outlineNode?.parent?.child(byFieldName: "type_parameters")?.range
-    }
-    
-    
-    /// Returns whether the match represents a variable-assigned callable.
-    ///
-    /// - Parameter match: The resolved query match.
-    /// - Returns: `true` when the callable is assigned through a variable declarator.
-    private static func isAssignedFunction(_ match: QueryMatch) -> Bool {
-        
-        match.outlineNode?.parent?.nodeType == "variable_declarator"
-    }
-    
-    
-    /// Returns a whitespace-normalized TypeScript signature clause.
-    ///
-    /// - Parameter clause: The raw signature text.
-    /// - Returns: The clause with normalized spacing.
-    private static func normalizedClause(_ clause: String) -> String {
-        
-        clause
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+\\(", with: "(", options: .regularExpression)
-            .replacingOccurrences(of: ",\\s*\\)", with: ")", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+<", with: "<", options: .regularExpression)
-            .replacingOccurrences(of: "<\\s+", with: "<", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+>", with: ">", options: .regularExpression)
-            .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+  /// Returns the display title for a TypeScript module or namespace declaration.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - source: The source text as `NSString`.
+  /// - Returns: The declaration name and range, or `nil` if the match is not a module-like container.
+  fileprivate static func moduleTitle(for match: QueryMatch, source: NSString) -> (
+    title: String, range: NSRange
+  )? {
+
+    guard
+      ["internal_module", "module"].contains(match.outlineNode?.nodeType ?? ""),
+      let nameRange = match.outlineNode?.child(byFieldName: "name")?.range
+    else { return nil }
+
+    return (source.substring(with: nameRange), nameRange)
+  }
+
+  /// Returns the signature range spanning the TypeScript function name through its parameter list.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - nameRange: The captured function or method name range.
+  /// - Returns: The signature range.
+  fileprivate static func signatureRange(for match: QueryMatch, nameRange: NSRange) -> NSRange {
+
+    nameRange.union(with: [
+      Self.typeParametersRange(for: match),
+      Self.parametersRange(for: match),
+    ])
+  }
+
+  /// Returns the type parameter list range for a TypeScript function-like declaration.
+  ///
+  /// - Parameter match: The resolved query match.
+  /// - Returns: The type parameter list range, or `nil` if none exists.
+  private static func typeParametersRange(for match: QueryMatch) -> NSRange? {
+
+    match.outlineNode?.parent?.child(byFieldName: "type_parameters")?.range
+  }
+
+  /// Returns whether the match represents a variable-assigned callable.
+  ///
+  /// - Parameter match: The resolved query match.
+  /// - Returns: `true` when the callable is assigned through a variable declarator.
+  private static func isAssignedFunction(_ match: QueryMatch) -> Bool {
+
+    match.outlineNode?.parent?.nodeType == "variable_declarator"
+  }
+
+  /// Returns a whitespace-normalized TypeScript signature clause.
+  ///
+  /// - Parameter clause: The raw signature text.
+  /// - Returns: The clause with normalized spacing.
+  private static func normalizedClause(_ clause: String) -> String {
+
+    clause
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+\\(", with: "(", options: .regularExpression)
+      .replacingOccurrences(of: ",\\s*\\)", with: ")", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+<", with: "<", options: .regularExpression)
+      .replacingOccurrences(of: "<\\s+", with: "<", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+>", with: ">", options: .regularExpression)
+      .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
 }

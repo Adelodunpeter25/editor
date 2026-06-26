@@ -13,7 +13,7 @@ enum LanguageUtil {
     "ts": "typescript",
     "mts": "typescript",
     "cts": "typescript",
-    "tsx": "tsx",
+    "tsx": "typescript",
     "json": "json",
     "jsonc": "json",
     "go": "go",
@@ -29,7 +29,10 @@ enum LanguageUtil {
     "hxx": "cpp",
     "m": "objc",
     "mm": "objc",
+    "cs": "csharp",
     "java": "java",
+    "kt": "kotlin",
+    "kts": "kotlin",
     "rb": "ruby",
     "rake": "ruby",
     "gemspec": "ruby",
@@ -66,6 +69,10 @@ enum LanguageUtil {
     "pl": "perl",
     "pm": "perl",
     "lua": "lua",
+    "scala": "scala",
+    "sc": "scala",
+    "tex": "latex",
+    "ltx": "latex",
   ]
 
   private static let fenceAliases: [String: String] = [
@@ -73,7 +80,7 @@ enum LanguageUtil {
     "js": "javascript",
     "jsx": "javascript",
     "ts": "typescript",
-    "tsx": "tsx",
+    "tsx": "typescript",
     "rb": "ruby",
     "rs": "rust",
     "sh": "shell",
@@ -90,14 +97,17 @@ enum LanguageUtil {
     "md": "markdown",
     "htm": "html",
     "dockerfile": "dockerfile",
+    "cs": "csharp",
+    "kt": "kotlin",
+    "tex": "latex",
   ]
 
   private static let langDisplayNames: [String: String] = [
     "javascript": "JavaScript",
     "typescript": "TypeScript",
-    "tsx": "TypeScript JSX",
     "objc": "Objective-C",
     "cpp": "C++",
+    "csharp": "C#",
     "json": "JSON",
     "html": "HTML",
     "css": "CSS",
@@ -110,6 +120,12 @@ enum LanguageUtil {
     "sql": "SQL",
     "xml": "XML",
     "objcpp": "Objective-C++",
+    "kotlin": "Kotlin",
+    "scala": "Scala",
+    "latex": "LaTeX",
+    "shell": "Shell",
+    "makefile": "Makefile",
+    "markdown": "Markdown",
   ]
 
   /// Map a file path to a bundled grammar key. Filename is checked first (Dockerfile, Makefile),

@@ -25,109 +25,112 @@
 //
 
 import Foundation
-import SyntaxFormat
 import StringUtils
 import SwiftTreeSitter
+import SyntaxFormat
 
 enum RubyOutlineFormatter: TreeSitterOutlineFormatting {
-    
-    static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (title: String, range: NSRange)? {
-        
-        switch capture.kind {
-            case .function:
-                return (title: Self.functionTitle(for: match, title: source.substring(with: capture.range), source: source),
-                        range: Self.signatureRange(for: match, nameRange: capture.range))
-            default:
-                return Self.defaultTitle(capture: capture, source: source)
-        }
+
+  static func title(for match: QueryMatch, capture: OutlineCapture, source: NSString) -> (
+    title: String, range: NSRange
+  )? {
+
+    switch capture.kind {
+    case .function:
+      return (
+        title: Self.functionTitle(
+          for: match, title: source.substring(with: capture.range), source: source),
+        range: Self.signatureRange(for: match, nameRange: capture.range)
+      )
+    default:
+      return Self.defaultTitle(capture: capture, source: source)
     }
+  }
 }
 
+extension RubyOutlineFormatter {
 
-private extension RubyOutlineFormatter {
-    
-    /// Builds the displayed Ruby method title from a query match.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - title: The raw title capture text.
-    ///   - source: The source text as `NSString`.
-    /// - Returns: The displayed Ruby method title.
-    static func functionTitle(for match: QueryMatch, title: String, source: NSString) -> String {
-        
-        let receiver = Self.receiverPrefix(for: match, source: source) ?? ""
-        let parameters = Self.parametersRange(for: match)
-            .map(source.substring(with:))
-            .map(Self.normalizedParameters)
-            ?? "()"
-        
-        return receiver + title + parameters
-    }
-    
-    
-    /// Returns the signature range spanning the Ruby method name and parameter clause.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - nameRange: The captured method name range.
-    /// - Returns: The signature range.
-    static func signatureRange(for match: QueryMatch, nameRange: NSRange) -> NSRange {
-        
-        nameRange.union(with: [
-            Self.receiverRange(for: match),
-            Self.parametersRange(for: match),
-        ])
-    }
-    
-    
-    /// Returns the receiver prefix for a Ruby singleton method.
-    ///
-    /// - Parameters:
-    ///   - match: The resolved query match.
-    ///   - source: The source text as `NSString`.
-    /// - Returns: The receiver prefix ending in `.`, or `nil` for instance methods.
-    private static func receiverPrefix(for match: QueryMatch, source: NSString) -> String? {
-        
-        Self.receiverRange(for: match).map { source.substring(with: $0) + "." }
-    }
-    
-    
-    /// Returns the receiver range for a Ruby singleton method.
-    ///
-    /// - Parameter match: The resolved query match.
-    /// - Returns: The receiver range, or `nil` for instance methods.
-    private static func receiverRange(for match: QueryMatch) -> NSRange? {
-        
-        match.outlineNode?.parent?.child(byFieldName: "object")?.range
-    }
-    
-    
-    /// Returns the parameters range for a Ruby method declaration.
-    ///
-    /// - Parameter match: The resolved query match.
-    /// - Returns: The parameters range, or `nil` if omitted.
-    private static func parametersRange(for match: QueryMatch) -> NSRange? {
-        
-        match.outlineNode?.parent?.child(byFieldName: "parameters")?.range
-    }
-    
-    
-    /// Returns a normalized Ruby parameter clause suitable for outline display.
-    ///
-    /// - Parameter parameters: The raw parameter clause text.
-    /// - Returns: The normalized Ruby parameter clause.
-    private static func normalizedParameters(_ parameters: String) -> String {
-        
-        let normalized = parameters
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
-            .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
-            .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard !normalized.isEmpty else { return "()" }
-        guard !normalized.hasPrefix("(") else { return normalized }
-        
-        return "(\(normalized))"
-    }
+  /// Builds the displayed Ruby method title from a query match.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - title: The raw title capture text.
+  ///   - source: The source text as `NSString`.
+  /// - Returns: The displayed Ruby method title.
+  fileprivate static func functionTitle(for match: QueryMatch, title: String, source: NSString)
+    -> String
+  {
+
+    let receiver = Self.receiverPrefix(for: match, source: source) ?? ""
+    let parameters =
+      Self.parametersRange(for: match)
+      .map(source.substring(with:))
+      .map(Self.normalizedParameters)
+      ?? "()"
+
+    return receiver + title + parameters
+  }
+
+  /// Returns the signature range spanning the Ruby method name and parameter clause.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - nameRange: The captured method name range.
+  /// - Returns: The signature range.
+  fileprivate static func signatureRange(for match: QueryMatch, nameRange: NSRange) -> NSRange {
+
+    nameRange.union(with: [
+      Self.receiverRange(for: match),
+      Self.parametersRange(for: match),
+    ])
+  }
+
+  /// Returns the receiver prefix for a Ruby singleton method.
+  ///
+  /// - Parameters:
+  ///   - match: The resolved query match.
+  ///   - source: The source text as `NSString`.
+  /// - Returns: The receiver prefix ending in `.`, or `nil` for instance methods.
+  private static func receiverPrefix(for match: QueryMatch, source: NSString) -> String? {
+
+    Self.receiverRange(for: match).map { source.substring(with: $0) + "." }
+  }
+
+  /// Returns the receiver range for a Ruby singleton method.
+  ///
+  /// - Parameter match: The resolved query match.
+  /// - Returns: The receiver range, or `nil` for instance methods.
+  private static func receiverRange(for match: QueryMatch) -> NSRange? {
+
+    match.outlineNode?.parent?.child(byFieldName: "object")?.range
+  }
+
+  /// Returns the parameters range for a Ruby method declaration.
+  ///
+  /// - Parameter match: The resolved query match.
+  /// - Returns: The parameters range, or `nil` if omitted.
+  private static func parametersRange(for match: QueryMatch) -> NSRange? {
+
+    match.outlineNode?.parent?.child(byFieldName: "parameters")?.range
+  }
+
+  /// Returns a normalized Ruby parameter clause suitable for outline display.
+  ///
+  /// - Parameter parameters: The raw parameter clause text.
+  /// - Returns: The normalized Ruby parameter clause.
+  private static func normalizedParameters(_ parameters: String) -> String {
+
+    let normalized =
+      parameters
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+      .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
+      .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    guard !normalized.isEmpty else { return "()" }
+    guard !normalized.hasPrefix("(") else { return normalized }
+
+    return "(\(normalized))"
+  }
 }
