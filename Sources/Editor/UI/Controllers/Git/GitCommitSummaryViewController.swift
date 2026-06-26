@@ -255,6 +255,7 @@ private final class FileStatRowView: NSView {
 
     let icon = NSImageView()
     icon.image = FileIcon.icon(forFilename: (stat.path as NSString).lastPathComponent, size: 12)
+    icon.contentTintColor = FileIcon.color(forFilename: (stat.path as NSString).lastPathComponent)
     icon.translatesAutoresizingMaskIntoConstraints = false
     icon.widthAnchor.constraint(equalToConstant: 14).isActive = true
     icon.heightAnchor.constraint(equalToConstant: 14).isActive = true

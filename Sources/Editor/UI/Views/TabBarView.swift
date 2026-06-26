@@ -262,7 +262,7 @@ final class TabChipView: PointerView, NSDraggingSource {
     }
 
     let iv = NSImageView(image: img)
-    iv.contentTintColor = .secondaryLabelColor
+    iv.contentTintColor = (kind == .file) ? FileIcon.color(forFilename: title) : .secondaryLabelColor
     iv.setContentHuggingPriority(.required, for: .horizontal)
     let indicator = iv
 

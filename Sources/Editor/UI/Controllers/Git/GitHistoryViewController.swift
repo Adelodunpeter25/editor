@@ -302,7 +302,7 @@ final class GitHistoryViewController: NSViewController, NSTableViewDataSource, N
     icon.translatesAutoresizingMaskIntoConstraints = false
     icon.imageScaling = .scaleProportionallyDown
     icon.image = FileIcon.icon(forFilename: (path as NSString).lastPathComponent, size: 11)
-    icon.contentTintColor = Theme.textMuted
+    icon.contentTintColor = FileIcon.color(forFilename: (path as NSString).lastPathComponent)
     icon.setContentHuggingPriority(.required, for: .horizontal)
     icon.widthAnchor.constraint(equalToConstant: 14).isActive = true
     icon.heightAnchor.constraint(equalToConstant: 14).isActive = true
