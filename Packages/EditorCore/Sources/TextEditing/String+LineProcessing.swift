@@ -76,7 +76,7 @@ public extension String {
                 }
             }
         }
-        let selectedRanges = movedSelectedRanges.compactMap(\.self).uniqued.sorted(using: KeyPathComparator(\.location))
+        let selectedRanges = movedSelectedRanges.compactMap { $0 }.uniqued.sorted(using: KeyPathComparator(\.location))
         let replacementString = string.substring(with: replacementRange)
         
         return EditingContext(strings: [replacementString], ranges: [replacementRange], selectedRanges: selectedRanges)
@@ -137,7 +137,7 @@ public extension String {
                 }
             }
         }
-        let selectedRanges = movedSelectedRanges.compactMap(\.self).uniqued.sorted(using: KeyPathComparator(\.location))
+        let selectedRanges = movedSelectedRanges.compactMap { $0 }.uniqued.sorted(using: KeyPathComparator(\.location))
         
         let replacementString = string.substring(with: replacementRange)
         

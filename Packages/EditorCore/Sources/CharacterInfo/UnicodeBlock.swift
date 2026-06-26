@@ -32,352 +32,352 @@ import Foundation
 func localizeBlockName(_ block: String) -> String? {
     
     switch block {
-        case "Adlam": String(localized: "Adlam", table: "UnicodeBlock", bundle: .module)
-        case "Aegean Numbers": String(localized: "Aegean Numbers", table: "UnicodeBlock", bundle: .module)
-        case "Ahom": String(localized: "Ahom", table: "UnicodeBlock", bundle: .module)
-        case "Alchemical Symbols": String(localized: "Alchemical Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Alphabetic Presentation Forms": String(localized: "Alphabetic Presentation Forms", table: "UnicodeBlock", bundle: .module)
-        case "Anatolian Hieroglyphs": String(localized: "Anatolian Hieroglyphs", table: "UnicodeBlock", bundle: .module)
-        case "Ancient Greek Musical Notation": String(localized: "Ancient Greek Musical Notation", table: "UnicodeBlock", bundle: .module)
-        case "Ancient Greek Numbers": String(localized: "Ancient Greek Numbers", table: "UnicodeBlock", bundle: .module)
-        case "Ancient Symbols": String(localized: "Ancient Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Arabic Extended-A": String(localized: "Arabic Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Arabic Extended-B": String(localized: "Arabic Extended-B", table: "UnicodeBlock", bundle: .module)
-        case "Arabic Extended-C": String(localized: "Arabic Extended-C", table: "UnicodeBlock", bundle: .module)
-        case "Arabic Mathematical Alphabetic Symbols": String(localized: "Arabic Math Alphabetic Symbols", table: "UnicodeBlock", bundle: .module)  // Math -> Mathematical
-        case "Arabic Presentation Forms-A": String(localized: "Arabic Presentation Forms-A", table: "UnicodeBlock", bundle: .module)
-        case "Arabic Presentation Forms-B": String(localized: "Arabic Presentation Forms-B", table: "UnicodeBlock", bundle: .module)
-        case "Arabic Supplement": String(localized: "Arabic Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Arabic": String(localized: "Arabic", table: "UnicodeBlock", bundle: .module)
-        case "Armenian": String(localized: "Armenian", table: "UnicodeBlock", bundle: .module)
-        case "Arrows": String(localized: "Arrows", table: "UnicodeBlock", bundle: .module)
-        case "Avestan": String(localized: "Avestan", table: "UnicodeBlock", bundle: .module)
-        case "Balinese": String(localized: "Balinese", table: "UnicodeBlock", bundle: .module)
-        case "Bamum Supplement": String(localized: "Bamum Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Bamum": String(localized: "Bamum", table: "UnicodeBlock", bundle: .module)
-        case "Basic Latin": String(localized: "Basic Latin", table: "UnicodeBlock", bundle: .module)
-        case "Bassa Vah": String(localized: "Bassa Vah", table: "UnicodeBlock", bundle: .module)
-        case "Batak": String(localized: "Batak", table: "UnicodeBlock", bundle: .module)
-        case "Bengali": String(localized: "Bengali", table: "UnicodeBlock", bundle: .module)
-        case "Beria Erfe": String(localized: "Beria Erfe", table: "UnicodeBlock", bundle: .module)
-        case "Bhaiksuki": String(localized: "Bhaiksuki", table: "UnicodeBlock", bundle: .module)
-        case "Block Elements": String(localized: "Block Elements", table: "UnicodeBlock", bundle: .module)
-        case "Bopomofo Extended": String(localized: "Bopomofo Extended", table: "UnicodeBlock", bundle: .module)
-        case "Bopomofo": String(localized: "Bopomofo", table: "UnicodeBlock", bundle: .module)
-        case "Box Drawing": String(localized: "Box Drawing", table: "UnicodeBlock", bundle: .module)
-        case "Brahmi": String(localized: "Brahmi", table: "UnicodeBlock", bundle: .module)
-        case "Braille Patterns": String(localized: "Braille Patterns", table: "UnicodeBlock", bundle: .module)
-        case "Buginese": String(localized: "Buginese", table: "UnicodeBlock", bundle: .module)
-        case "Buhid": String(localized: "Buhid", table: "UnicodeBlock", bundle: .module)
-        case "Byzantine Musical Symbols": String(localized: "Byzantine Musical Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Carian": String(localized: "Carian", table: "UnicodeBlock", bundle: .module)
-        case "Caucasian Albanian": String(localized: "Caucasian Albanian", table: "UnicodeBlock", bundle: .module)
-        case "Chakma": String(localized: "Chakma", table: "UnicodeBlock", bundle: .module)
-        case "Cham": String(localized: "Cham", table: "UnicodeBlock", bundle: .module)
-        case "Cherokee Supplement": String(localized: "Cherokee Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Cherokee": String(localized: "Cherokee", table: "UnicodeBlock", bundle: .module)
-        case "Chess Symbols": String(localized: "Chess Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Chorasmian": String(localized: "Chorasmian", table: "UnicodeBlock", bundle: .module)
-        case "CJK Compatibility Forms": String(localized: "CJK Compatibility Forms", table: "UnicodeBlock", bundle: .module)
-        case "CJK Compatibility Ideographs Supplement": String(localized: "CJK Compatibility Ideographs Supp.", table: "UnicodeBlock", bundle: .module)
-        case "CJK Compatibility Ideographs": String(localized: "CJK Compatibility Ideographs", table: "UnicodeBlock", bundle: .module)
-        case "CJK Compatibility": String(localized: "CJK Compatibility", table: "UnicodeBlock", bundle: .module)
-        case "CJK Radicals Supplement": String(localized: "CJK Radicals Supplement", table: "UnicodeBlock", bundle: .module)
-        case "CJK Strokes": String(localized: "CJK Strokes", table: "UnicodeBlock", bundle: .module)
-        case "CJK Symbols and Punctuation": String(localized: "CJK Symbols and Punctuation", table: "UnicodeBlock", bundle: .module)
-        case "CJK Unified Ideographs Extension A": String(localized: "CJK Unified Ideographs Ext. A", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension B": String(localized: "CJK Unified Ideographs Ext. B", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension C": String(localized: "CJK Unified Ideographs Ext. C", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension D": String(localized: "CJK Unified Ideographs Ext. D", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension E": String(localized: "CJK Unified Ideographs Ext. E", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension F": String(localized: "CJK Unified Ideographs Ext. F", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension G": String(localized: "CJK Unified Ideographs Ext. G", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension H": String(localized: "CJK Unified Ideographs Ext. H", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension I": String(localized: "CJK Unified Ideographs Ext. I", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs Extension J": String(localized: "CJK Unified Ideographs Ext. J", table: "UnicodeBlock", bundle: .module)  // Extension -> Ext.
-        case "CJK Unified Ideographs": String(localized: "CJK Unified Ideographs", table: "UnicodeBlock", bundle: .module)
-        case "Combining Diacritical Marks Extended": String(localized: "Combining Diacritical Marks Extended", table: "UnicodeBlock", bundle: .module)
-        case "Combining Diacritical Marks for Symbols": String(localized: "Combining Diacritical Marks for Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Combining Diacritical Marks Supplement": String(localized: "Combining Diacritical Marks Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Combining Diacritical Marks": String(localized: "Combining Diacritical Marks", table: "UnicodeBlock", bundle: .module)
-        case "Combining Half Marks": String(localized: "Combining Half Marks", table: "UnicodeBlock", bundle: .module)
-        case "Common Indic Number Forms": String(localized: "Common Indic Number Forms", table: "UnicodeBlock", bundle: .module)
-        case "Control Pictures": String(localized: "Control Pictures", table: "UnicodeBlock", bundle: .module)
-        case "Coptic Epact Numbers": String(localized: "Coptic Epact Numbers", table: "UnicodeBlock", bundle: .module)
-        case "Coptic": String(localized: "Coptic", table: "UnicodeBlock", bundle: .module)
-        case "Counting Rod Numerals": String(localized: "Counting Rod Numerals", table: "UnicodeBlock", bundle: .module)
-        case "Cuneiform Numbers and Punctuation": String(localized: "Cuneiform Numbers and Punctuation", table: "UnicodeBlock", bundle: .module)
-        case "Cuneiform": String(localized: "Cuneiform", table: "UnicodeBlock", bundle: .module)
-        case "Currency Symbols": String(localized: "Currency Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Cypriot Syllabary": String(localized: "Cypriot Syllabary", table: "UnicodeBlock", bundle: .module)
-        case "Cypro-Minoan": String(localized: "Cypro-Minoan", table: "UnicodeBlock", bundle: .module)
-        case "Cyrillic Extended-A": String(localized: "Cyrillic Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Cyrillic Extended-B": String(localized: "Cyrillic Extended-B", table: "UnicodeBlock", bundle: .module)
-        case "Cyrillic Extended-C": String(localized: "Cyrillic Extended-C", table: "UnicodeBlock", bundle: .module)
-        case "Cyrillic Extended-D": String(localized: "Cyrillic Extended-D", table: "UnicodeBlock", bundle: .module)
-        case "Cyrillic Supplement": String(localized: "Cyrillic Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Cyrillic": String(localized: "Cyrillic", table: "UnicodeBlock", bundle: .module)
-        case "Deseret": String(localized: "Deseret", table: "UnicodeBlock", bundle: .module)
-        case "Devanagari Extended-A": String(localized: "Devanagari Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Devanagari Extended": String(localized: "Devanagari Extended", table: "UnicodeBlock", bundle: .module)
-        case "Devanagari": String(localized: "Devanagari", table: "UnicodeBlock", bundle: .module)
-        case "Dingbats": String(localized: "Dingbats", table: "UnicodeBlock", bundle: .module)
-        case "Dives Akuru": String(localized: "Dives Akuru", table: "UnicodeBlock", bundle: .module)
-        case "Dogra": String(localized: "Dogra", table: "UnicodeBlock", bundle: .module)
-        case "Domino Tiles": String(localized: "Domino Tiles", table: "UnicodeBlock", bundle: .module)
-        case "Duployan": String(localized: "Duployan", table: "UnicodeBlock", bundle: .module)
-        case "Early Dynastic Cuneiform": String(localized: "Early Dynastic Cuneiform", table: "UnicodeBlock", bundle: .module)
-        case "Egyptian Hieroglyph Format Controls": String(localized: "Egyptian Hieroglyph Format Controls", table: "UnicodeBlock", bundle: .module)
-        case "Egyptian Hieroglyphs Extended-A": String(localized: "Egyptian Hieroglyphs Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Egyptian Hieroglyphs": String(localized: "Egyptian Hieroglyphs", table: "UnicodeBlock", bundle: .module)
-        case "Elbasan": String(localized: "Elbasan", table: "UnicodeBlock", bundle: .module)
-        case "Elymaic": String(localized: "Elymaic", table: "UnicodeBlock", bundle: .module)
-        case "Emoticons": String(localized: "Emoticons", table: "UnicodeBlock", bundle: .module)
-        case "Enclosed Alphanumeric Supplement": String(localized: "Enclosed Alphanumeric Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Enclosed Alphanumerics": String(localized: "Enclosed Alphanumerics", table: "UnicodeBlock", bundle: .module)
-        case "Enclosed CJK Letters and Months": String(localized: "Enclosed CJK Letters and Months", table: "UnicodeBlock", bundle: .module)
-        case "Enclosed Ideographic Supplement": String(localized: "Enclosed Ideographic Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Ethiopic Extended-A": String(localized: "Ethiopic Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Ethiopic Extended-B": String(localized: "Ethiopic Extended-B", table: "UnicodeBlock", bundle: .module)
-        case "Ethiopic Extended": String(localized: "Ethiopic Extended", table: "UnicodeBlock", bundle: .module)
-        case "Ethiopic Supplement": String(localized: "Ethiopic Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Ethiopic": String(localized: "Ethiopic", table: "UnicodeBlock", bundle: .module)
-        case "Garay": String(localized: "Garay", table: "UnicodeBlock", bundle: .module)
-        case "General Punctuation": String(localized: "General Punctuation", table: "UnicodeBlock", bundle: .module)
-        case "Geometric Shapes Extended": String(localized: "Geometric Shapes Extended", table: "UnicodeBlock", bundle: .module)
-        case "Geometric Shapes": String(localized: "Geometric Shapes", table: "UnicodeBlock", bundle: .module)
-        case "Georgian Extended": String(localized: "Georgian Extended", table: "UnicodeBlock", bundle: .module)
-        case "Georgian Supplement": String(localized: "Georgian Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Georgian": String(localized: "Georgian", table: "UnicodeBlock", bundle: .module)
-        case "Glagolitic Supplement": String(localized: "Glagolitic Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Glagolitic": String(localized: "Glagolitic", table: "UnicodeBlock", bundle: .module)
-        case "Gothic": String(localized: "Gothic", table: "UnicodeBlock", bundle: .module)
-        case "Grantha": String(localized: "Grantha", table: "UnicodeBlock", bundle: .module)
-        case "Greek and Coptic": String(localized: "Greek and Coptic", table: "UnicodeBlock", bundle: .module)
-        case "Greek Extended": String(localized: "Greek Extended", table: "UnicodeBlock", bundle: .module)
-        case "Gujarati": String(localized: "Gujarati", table: "UnicodeBlock", bundle: .module)
-        case "Gunjala Gondi": String(localized: "Gunjala Gondi", table: "UnicodeBlock", bundle: .module)
-        case "Gurmukhi": String(localized: "Gurmukhi", table: "UnicodeBlock", bundle: .module)
-        case "Gurung Khema": String(localized: "Gurung Khema", table: "UnicodeBlock", bundle: .module)
-        case "Halfwidth and Fullwidth Forms": String(localized: "Halfwidth and Fullwidth Forms", table: "UnicodeBlock", bundle: .module)
-        case "Hangul Compatibility Jamo": String(localized: "Hangul Compatibility Jamo", table: "UnicodeBlock", bundle: .module)
-        case "Hangul Jamo Extended-A": String(localized: "Hangul Jamo Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Hangul Jamo Extended-B": String(localized: "Hangul Jamo Extended-B", table: "UnicodeBlock", bundle: .module)
-        case "Hangul Jamo": String(localized: "Hangul Jamo", table: "UnicodeBlock", bundle: .module)
-        case "Hangul Syllables": String(localized: "Hangul Syllables", table: "UnicodeBlock", bundle: .module)
-        case "Hanifi Rohingya": String(localized: "Hanifi Rohingya", table: "UnicodeBlock", bundle: .module)
-        case "Hanunoo": String(localized: "Hanunoo", table: "UnicodeBlock", bundle: .module)
-        case "Hatran": String(localized: "Hatran", table: "UnicodeBlock", bundle: .module)
-        case "Hebrew": String(localized: "Hebrew", table: "UnicodeBlock", bundle: .module)
-        case "High Private Use Surrogates": String(localized: "High Private Use Surrogates", table: "UnicodeBlock", bundle: .module)
-        case "High Surrogates": String(localized: "High Surrogates", table: "UnicodeBlock", bundle: .module)
-        case "Hiragana": String(localized: "Hiragana", table: "UnicodeBlock", bundle: .module)
-        case "Ideographic Description Characters": String(localized: "Ideographic Desc. Characters", table: "UnicodeBlock", bundle: .module)
-        case "Ideographic Symbols and Punctuation": String(localized: "Ideographic Symbols and Punctuation", table: "UnicodeBlock", bundle: .module)
-        case "Imperial Aramaic": String(localized: "Imperial Aramaic", table: "UnicodeBlock", bundle: .module)
-        case "Indic Siyaq Numbers": String(localized: "Indic Siyaq Numbers", table: "UnicodeBlock", bundle: .module)
-        case "Inscriptional Pahlavi": String(localized: "Inscriptional Pahlavi", table: "UnicodeBlock", bundle: .module)
-        case "Inscriptional Parthian": String(localized: "Inscriptional Parthian", table: "UnicodeBlock", bundle: .module)
-        case "IPA Extensions": String(localized: "IPA Extensions", table: "UnicodeBlock", bundle: .module)
-        case "Javanese": String(localized: "Javanese", table: "UnicodeBlock", bundle: .module)
-        case "Kaithi": String(localized: "Kaithi", table: "UnicodeBlock", bundle: .module)
-        case "Kaktovik Numerals": String(localized: "Kaktovik Numerals", table: "UnicodeBlock", bundle: .module)
-        case "Kana Extended-A": String(localized: "Kana Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Kana Extended-B": String(localized: "Kana Extended-B", table: "UnicodeBlock", bundle: .module)
-        case "Kana Supplement": String(localized: "Kana Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Kanbun": String(localized: "Kanbun", table: "UnicodeBlock", bundle: .module)
-        case "Kangxi Radicals": String(localized: "Kangxi Radicals", table: "UnicodeBlock", bundle: .module)
-        case "Kannada": String(localized: "Kannada", table: "UnicodeBlock", bundle: .module)
-        case "Katakana Phonetic Extensions": String(localized: "Katakana Phonetic Extensions", table: "UnicodeBlock", bundle: .module)
-        case "Katakana": String(localized: "Katakana", table: "UnicodeBlock", bundle: .module)
-        case "Kawi": String(localized: "Kawi", table: "UnicodeBlock", bundle: .module)
-        case "Kayah Li": String(localized: "Kayah Li", table: "UnicodeBlock", bundle: .module)
-        case "Kharoshthi": String(localized: "Kharoshthi", table: "UnicodeBlock", bundle: .module)
-        case "Khitan Small Script": String(localized: "Khitan Small Script", table: "UnicodeBlock", bundle: .module)
-        case "Khmer Symbols": String(localized: "Khmer Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Khmer": String(localized: "Khmer", table: "UnicodeBlock", bundle: .module)
-        case "Khojki": String(localized: "Khojki", table: "UnicodeBlock", bundle: .module)
-        case "Khudawadi": String(localized: "Khudawadi", table: "UnicodeBlock", bundle: .module)
-        case "Kirat Rai": String(localized: "Kirat Rai", table: "UnicodeBlock", bundle: .module)
-        case "Lao": String(localized: "Lao", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended Additional": String(localized: "Latin Extended Additional", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended-A": String(localized: "Latin Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended-B": String(localized: "Latin Extended-B", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended-C": String(localized: "Latin Extended-C", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended-D": String(localized: "Latin Extended-D", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended-E": String(localized: "Latin Extended-E", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended-F": String(localized: "Latin Extended-F", table: "UnicodeBlock", bundle: .module)
-        case "Latin Extended-G": String(localized: "Latin Extended-G", table: "UnicodeBlock", bundle: .module)
-        case "Latin-1 Supplement": String(localized: "Latin-1 Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Lepcha": String(localized: "Lepcha", table: "UnicodeBlock", bundle: .module)
-        case "Letterlike Symbols": String(localized: "Letterlike Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Limbu": String(localized: "Limbu", table: "UnicodeBlock", bundle: .module)
-        case "Linear A": String(localized: "Linear A", table: "UnicodeBlock", bundle: .module)
-        case "Linear B Ideograms": String(localized: "Linear B Ideograms", table: "UnicodeBlock", bundle: .module)
-        case "Linear B Syllabary": String(localized: "Linear B Syllabary", table: "UnicodeBlock", bundle: .module)
-        case "Lisu Supplement": String(localized: "Lisu Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Lisu": String(localized: "Lisu", table: "UnicodeBlock", bundle: .module)
-        case "Low Surrogates": String(localized: "Low Surrogates", table: "UnicodeBlock", bundle: .module)
-        case "Lycian": String(localized: "Lycian", table: "UnicodeBlock", bundle: .module)
-        case "Lydian": String(localized: "Lydian", table: "UnicodeBlock", bundle: .module)
-        case "Mahajani": String(localized: "Mahajani", table: "UnicodeBlock", bundle: .module)
-        case "Mahjong Tiles": String(localized: "Mahjong Tiles", table: "UnicodeBlock", bundle: .module)
-        case "Makasar": String(localized: "Makasar", table: "UnicodeBlock", bundle: .module)
-        case "Malayalam": String(localized: "Malayalam", table: "UnicodeBlock", bundle: .module)
-        case "Mandaic": String(localized: "Mandaic", table: "UnicodeBlock", bundle: .module)
-        case "Manichaean": String(localized: "Manichaean", table: "UnicodeBlock", bundle: .module)
-        case "Marchen": String(localized: "Marchen", table: "UnicodeBlock", bundle: .module)
-        case "Masaram Gondi": String(localized: "Masaram Gondi", table: "UnicodeBlock", bundle: .module)
-        case "Mathematical Alphanumeric Symbols": String(localized: "Math Alphanumeric Symbols", table: "UnicodeBlock", bundle: .module)  // Math -> Mathematical
-        case "Mathematical Operators": String(localized: "Mathematical Operators", table: "UnicodeBlock", bundle: .module)
-        case "Mayan Numerals": String(localized: "Mayan Numerals", table: "UnicodeBlock", bundle: .module)
-        case "Medefaidrin": String(localized: "Medefaidrin", table: "UnicodeBlock", bundle: .module)
-        case "Meetei Mayek Extensions": String(localized: "Meetei Mayek Extensions", table: "UnicodeBlock", bundle: .module)
-        case "Meetei Mayek": String(localized: "Meetei Mayek", table: "UnicodeBlock", bundle: .module)
-        case "Mende Kikakui": String(localized: "Mende Kikakui", table: "UnicodeBlock", bundle: .module)
-        case "Meroitic Cursive": String(localized: "Meroitic Cursive", table: "UnicodeBlock", bundle: .module)
-        case "Meroitic Hieroglyphs": String(localized: "Meroitic Hieroglyphs", table: "UnicodeBlock", bundle: .module)
-        case "Miao": String(localized: "Miao", table: "UnicodeBlock", bundle: .module)
-        case "Miscellaneous Mathematical Symbols-A": String(localized: "Miscellaneous Math Symbols-A", table: "UnicodeBlock", bundle: .module)  // Math -> Mathematical
-        case "Miscellaneous Mathematical Symbols-B": String(localized: "Miscellaneous Math Symbols-B", table: "UnicodeBlock", bundle: .module)  // Math -> Mathematical
-        case "Miscellaneous Symbols and Arrows": String(localized: "Miscellaneous Symbols and Arrows", table: "UnicodeBlock", bundle: .module)
-        case "Miscellaneous Symbols and Pictographs": String(localized: "Miscellaneous Symbols And Pictographs", table: "UnicodeBlock", bundle: .module)  // And -> and
-        case "Miscellaneous Symbols Supplement": String(localized: "Miscellaneous Symbols Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Miscellaneous Symbols": String(localized: "Miscellaneous Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Miscellaneous Technical": String(localized: "Miscellaneous Technical", table: "UnicodeBlock", bundle: .module)
-        case "Modi": String(localized: "Modi", table: "UnicodeBlock", bundle: .module)
-        case "Modifier Tone Letters": String(localized: "Modifier Tone Letters", table: "UnicodeBlock", bundle: .module)
-        case "Mongolian Supplement": String(localized: "Mongolian Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Mongolian": String(localized: "Mongolian", table: "UnicodeBlock", bundle: .module)
-        case "Mro": String(localized: "Mro", table: "UnicodeBlock", bundle: .module)
-        case "Multani": String(localized: "Multani", table: "UnicodeBlock", bundle: .module)
-        case "Musical Symbols": String(localized: "Musical Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Myanmar Extended-A": String(localized: "Myanmar Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Myanmar Extended-B": String(localized: "Myanmar Extended-B", table: "UnicodeBlock", bundle: .module)
-        case "Myanmar Extended-C": String(localized: "Myanmar Extended-C", table: "UnicodeBlock", bundle: .module)
-        case "Myanmar": String(localized: "Myanmar", table: "UnicodeBlock", bundle: .module)
-        case "Nabataean": String(localized: "Nabataean", table: "UnicodeBlock", bundle: .module)
-        case "Nag Mundari": String(localized: "Nag Mundari", table: "UnicodeBlock", bundle: .module)
-        case "Nandinagari": String(localized: "Nandinagari", table: "UnicodeBlock", bundle: .module)
-        case "New Tai Lue": String(localized: "New Tai Lue", table: "UnicodeBlock", bundle: .module)
-        case "Newa": String(localized: "Newa", table: "UnicodeBlock", bundle: .module)
-        case "NKo": String(localized: "N'Ko", table: "UnicodeBlock", bundle: .module)  // remove ’
-        case "Number Forms": String(localized: "Number Forms", table: "UnicodeBlock", bundle: .module)
-        case "Nushu": String(localized: "Nushu", table: "UnicodeBlock", bundle: .module)
-        case "Nyiakeng Puachue Hmong": String(localized: "Nyiakeng Puachue Hmong", table: "UnicodeBlock", bundle: .module)
-        case "Ogham": String(localized: "Ogham", table: "UnicodeBlock", bundle: .module)
-        case "Ol Chiki": String(localized: "Ol Chiki", table: "UnicodeBlock", bundle: .module)
-        case "Ol Onal": String(localized: "Ol Onal", table: "UnicodeBlock", bundle: .module)
-        case "Old Hungarian": String(localized: "Old Hungarian", table: "UnicodeBlock", bundle: .module)
-        case "Old Italic": String(localized: "Old Italic", table: "UnicodeBlock", bundle: .module)
-        case "Old North Arabian": String(localized: "Old North Arabian", table: "UnicodeBlock", bundle: .module)
-        case "Old Permic": String(localized: "Old Permic", table: "UnicodeBlock", bundle: .module)
-        case "Old Persian": String(localized: "Old Persian", table: "UnicodeBlock", bundle: .module)
-        case "Old Sogdian": String(localized: "Old Sogdian", table: "UnicodeBlock", bundle: .module)
-        case "Old South Arabian": String(localized: "Old South Arabian", table: "UnicodeBlock", bundle: .module)
-        case "Old Turkic": String(localized: "Old Turkic", table: "UnicodeBlock", bundle: .module)
-        case "Old Uyghur": String(localized: "Old Uyghur", table: "UnicodeBlock", bundle: .module)
-        case "Optical Character Recognition": String(localized: "Optical Character Recognition", table: "UnicodeBlock", bundle: .module)
-        case "Oriya": String(localized: "Oriya", table: "UnicodeBlock", bundle: .module)
-        case "Ornamental Dingbats": String(localized: "Ornamental Dingbats", table: "UnicodeBlock", bundle: .module)
-        case "Osage": String(localized: "Osage", table: "UnicodeBlock", bundle: .module)
-        case "Osmanya": String(localized: "Osmanya", table: "UnicodeBlock", bundle: .module)
-        case "Ottoman Siyaq Numbers": String(localized: "Ottoman Siyaq Numbers", table: "UnicodeBlock", bundle: .module)
-        case "Pahawh Hmong": String(localized: "Pahawh Hmong", table: "UnicodeBlock", bundle: .module)
-        case "Palmyrene": String(localized: "Palmyrene", table: "UnicodeBlock", bundle: .module)
-        case "Pau Cin Hau": String(localized: "Pau Cin Hau", table: "UnicodeBlock", bundle: .module)
-        case "Phags-pa": String(localized: "Phags-pa", table: "UnicodeBlock", bundle: .module)
-        case "Phaistos Disc": String(localized: "Phaistos Disc", table: "UnicodeBlock", bundle: .module)
-        case "Phoenician": String(localized: "Phoenician", table: "UnicodeBlock", bundle: .module)
-        case "Phonetic Extensions Supplement": String(localized: "Phonetic Extensions Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Phonetic Extensions": String(localized: "Phonetic Extensions", table: "UnicodeBlock", bundle: .module)
-        case "Playing Cards": String(localized: "Playing Cards", table: "UnicodeBlock", bundle: .module)
-        case "Private Use Area": String(localized: "Private Use Area", table: "UnicodeBlock", bundle: .module)
-        case "Psalter Pahlavi": String(localized: "Psalter Pahlavi", table: "UnicodeBlock", bundle: .module)
-        case "Rejang": String(localized: "Rejang", table: "UnicodeBlock", bundle: .module)
-        case "Rumi Numeral Symbols": String(localized: "Rumi Numeral Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Runic": String(localized: "Runic", table: "UnicodeBlock", bundle: .module)
-        case "Samaritan": String(localized: "Samaritan", table: "UnicodeBlock", bundle: .module)
-        case "Saurashtra": String(localized: "Saurashtra", table: "UnicodeBlock", bundle: .module)
-        case "Sharada Supplement": String(localized: "Sharada Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Sharada": String(localized: "Sharada", table: "UnicodeBlock", bundle: .module)
-        case "Shavian": String(localized: "Shavian", table: "UnicodeBlock", bundle: .module)
-        case "Shorthand Format Controls": String(localized: "Shorthand Format Controls", table: "UnicodeBlock", bundle: .module)
-        case "Sidetic": String(localized: "Sidetic", table: "UnicodeBlock", bundle: .module)
-        case "Siddham": String(localized: "Siddham", table: "UnicodeBlock", bundle: .module)
-        case "Sinhala Archaic Numbers": String(localized: "Sinhala Archaic Numbers", table: "UnicodeBlock", bundle: .module)
-        case "Sinhala": String(localized: "Sinhala", table: "UnicodeBlock", bundle: .module)
-        case "Small Form Variants": String(localized: "Small Form Variants", table: "UnicodeBlock", bundle: .module)
-        case "Small Kana Extension": String(localized: "Small Kana Extension", table: "UnicodeBlock", bundle: .module)
-        case "Sogdian": String(localized: "Sogdian", table: "UnicodeBlock", bundle: .module)
-        case "Sora Sompeng": String(localized: "Sora Sompeng", table: "UnicodeBlock", bundle: .module)
-        case "Soyombo": String(localized: "Soyombo", table: "UnicodeBlock", bundle: .module)
-        case "Spacing Modifier Letters": String(localized: "Spacing Modifier Letters", table: "UnicodeBlock", bundle: .module)
-        case "Specials": String(localized: "Specials", table: "UnicodeBlock", bundle: .module)
-        case "Sundanese Supplement": String(localized: "Sundanese Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Sundanese": String(localized: "Sundanese", table: "UnicodeBlock", bundle: .module)
-        case "Sunuwar": String(localized: "Sunuwar", table: "UnicodeBlock", bundle: .module)
-        case "Superscripts and Subscripts": String(localized: "Superscripts and Subscripts", table: "UnicodeBlock", bundle: .module)
-        case "Supplemental Arrows-A": String(localized: "Supplemental Arrows-A", table: "UnicodeBlock", bundle: .module)
-        case "Supplemental Arrows-B": String(localized: "Supplemental Arrows-B", table: "UnicodeBlock", bundle: .module)
-        case "Supplemental Arrows-C": String(localized: "Supplemental Arrows-C", table: "UnicodeBlock", bundle: .module)
-        case "Supplemental Mathematical Operators": String(localized: "Supplemental Math Operators", table: "UnicodeBlock", bundle: .module)  // Math -> Mathematical
-        case "Supplemental Punctuation": String(localized: "Supplemental Punctuation", table: "UnicodeBlock", bundle: .module)
-        case "Supplemental Symbols and Pictographs": String(localized: "Supplemental Symbols and Pictographs", table: "UnicodeBlock", bundle: .module)
-        case "Supplementary Private Use Area-A": String(localized: "Supplementary Private Use Area-A", table: "UnicodeBlock", bundle: .module)
-        case "Supplementary Private Use Area-B": String(localized: "Supplementary Private Use Area-B", table: "UnicodeBlock", bundle: .module)
-        case "Sutton SignWriting": String(localized: "Sutton SignWriting", table: "UnicodeBlock", bundle: .module)
-        case "Syloti Nagri": String(localized: "Syloti Nagri", table: "UnicodeBlock", bundle: .module)
-        case "Symbols and Pictographs Extended-A": String(localized: "Symbols and Pictographs Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Symbols for Legacy Computing Supplement": String(localized: "Symbols for Legacy Computing Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Symbols for Legacy Computing": String(localized: "Symbols for Legacy Computing", table: "UnicodeBlock", bundle: .module)
-        case "Syriac Supplement": String(localized: "Syriac Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Syriac": String(localized: "Syriac", table: "UnicodeBlock", bundle: .module)
-        case "Tagalog": String(localized: "Tagalog", table: "UnicodeBlock", bundle: .module)
-        case "Tagbanwa": String(localized: "Tagbanwa", table: "UnicodeBlock", bundle: .module)
-        case "Tags": String(localized: "Tags", table: "UnicodeBlock", bundle: .module)
-        case "Tai Le": String(localized: "Tai Le", table: "UnicodeBlock", bundle: .module)
-        case "Tai Tham": String(localized: "Tai Tham", table: "UnicodeBlock", bundle: .module)
-        case "Tai Viet": String(localized: "Tai Viet", table: "UnicodeBlock", bundle: .module)
-        case "Tai Xuan Jing Symbols": String(localized: "Tai Xuan Jing Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Tai Yo": String(localized: "Tai Yo", table: "UnicodeBlock", bundle: .module)
-        case "Takri": String(localized: "Takri", table: "UnicodeBlock", bundle: .module)
-        case "Tamil Supplement": String(localized: "Tamil Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Tamil": String(localized: "Tamil", table: "UnicodeBlock", bundle: .module)
-        case "Tangsa": String(localized: "Tangsa", table: "UnicodeBlock", bundle: .module)
-        case "Tangut Components": String(localized: "Tangut Components", table: "UnicodeBlock", bundle: .module)
-        case "Tangut Components Supplement": String(localized: "Tangut Components Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Tangut Supplement": String(localized: "Tangut Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Tangut": String(localized: "Tangut", table: "UnicodeBlock", bundle: .module)
-        case "Telugu": String(localized: "Telugu", table: "UnicodeBlock", bundle: .module)
-        case "Thaana": String(localized: "Thaana", table: "UnicodeBlock", bundle: .module)
-        case "Thai": String(localized: "Thai", table: "UnicodeBlock", bundle: .module)
-        case "Tibetan": String(localized: "Tibetan", table: "UnicodeBlock", bundle: .module)
-        case "Tifinagh": String(localized: "Tifinagh", table: "UnicodeBlock", bundle: .module)
-        case "Tirhuta": String(localized: "Tirhuta", table: "UnicodeBlock", bundle: .module)
-        case "Todhri": String(localized: "Todhri", table: "UnicodeBlock", bundle: .module)
-        case "Tolong Siki": String(localized: "Tolong Siki", table: "UnicodeBlock", bundle: .module)
-        case "Toto": String(localized: "Toto", table: "UnicodeBlock", bundle: .module)
-        case "Transport and Map Symbols": String(localized: "Transport And Map Symbols", table: "UnicodeBlock", bundle: .module)  // And -> and
-        case "Tulu-Tigalari": String(localized: "Tulu-Tigalari", table: "UnicodeBlock", bundle: .module)
-        case "Ugaritic": String(localized: "Ugaritic", table: "UnicodeBlock", bundle: .module)
-        case "Unified Canadian Aboriginal Syllabics Extended-A": String(localized: "Unified Canadian Aboriginal Syllabics Extended-A", table: "UnicodeBlock", bundle: .module)
-        case "Unified Canadian Aboriginal Syllabics Extended": String(localized: "Unified Canadian Aboriginal Syllabics Extended", table: "UnicodeBlock", bundle: .module)
-        case "Unified Canadian Aboriginal Syllabics": String(localized: "Unified Canadian Aboriginal Syllabics", table: "UnicodeBlock", bundle: .module)
-        case "Vai": String(localized: "Vai", table: "UnicodeBlock", bundle: .module)
-        case "Variation Selectors Supplement": String(localized: "Variation Selectors Supplement", table: "UnicodeBlock", bundle: .module)
-        case "Variation Selectors": String(localized: "Variation Selectors", table: "UnicodeBlock", bundle: .module)
-        case "Vedic Extensions": String(localized: "Vedic Extensions", table: "UnicodeBlock", bundle: .module)
-        case "Vertical Forms": String(localized: "Vertical Forms", table: "UnicodeBlock", bundle: .module)
-        case "Vithkuqi": String(localized: "Vithkuqi", table: "UnicodeBlock", bundle: .module)
-        case "Wancho": String(localized: "Wancho", table: "UnicodeBlock", bundle: .module)
-        case "Warang Citi": String(localized: "Warang Citi", table: "UnicodeBlock", bundle: .module)
-        case "Yezidi": String(localized: "Yezidi", table: "UnicodeBlock", bundle: .module)
-        case "Yi Radicals": String(localized: "Yi Radicals", table: "UnicodeBlock", bundle: .module)
-        case "Yi Syllables": String(localized: "Yi Syllables", table: "UnicodeBlock", bundle: .module)
-        case "Yijing Hexagram Symbols": String(localized: "Yijing Hexagram Symbols", table: "UnicodeBlock", bundle: .module)
-        case "Zanabazar Square": String(localized: "Zanabazar Square", table: "UnicodeBlock", bundle: .module)
-        case "Znamenny Musical Notation": String(localized: "Znamenny Musical Notation", table: "UnicodeBlock", bundle: .module)
+        case "Adlam": "Adlam"
+        case "Aegean Numbers": "Aegean Numbers"
+        case "Ahom": "Ahom"
+        case "Alchemical Symbols": "Alchemical Symbols"
+        case "Alphabetic Presentation Forms": "Alphabetic Presentation Forms"
+        case "Anatolian Hieroglyphs": "Anatolian Hieroglyphs"
+        case "Ancient Greek Musical Notation": "Ancient Greek Musical Notation"
+        case "Ancient Greek Numbers": "Ancient Greek Numbers"
+        case "Ancient Symbols": "Ancient Symbols"
+        case "Arabic Extended-A": "Arabic Extended-A"
+        case "Arabic Extended-B": "Arabic Extended-B"
+        case "Arabic Extended-C": "Arabic Extended-C"
+        case "Arabic Mathematical Alphabetic Symbols": "Arabic Math Alphabetic Symbols"  // Math -> Mathematical
+        case "Arabic Presentation Forms-A": "Arabic Presentation Forms-A"
+        case "Arabic Presentation Forms-B": "Arabic Presentation Forms-B"
+        case "Arabic Supplement": "Arabic Supplement"
+        case "Arabic": "Arabic"
+        case "Armenian": "Armenian"
+        case "Arrows": "Arrows"
+        case "Avestan": "Avestan"
+        case "Balinese": "Balinese"
+        case "Bamum Supplement": "Bamum Supplement"
+        case "Bamum": "Bamum"
+        case "Basic Latin": "Basic Latin"
+        case "Bassa Vah": "Bassa Vah"
+        case "Batak": "Batak"
+        case "Bengali": "Bengali"
+        case "Beria Erfe": "Beria Erfe"
+        case "Bhaiksuki": "Bhaiksuki"
+        case "Block Elements": "Block Elements"
+        case "Bopomofo Extended": "Bopomofo Extended"
+        case "Bopomofo": "Bopomofo"
+        case "Box Drawing": "Box Drawing"
+        case "Brahmi": "Brahmi"
+        case "Braille Patterns": "Braille Patterns"
+        case "Buginese": "Buginese"
+        case "Buhid": "Buhid"
+        case "Byzantine Musical Symbols": "Byzantine Musical Symbols"
+        case "Carian": "Carian"
+        case "Caucasian Albanian": "Caucasian Albanian"
+        case "Chakma": "Chakma"
+        case "Cham": "Cham"
+        case "Cherokee Supplement": "Cherokee Supplement"
+        case "Cherokee": "Cherokee"
+        case "Chess Symbols": "Chess Symbols"
+        case "Chorasmian": "Chorasmian"
+        case "CJK Compatibility Forms": "CJK Compatibility Forms"
+        case "CJK Compatibility Ideographs Supplement": "CJK Compatibility Ideographs Supp."
+        case "CJK Compatibility Ideographs": "CJK Compatibility Ideographs"
+        case "CJK Compatibility": "CJK Compatibility"
+        case "CJK Radicals Supplement": "CJK Radicals Supplement"
+        case "CJK Strokes": "CJK Strokes"
+        case "CJK Symbols and Punctuation": "CJK Symbols and Punctuation"
+        case "CJK Unified Ideographs Extension A": "CJK Unified Ideographs Ext. A"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension B": "CJK Unified Ideographs Ext. B"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension C": "CJK Unified Ideographs Ext. C"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension D": "CJK Unified Ideographs Ext. D"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension E": "CJK Unified Ideographs Ext. E"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension F": "CJK Unified Ideographs Ext. F"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension G": "CJK Unified Ideographs Ext. G"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension H": "CJK Unified Ideographs Ext. H"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension I": "CJK Unified Ideographs Ext. I"  // Extension -> Ext.
+        case "CJK Unified Ideographs Extension J": "CJK Unified Ideographs Ext. J"  // Extension -> Ext.
+        case "CJK Unified Ideographs": "CJK Unified Ideographs"
+        case "Combining Diacritical Marks Extended": "Combining Diacritical Marks Extended"
+        case "Combining Diacritical Marks for Symbols": "Combining Diacritical Marks for Symbols"
+        case "Combining Diacritical Marks Supplement": "Combining Diacritical Marks Supplement"
+        case "Combining Diacritical Marks": "Combining Diacritical Marks"
+        case "Combining Half Marks": "Combining Half Marks"
+        case "Common Indic Number Forms": "Common Indic Number Forms"
+        case "Control Pictures": "Control Pictures"
+        case "Coptic Epact Numbers": "Coptic Epact Numbers"
+        case "Coptic": "Coptic"
+        case "Counting Rod Numerals": "Counting Rod Numerals"
+        case "Cuneiform Numbers and Punctuation": "Cuneiform Numbers and Punctuation"
+        case "Cuneiform": "Cuneiform"
+        case "Currency Symbols": "Currency Symbols"
+        case "Cypriot Syllabary": "Cypriot Syllabary"
+        case "Cypro-Minoan": "Cypro-Minoan"
+        case "Cyrillic Extended-A": "Cyrillic Extended-A"
+        case "Cyrillic Extended-B": "Cyrillic Extended-B"
+        case "Cyrillic Extended-C": "Cyrillic Extended-C"
+        case "Cyrillic Extended-D": "Cyrillic Extended-D"
+        case "Cyrillic Supplement": "Cyrillic Supplement"
+        case "Cyrillic": "Cyrillic"
+        case "Deseret": "Deseret"
+        case "Devanagari Extended-A": "Devanagari Extended-A"
+        case "Devanagari Extended": "Devanagari Extended"
+        case "Devanagari": "Devanagari"
+        case "Dingbats": "Dingbats"
+        case "Dives Akuru": "Dives Akuru"
+        case "Dogra": "Dogra"
+        case "Domino Tiles": "Domino Tiles"
+        case "Duployan": "Duployan"
+        case "Early Dynastic Cuneiform": "Early Dynastic Cuneiform"
+        case "Egyptian Hieroglyph Format Controls": "Egyptian Hieroglyph Format Controls"
+        case "Egyptian Hieroglyphs Extended-A": "Egyptian Hieroglyphs Extended-A"
+        case "Egyptian Hieroglyphs": "Egyptian Hieroglyphs"
+        case "Elbasan": "Elbasan"
+        case "Elymaic": "Elymaic"
+        case "Emoticons": "Emoticons"
+        case "Enclosed Alphanumeric Supplement": "Enclosed Alphanumeric Supplement"
+        case "Enclosed Alphanumerics": "Enclosed Alphanumerics"
+        case "Enclosed CJK Letters and Months": "Enclosed CJK Letters and Months"
+        case "Enclosed Ideographic Supplement": "Enclosed Ideographic Supplement"
+        case "Ethiopic Extended-A": "Ethiopic Extended-A"
+        case "Ethiopic Extended-B": "Ethiopic Extended-B"
+        case "Ethiopic Extended": "Ethiopic Extended"
+        case "Ethiopic Supplement": "Ethiopic Supplement"
+        case "Ethiopic": "Ethiopic"
+        case "Garay": "Garay"
+        case "General Punctuation": "General Punctuation"
+        case "Geometric Shapes Extended": "Geometric Shapes Extended"
+        case "Geometric Shapes": "Geometric Shapes"
+        case "Georgian Extended": "Georgian Extended"
+        case "Georgian Supplement": "Georgian Supplement"
+        case "Georgian": "Georgian"
+        case "Glagolitic Supplement": "Glagolitic Supplement"
+        case "Glagolitic": "Glagolitic"
+        case "Gothic": "Gothic"
+        case "Grantha": "Grantha"
+        case "Greek and Coptic": "Greek and Coptic"
+        case "Greek Extended": "Greek Extended"
+        case "Gujarati": "Gujarati"
+        case "Gunjala Gondi": "Gunjala Gondi"
+        case "Gurmukhi": "Gurmukhi"
+        case "Gurung Khema": "Gurung Khema"
+        case "Halfwidth and Fullwidth Forms": "Halfwidth and Fullwidth Forms"
+        case "Hangul Compatibility Jamo": "Hangul Compatibility Jamo"
+        case "Hangul Jamo Extended-A": "Hangul Jamo Extended-A"
+        case "Hangul Jamo Extended-B": "Hangul Jamo Extended-B"
+        case "Hangul Jamo": "Hangul Jamo"
+        case "Hangul Syllables": "Hangul Syllables"
+        case "Hanifi Rohingya": "Hanifi Rohingya"
+        case "Hanunoo": "Hanunoo"
+        case "Hatran": "Hatran"
+        case "Hebrew": "Hebrew"
+        case "High Private Use Surrogates": "High Private Use Surrogates"
+        case "High Surrogates": "High Surrogates"
+        case "Hiragana": "Hiragana"
+        case "Ideographic Description Characters": "Ideographic Desc. Characters"
+        case "Ideographic Symbols and Punctuation": "Ideographic Symbols and Punctuation"
+        case "Imperial Aramaic": "Imperial Aramaic"
+        case "Indic Siyaq Numbers": "Indic Siyaq Numbers"
+        case "Inscriptional Pahlavi": "Inscriptional Pahlavi"
+        case "Inscriptional Parthian": "Inscriptional Parthian"
+        case "IPA Extensions": "IPA Extensions"
+        case "Javanese": "Javanese"
+        case "Kaithi": "Kaithi"
+        case "Kaktovik Numerals": "Kaktovik Numerals"
+        case "Kana Extended-A": "Kana Extended-A"
+        case "Kana Extended-B": "Kana Extended-B"
+        case "Kana Supplement": "Kana Supplement"
+        case "Kanbun": "Kanbun"
+        case "Kangxi Radicals": "Kangxi Radicals"
+        case "Kannada": "Kannada"
+        case "Katakana Phonetic Extensions": "Katakana Phonetic Extensions"
+        case "Katakana": "Katakana"
+        case "Kawi": "Kawi"
+        case "Kayah Li": "Kayah Li"
+        case "Kharoshthi": "Kharoshthi"
+        case "Khitan Small Script": "Khitan Small Script"
+        case "Khmer Symbols": "Khmer Symbols"
+        case "Khmer": "Khmer"
+        case "Khojki": "Khojki"
+        case "Khudawadi": "Khudawadi"
+        case "Kirat Rai": "Kirat Rai"
+        case "Lao": "Lao"
+        case "Latin Extended Additional": "Latin Extended Additional"
+        case "Latin Extended-A": "Latin Extended-A"
+        case "Latin Extended-B": "Latin Extended-B"
+        case "Latin Extended-C": "Latin Extended-C"
+        case "Latin Extended-D": "Latin Extended-D"
+        case "Latin Extended-E": "Latin Extended-E"
+        case "Latin Extended-F": "Latin Extended-F"
+        case "Latin Extended-G": "Latin Extended-G"
+        case "Latin-1 Supplement": "Latin-1 Supplement"
+        case "Lepcha": "Lepcha"
+        case "Letterlike Symbols": "Letterlike Symbols"
+        case "Limbu": "Limbu"
+        case "Linear A": "Linear A"
+        case "Linear B Ideograms": "Linear B Ideograms"
+        case "Linear B Syllabary": "Linear B Syllabary"
+        case "Lisu Supplement": "Lisu Supplement"
+        case "Lisu": "Lisu"
+        case "Low Surrogates": "Low Surrogates"
+        case "Lycian": "Lycian"
+        case "Lydian": "Lydian"
+        case "Mahajani": "Mahajani"
+        case "Mahjong Tiles": "Mahjong Tiles"
+        case "Makasar": "Makasar"
+        case "Malayalam": "Malayalam"
+        case "Mandaic": "Mandaic"
+        case "Manichaean": "Manichaean"
+        case "Marchen": "Marchen"
+        case "Masaram Gondi": "Masaram Gondi"
+        case "Mathematical Alphanumeric Symbols": "Math Alphanumeric Symbols"  // Math -> Mathematical
+        case "Mathematical Operators": "Mathematical Operators"
+        case "Mayan Numerals": "Mayan Numerals"
+        case "Medefaidrin": "Medefaidrin"
+        case "Meetei Mayek Extensions": "Meetei Mayek Extensions"
+        case "Meetei Mayek": "Meetei Mayek"
+        case "Mende Kikakui": "Mende Kikakui"
+        case "Meroitic Cursive": "Meroitic Cursive"
+        case "Meroitic Hieroglyphs": "Meroitic Hieroglyphs"
+        case "Miao": "Miao"
+        case "Miscellaneous Mathematical Symbols-A": "Miscellaneous Math Symbols-A"  // Math -> Mathematical
+        case "Miscellaneous Mathematical Symbols-B": "Miscellaneous Math Symbols-B"  // Math -> Mathematical
+        case "Miscellaneous Symbols and Arrows": "Miscellaneous Symbols and Arrows"
+        case "Miscellaneous Symbols and Pictographs": "Miscellaneous Symbols And Pictographs"  // And -> and
+        case "Miscellaneous Symbols Supplement": "Miscellaneous Symbols Supplement"
+        case "Miscellaneous Symbols": "Miscellaneous Symbols"
+        case "Miscellaneous Technical": "Miscellaneous Technical"
+        case "Modi": "Modi"
+        case "Modifier Tone Letters": "Modifier Tone Letters"
+        case "Mongolian Supplement": "Mongolian Supplement"
+        case "Mongolian": "Mongolian"
+        case "Mro": "Mro"
+        case "Multani": "Multani"
+        case "Musical Symbols": "Musical Symbols"
+        case "Myanmar Extended-A": "Myanmar Extended-A"
+        case "Myanmar Extended-B": "Myanmar Extended-B"
+        case "Myanmar Extended-C": "Myanmar Extended-C"
+        case "Myanmar": "Myanmar"
+        case "Nabataean": "Nabataean"
+        case "Nag Mundari": "Nag Mundari"
+        case "Nandinagari": "Nandinagari"
+        case "New Tai Lue": "New Tai Lue"
+        case "Newa": "Newa"
+        case "NKo": "N'Ko"  // remove ’
+        case "Number Forms": "Number Forms"
+        case "Nushu": "Nushu"
+        case "Nyiakeng Puachue Hmong": "Nyiakeng Puachue Hmong"
+        case "Ogham": "Ogham"
+        case "Ol Chiki": "Ol Chiki"
+        case "Ol Onal": "Ol Onal"
+        case "Old Hungarian": "Old Hungarian"
+        case "Old Italic": "Old Italic"
+        case "Old North Arabian": "Old North Arabian"
+        case "Old Permic": "Old Permic"
+        case "Old Persian": "Old Persian"
+        case "Old Sogdian": "Old Sogdian"
+        case "Old South Arabian": "Old South Arabian"
+        case "Old Turkic": "Old Turkic"
+        case "Old Uyghur": "Old Uyghur"
+        case "Optical Character Recognition": "Optical Character Recognition"
+        case "Oriya": "Oriya"
+        case "Ornamental Dingbats": "Ornamental Dingbats"
+        case "Osage": "Osage"
+        case "Osmanya": "Osmanya"
+        case "Ottoman Siyaq Numbers": "Ottoman Siyaq Numbers"
+        case "Pahawh Hmong": "Pahawh Hmong"
+        case "Palmyrene": "Palmyrene"
+        case "Pau Cin Hau": "Pau Cin Hau"
+        case "Phags-pa": "Phags-pa"
+        case "Phaistos Disc": "Phaistos Disc"
+        case "Phoenician": "Phoenician"
+        case "Phonetic Extensions Supplement": "Phonetic Extensions Supplement"
+        case "Phonetic Extensions": "Phonetic Extensions"
+        case "Playing Cards": "Playing Cards"
+        case "Private Use Area": "Private Use Area"
+        case "Psalter Pahlavi": "Psalter Pahlavi"
+        case "Rejang": "Rejang"
+        case "Rumi Numeral Symbols": "Rumi Numeral Symbols"
+        case "Runic": "Runic"
+        case "Samaritan": "Samaritan"
+        case "Saurashtra": "Saurashtra"
+        case "Sharada Supplement": "Sharada Supplement"
+        case "Sharada": "Sharada"
+        case "Shavian": "Shavian"
+        case "Shorthand Format Controls": "Shorthand Format Controls"
+        case "Sidetic": "Sidetic"
+        case "Siddham": "Siddham"
+        case "Sinhala Archaic Numbers": "Sinhala Archaic Numbers"
+        case "Sinhala": "Sinhala"
+        case "Small Form Variants": "Small Form Variants"
+        case "Small Kana Extension": "Small Kana Extension"
+        case "Sogdian": "Sogdian"
+        case "Sora Sompeng": "Sora Sompeng"
+        case "Soyombo": "Soyombo"
+        case "Spacing Modifier Letters": "Spacing Modifier Letters"
+        case "Specials": "Specials"
+        case "Sundanese Supplement": "Sundanese Supplement"
+        case "Sundanese": "Sundanese"
+        case "Sunuwar": "Sunuwar"
+        case "Superscripts and Subscripts": "Superscripts and Subscripts"
+        case "Supplemental Arrows-A": "Supplemental Arrows-A"
+        case "Supplemental Arrows-B": "Supplemental Arrows-B"
+        case "Supplemental Arrows-C": "Supplemental Arrows-C"
+        case "Supplemental Mathematical Operators": "Supplemental Math Operators"  // Math -> Mathematical
+        case "Supplemental Punctuation": "Supplemental Punctuation"
+        case "Supplemental Symbols and Pictographs": "Supplemental Symbols and Pictographs"
+        case "Supplementary Private Use Area-A": "Supplementary Private Use Area-A"
+        case "Supplementary Private Use Area-B": "Supplementary Private Use Area-B"
+        case "Sutton SignWriting": "Sutton SignWriting"
+        case "Syloti Nagri": "Syloti Nagri"
+        case "Symbols and Pictographs Extended-A": "Symbols and Pictographs Extended-A"
+        case "Symbols for Legacy Computing Supplement": "Symbols for Legacy Computing Supplement"
+        case "Symbols for Legacy Computing": "Symbols for Legacy Computing"
+        case "Syriac Supplement": "Syriac Supplement"
+        case "Syriac": "Syriac"
+        case "Tagalog": "Tagalog"
+        case "Tagbanwa": "Tagbanwa"
+        case "Tags": "Tags"
+        case "Tai Le": "Tai Le"
+        case "Tai Tham": "Tai Tham"
+        case "Tai Viet": "Tai Viet"
+        case "Tai Xuan Jing Symbols": "Tai Xuan Jing Symbols"
+        case "Tai Yo": "Tai Yo"
+        case "Takri": "Takri"
+        case "Tamil Supplement": "Tamil Supplement"
+        case "Tamil": "Tamil"
+        case "Tangsa": "Tangsa"
+        case "Tangut Components": "Tangut Components"
+        case "Tangut Components Supplement": "Tangut Components Supplement"
+        case "Tangut Supplement": "Tangut Supplement"
+        case "Tangut": "Tangut"
+        case "Telugu": "Telugu"
+        case "Thaana": "Thaana"
+        case "Thai": "Thai"
+        case "Tibetan": "Tibetan"
+        case "Tifinagh": "Tifinagh"
+        case "Tirhuta": "Tirhuta"
+        case "Todhri": "Todhri"
+        case "Tolong Siki": "Tolong Siki"
+        case "Toto": "Toto"
+        case "Transport and Map Symbols": "Transport And Map Symbols"  // And -> and
+        case "Tulu-Tigalari": "Tulu-Tigalari"
+        case "Ugaritic": "Ugaritic"
+        case "Unified Canadian Aboriginal Syllabics Extended-A": "Unified Canadian Aboriginal Syllabics Extended-A"
+        case "Unified Canadian Aboriginal Syllabics Extended": "Unified Canadian Aboriginal Syllabics Extended"
+        case "Unified Canadian Aboriginal Syllabics": "Unified Canadian Aboriginal Syllabics"
+        case "Vai": "Vai"
+        case "Variation Selectors Supplement": "Variation Selectors Supplement"
+        case "Variation Selectors": "Variation Selectors"
+        case "Vedic Extensions": "Vedic Extensions"
+        case "Vertical Forms": "Vertical Forms"
+        case "Vithkuqi": "Vithkuqi"
+        case "Wancho": "Wancho"
+        case "Warang Citi": "Warang Citi"
+        case "Yezidi": "Yezidi"
+        case "Yi Radicals": "Yi Radicals"
+        case "Yi Syllables": "Yi Syllables"
+        case "Yijing Hexagram Symbols": "Yijing Hexagram Symbols"
+        case "Zanabazar Square": "Zanabazar Square"
+        case "Znamenny Musical Notation": "Znamenny Musical Notation"
             
         default: nil
     }

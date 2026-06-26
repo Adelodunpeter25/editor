@@ -105,7 +105,7 @@ public extension FileScope {
         public func validate() throws {
             
             guard !self.value.isEmpty else {
-                throw .emptyValue
+                throw Error.emptyValue
             }
             
             guard self.comparison == .matchesRegularExpression else { return }
@@ -113,7 +113,7 @@ public extension FileScope {
             do {
                 _ = try NSRegularExpression(pattern: self.value)
             } catch {
-                throw .invalidRegularExpression(pattern: self.value)
+                throw Error.invalidRegularExpression(pattern: self.value)
             }
         }
     }
@@ -198,7 +198,7 @@ private extension FileScope.Matcher {
         init(_ rule: FileScope.Rule) throws {
             
             guard !rule.value.isEmpty else {
-                throw .emptyValue
+                throw FileScope.Error.emptyValue
             }
             
             self.target = rule.target
@@ -210,7 +210,7 @@ private extension FileScope.Matcher {
             do {
                 self.regularExpression = try NSRegularExpression(pattern: rule.value)
             } catch {
-                throw .invalidRegularExpression(pattern: rule.value)
+                throw FileScope.Error.invalidRegularExpression(pattern: rule.value)
             }
         }
         

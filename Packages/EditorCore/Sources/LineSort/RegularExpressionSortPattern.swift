@@ -76,18 +76,18 @@ public struct RegularExpressionSortPattern: SortPattern, Equatable, Sendable {
     public func validate() throws {
         
         if self.searchPattern.isEmpty {
-            throw .emptyPattern
+            throw SortPatternError.emptyPattern
         }
         
         let regex: NSRegularExpression
         do {
             regex = try self.regex
         } catch {
-            throw .invalidRegularExpressionPattern
+            throw SortPatternError.invalidRegularExpressionPattern
         }
         
         guard !self.usesCaptureGroup || (0...regex.numberOfCaptureGroups).contains(self.group) else {
-            throw .invalidRegularExpressionPattern
+            throw SortPatternError.invalidRegularExpressionPattern
         }
     }
     

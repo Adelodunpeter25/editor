@@ -30,9 +30,9 @@ public extension String {
     var deletingPathExtension: String {
         
         let regex = try! Regex("^(.+)\\.[^ .]+$")
-        return self.replacing(regex) { match in
-            match.1
-        }
+        return self.replacing(regex, with: { match in
+            String(match.output[1].substring ?? "")
+        })
     }
     
     
@@ -42,7 +42,7 @@ public extension String {
         let regex = try! Regex("\\.([^ .]+)$")
         guard let match = self.firstMatch(of: regex) else { return nil }
         
-        return String(match.1)
+        return String(match.output[1].substring ?? "")
     }
     
     
@@ -72,8 +72,8 @@ extension String {
         
         let regex = try! Regex("(?<base>.+?)(?: (?<number>[0-9]+))?")
         let match = self.wholeMatch(of: regex)!
-        let base = String(match.base)
-        let count = match.number.flatMap { Int($0) } ?? 1
+        let base = String(match["base"]?.substring ?? "")
+        let count = match["number"]?.substring.flatMap { Int($0) } ?? 1
         
         return (base, count)
     }

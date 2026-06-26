@@ -23,10 +23,10 @@
 //  limitations under the License.
 //
 
+import Foundation
 import Observation
-import Synchronization
 
-@Observable public final class FindProgress: Sendable {
+public final class FindProgress: Sendable {
     
     public enum State: Equatable, Sendable {
         
@@ -57,7 +57,8 @@ import Synchronization
     
     // MARK: Private Properties
     
-    private let storage: Mutex<Storage> = .init(.init())
+    private let lock = NSLock()
+    private var storage = Storage()
     private let scope: Range<Int>
     
     
@@ -77,27 +78,30 @@ import Synchronization
     /// The current progress state.
     public var state: State {
         
-        access(keyPath: \.state)
-        return self.storage.withLock(\.state)
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.storage.state
     }
     
     
     /// The number of items completed.
     public var count: Int {
         
-        self.storage.withLock(\.count)
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.storage.count
     }
     
     
     /// The fraction of task completed in between 0...1.0.
     public var fractionCompleted: Double {
         
-        self.storage.withLock { storage in
-            if storage.state == .finished || self.scope.isEmpty {
-                1
-            } else {
-                Double(storage.completedUnit) / Double(self.scope.count)
-            }
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        if self.storage.state == .finished || self.scope.isEmpty {
+            return 1
+        } else {
+            return Double(self.storage.completedUnit) / Double(self.scope.count)
         }
     }
     
@@ -105,18 +109,18 @@ import Synchronization
     /// Changes the state to `.cancelled`.
     public func cancel() {
         
-        withMutation(keyPath: \.state) {
-            self.storage.withLock { $0.state = .cancelled }
-        }
+        self.lock.lock()
+        self.storage.state = .cancelled
+        self.lock.unlock()
     }
     
     
     /// Changes the state to `.finished`.
     public func finish() {
         
-        withMutation(keyPath: \.state) {
-            self.storage.withLock { $0.state = .finished }
-        }
+        self.lock.lock()
+        self.storage.state = .finished
+        self.lock.unlock()
     }
     
     
@@ -125,7 +129,9 @@ import Synchronization
     /// - Parameter count: The amount to increment.
     public func incrementCount(by count: Int = 1) {
         
-        self.storage.withLock { $0.count += count }
+        self.lock.lock()
+        self.storage.count += count
+        self.lock.unlock()
     }
     
     
@@ -134,7 +140,9 @@ import Synchronization
     /// - Parameter unit: The new completed unit.
     public func updateCompletedUnit(to unit: Int) {
         
-        self.storage.withLock { $0.completedUnit = unit }
+        self.lock.lock()
+        self.storage.completedUnit = unit
+        self.lock.unlock()
     }
     
     
@@ -143,6 +151,8 @@ import Synchronization
     /// Increments the `completedUnit` by one.
     func incrementCompletedUnit() {
         
-        self.storage.withLock { $0.completedUnit += 1 }
+        self.lock.lock()
+        self.storage.completedUnit += 1
+        self.lock.unlock()
     }
 }

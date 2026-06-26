@@ -33,21 +33,35 @@ public extension String {
     /// This method does not support Unicode scalar escape (`\u{n}`).
     var unescaped: String {
         
-        let regex = try! Regex("\\\\([0tnr\"'\\\\])")
-        return self.replacing(regex, with: { match in
-            // -> According to the Swift documentation, these are the all combinations with backslash.
-            //    cf. https://docs.swift.org/swift-book/LanguageGuide/StringsAndCharacters.html#ID295
-            switch match.1 {
-                case "0": "\0"  // null character
-                case "t": "\t"  // horizontal tab
-                case "n": "\n"  // line feed
-                case "r": "\r"  // carriage return
-                case "\"": "\""  // double quotation mark
-                case "'": "'"  // single quotation mark
-                case "\\": "\\"  // backslash
-                default: fatalError()
+        let regex = try! NSRegularExpression(pattern: "\\\\([0tnr\"'\\\\])")
+        let range = NSRange(self.startIndex..<self.endIndex, in: self)
+        let mutableString = NSMutableString(string: self)
+        regex.replaceMatches(in: mutableString, options: [], range: range, withTemplate: "$1")
+        // -> This doesn't work for unescaping, so do manual replacement
+        var result = ""
+        var i = self.startIndex
+        while i < self.endIndex {
+            if self[i] == "\\", self.index(after: i) < self.endIndex {
+                let next = self[self.index(after: i)]
+                switch next {
+                    case "0": result.append("\0")
+                    case "t": result.append("\t")
+                    case "n": result.append("\n")
+                    case "r": result.append("\r")
+                    case "\"": result.append("\"")
+                    case "'": result.append("'")
+                    case "\\": result.append("\\")
+                    default:
+                        result.append(self[i])
+                        result.append(next)
+                }
+                i = self.index(i, offsetBy: 2)
+            } else {
+                result.append(self[i])
+                i = self.index(after: i)
             }
-        })
+        }
+        return result
     }
 }
 

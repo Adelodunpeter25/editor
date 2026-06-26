@@ -125,7 +125,7 @@ public extension NSRange {
     func union(with ranges: [NSRange?]) -> NSRange {
         
         ranges
-            .compactMap(\.self)
+            .compactMap { $0 }
             .reduce(self) { $0.union($1) }
     }
 }

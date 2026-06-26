@@ -291,14 +291,14 @@ extension MultipleReplace.Replacement {
     public func validate(regexOptions: NSRegularExpression.Options = []) throws {
         
         guard !self.findString.isEmpty else {
-            throw .emptyFindString
+            throw TextFind.Error.emptyFindString
         }
         
         if self.usesRegularExpression {
             do {
                 _ = try NSRegularExpression(pattern: self.findString, options: regexOptions)
             } catch {
-                throw .regularExpression(reason: error.localizedDescription)
+                throw TextFind.Error.regularExpression(reason: error.localizedDescription)
             }
         }
     }

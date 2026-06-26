@@ -70,16 +70,19 @@ public extension String {
         var string = self
         
         if options.ignoresNewlines {
-            string.replace(/\R/, with: "")
+            let regex = try! Regex("\\R")
+            string = string.replacing(regex, with: "")
         }
         if options.ignoresWhitespaces {
-            string.replace(/[\t\p{Zs}]/, with: "")
+            let regex = try! Regex("[\\t\\p{Zs}]")
+            string = string.replacing(regex, with: "")
         }
         if options.treatsConsecutiveWhitespaceAsSingle,
            !options.ignoresNewlines || !options.ignoresWhitespaces
         {
             // \s = [\t\n\f\r\p{Z}]
-            string.replace(/\s{2,}/, with: " ")
+            let regex = try! Regex("\\s{2,}")
+            string = string.replacing(regex, with: " ")
         }
         
         if let normalizationForm = options.normalizationForm {

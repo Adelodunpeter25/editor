@@ -32,7 +32,9 @@ public extension String {
     var firstLineEnding: Character? {
         
         let regex = try! Regex("\\R")
-        return self.firstMatch(of: regex)?.output.first
+        guard let match = self.firstMatch(of: regex) else { return nil }
+        let substring = match.output[0].substring
+        return substring?.first
     }
 }
 

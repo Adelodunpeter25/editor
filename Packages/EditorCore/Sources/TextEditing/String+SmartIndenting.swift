@@ -190,8 +190,9 @@ public extension String {
         let lineRange = self.lineRange(at: insertionIndex)
         
         // decrease indent level if the line is consists of only whitespace
+        let trailingRegex = try! Regex("[ \\t]+\\R?$")
         guard
-            self[lineRange].starts(with: /[ \t]+\R?$/),
+            self[lineRange].starts(with: trailingRegex),
             let precedingIndex = self.indexOfSymbolPair(endIndex: insertionIndex, pair: pair)
         else { return 0 }
         

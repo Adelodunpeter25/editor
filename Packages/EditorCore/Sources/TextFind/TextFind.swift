@@ -86,11 +86,11 @@ public struct TextFind: Equatable, Sendable {
         assert(!selectedRanges.isEmpty)
         
         guard !findString.isEmpty else {
-            throw .emptyFindString
+            throw Error.emptyFindString
         }
         
         guard !inSelection || !selectedRanges.allSatisfy(\.isEmpty) else {
-            throw .emptyInSelectionSearch
+            throw Error.emptyInSelectionSearch
         }
         
         switch mode {
@@ -103,7 +103,7 @@ public struct TextFind: Equatable, Sendable {
                 do {
                     self.regex = try NSRegularExpression(pattern: findString, options: options)
                 } catch {
-                    throw .regularExpression(reason: error.localizedDescription)
+                    throw Error.regularExpression(reason: error.localizedDescription)
                 }
                 self.fullWordChecker = nil
         }
@@ -181,7 +181,7 @@ public struct TextFind: Equatable, Sendable {
             : (includingSelection ? selectedRange.upperBound : selectedRange.lowerBound)
         
         if forward {
-            var index = matches.partitioningIndex { $0.lowerBound >= startLocation }
+            var index = try! matches.partitioningIndex { $0.lowerBound >= startLocation }
             if !includingSelection, index < matches.endIndex, matches[index] == selectedRange {
                 matches.formIndex(after: &index)
             }
@@ -189,7 +189,7 @@ public struct TextFind: Equatable, Sendable {
                 return (range: matches[index], wrapped: false)
             }
         } else {
-            let index = matches.partitioningIndex { $0.upperBound > startLocation }
+            let index = try! matches.partitioningIndex { $0.upperBound > startLocation }
             if index > matches.startIndex {
                 var foundIndex = matches.index(before: index)
                 if matches[foundIndex] == selectedRange {

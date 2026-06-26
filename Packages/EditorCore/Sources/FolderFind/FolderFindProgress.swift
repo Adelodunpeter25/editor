@@ -24,13 +24,14 @@
 //  limitations under the License.
 //
 
-import Synchronization
+import Foundation
 
 public final class FolderFindProgress: Sendable {
     
     // MARK: Private Properties
     
-    private let storage: Mutex<FolderFind.Metrics>
+    private let lock = NSLock()
+    private var storage: FolderFind.Metrics
     
     
     // MARK: Lifecycle
@@ -40,7 +41,7 @@ public final class FolderFindProgress: Sendable {
     /// - Parameter findString: The string to search for.
     public init(findString: String) {
         
-        self.storage = .init(FolderFind.Metrics(findString: findString))
+        self.storage = FolderFind.Metrics(findString: findString)
     }
     
     
@@ -49,7 +50,9 @@ public final class FolderFindProgress: Sendable {
     /// The current progress snapshot.
     public var snapshot: FolderFind.Metrics {
         
-        self.storage.withLock { $0 }
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.storage
     }
     
     
@@ -60,7 +63,9 @@ public final class FolderFindProgress: Sendable {
     /// - Parameter snapshot: The new progress snapshot.
     func update(snapshot: FolderFind.Metrics) {
         
-        self.storage.withLock { $0 = snapshot }
+        self.lock.lock()
+        self.storage = snapshot
+        self.lock.unlock()
     }
 }
 

@@ -40,14 +40,14 @@ public extension RangeReplaceableCollection where Self: RandomAccessCollection {
     ///   - delta: The change in length.
     mutating func replace<Value>(items: [Element], in editedRange: NSRange, changeInLength delta: Int = 0) where Element == ValueRange<Value> {
         
-        let lowerEditedIndex = self.partitioningIndex { $0.lowerBound >= editedRange.lowerBound }
+        let lowerEditedIndex = try! self.partitioningIndex { $0.lowerBound >= editedRange.lowerBound }
         
         guard lowerEditedIndex < self.endIndex else {
             self += items
             return
         }
         
-        let upperEditedIndex = self.partitioningIndex(in: lowerEditedIndex..<self.endIndex) { $0.lowerBound >= editedRange.upperBound - delta }
+        let upperEditedIndex = try! self.partitioningIndex(in: lowerEditedIndex..<self.endIndex) { $0.lowerBound >= editedRange.upperBound - delta }
         if upperEditedIndex < self.endIndex {
             let shiftedElements = self[upperEditedIndex...].map { $0.shifted(by: delta) }
             self.replaceSubrange(lowerEditedIndex..., with: shiftedElements)
@@ -67,7 +67,7 @@ public extension RangeReplaceableCollection where Self: RandomAccessCollection {
     /// - Returns: `true` if an element starts at `location`; otherwise `false`.
     func contains<Value>(rangeStartingAt location: Int) -> Bool where Element == ValueRange<Value> {
         
-        let index = self.partitioningIndex { $0.lowerBound >= location }
+        let index = try! self.partitioningIndex { $0.lowerBound >= location }
         
         guard index < self.endIndex else { return false }
         

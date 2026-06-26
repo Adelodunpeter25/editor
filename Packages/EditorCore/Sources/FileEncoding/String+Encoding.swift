@@ -63,10 +63,11 @@ public extension String {
             String.localizedName(of: $0).localizedCaseInsensitiveCompare(String.localizedName(of: $1)) == .orderedAscending
         }
         .reduce(into: []) { encodings, encoding in
+            let wordRegex = try! Regex("\\w+")
             if let last = encodings.last as? String.Encoding,
-               let lastName = String.localizedName(of: last).prefixMatch(of: /\w+/),
-               let name = String.localizedName(of: encoding).prefixMatch(of: /\w+/),
-               lastName.output != name.output
+               let lastName = String.localizedName(of: last).prefixMatch(of: wordRegex),
+               let name = String.localizedName(of: encoding).prefixMatch(of: wordRegex),
+               String(lastName.output[0].substring ?? "") != String(name.output[0].substring ?? "")
             {
                 encodings.append(nil)
             }
@@ -204,28 +205,39 @@ extension Data {
             let string = String(data: self.prefix(1024), encoding: .isoLatin1)
         else { return nil }
         
-        let cssDeclaration = string.prefixMatch(of: /@charset "(?<encoding>[-_.a-zA-Z0-9]+)";/)
-            .map { EncodingDeclaration(range: $0.range, encodingName: $0.encoding) }
+        let cssRegex = try! Regex("@charset \"(?<encoding>[-_.a-zA-Z0-9]+)\";")
+        let cssDeclaration = string.prefixMatch(of: cssRegex)
+            .map { match -> EncodingDeclaration in
+                let sub: Substring = match["encoding"]?.substring ?? Substring()
+                return EncodingDeclaration(range: match.range, encodingName: sub)
+            }
         
+        let lineBreakRegex = try! Regex("\\R")
+        let commentRegex = try! Regex("(?:(?:file)?encoding|coding)[:=] *[\"']? *(?<encoding>[-_.a-zA-Z0-9]+)")
         let commentDeclaration = string
-            .split(separator: /\R/, maxSplits: 3, omittingEmptySubsequences: false)
+            .split(separator: lineBreakRegex, maxSplits: 3, omittingEmptySubsequences: false)
             .prefix(2)  // first 2 lines
             .lazy
             .compactMap { line in
-                line.firstMatch(of: /(?:(?:file)?encoding|coding)[:=] *["']? *(?<encoding>[-_.a-zA-Z0-9]+)/)
-                    .map { EncodingDeclaration(range: $0.range, encodingName: $0.encoding) }
+                line.firstMatch(of: commentRegex)
+                    .map { match -> EncodingDeclaration in
+                        let sub: Substring = match["encoding"]?.substring ?? Substring()
+                        return EncodingDeclaration(range: match.range, encodingName: sub)
+                    }
             }
             .first
         
-        let htmlDeclaration = string.firstMatch(of: /\scharset\s*= *["'](?<encoding>[-_.a-zA-Z0-9]+)["']/.ignoresCase())
-            .flatMap { match in
-                string[..<match.range.lowerBound].unicodeScalars.allSatisfy(\.isASCII)
-                    ? EncodingDeclaration(range: match.range, encodingName: match.encoding)
-                    : nil
+        let htmlRegex = try! Regex("\\scharset\\s*= *[\"'](?<encoding>[-_.a-zA-Z0-9]+)[\"']")
+        let htmlDeclaration = string.firstMatch(of: htmlRegex)
+            .flatMap { match -> EncodingDeclaration? in
+                guard string[..<match.range.lowerBound].unicodeScalars.allSatisfy(\.isASCII) else { return nil }
+                let sub: Substring = match["encoding"]?.substring ?? Substring()
+                return EncodingDeclaration(range: match.range, encodingName: sub)
             }
         
-        guard let encodingName = [cssDeclaration, commentDeclaration, htmlDeclaration]
-            .compactMap(\.self)
+        let declarations: [EncodingDeclaration] = [cssDeclaration, commentDeclaration, htmlDeclaration]
+            .compactMap { $0 }
+        guard let encodingName = declarations
             .min(by: { $0.range.lowerBound < $1.range.lowerBound })?
             .encodingName
         else { return nil }

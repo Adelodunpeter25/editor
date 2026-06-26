@@ -244,7 +244,7 @@ public extension String {
         guard let indentRange = self.rangeOfIndent(at: index) else { return 0 }
         
         let indent = self[indentRange]
-        let numberOfTabs = indent.count { $0 == "\t" }
+        let numberOfTabs = indent.filter { $0 == "\t" }.count
         
         return numberOfTabs + ((indent.count - numberOfTabs) / tabWidth)
     }
@@ -271,7 +271,12 @@ public extension String {
     /// - Returns: The range covering the contiguous run of leading whitespace, or `nil` if the line does not start with whitespace.
     func rangeOfIndent(at index: String.Index) -> Range<String.Index>? {
         
-        self[self.lineRange(at: index)].firstRange(of: /^[ \t]++/)
+        let regex = try! Regex("^[ \\t]++")
+        let lineRange = self.lineRange(at: index)
+        guard let match = self[lineRange].firstMatch(of: regex) else { return nil }
+        let lower = self.index(lineRange.lowerBound, offsetBy: match.range.lowerBound.utf16Offset(in: self[lineRange]))
+        let upper = self.index(lineRange.lowerBound, offsetBy: match.range.upperBound.utf16Offset(in: self[lineRange]))
+        return lower..<upper
     }
     
     

@@ -123,7 +123,7 @@ extension RandomAccessCollection where Element == ValueRange<LineEnding>, Index 
         if let last = self.last, last.upperBound <= characterIndex {
             self.endIndex
         } else {
-            self.partitioningIndex { $0.upperBound > characterIndex }
+            try! self.partitioningIndex { $0.upperBound > characterIndex }
         }
     }
     
@@ -138,10 +138,11 @@ extension RandomAccessCollection where Element == ValueRange<LineEnding>, Index 
         
         guard !self.isEmpty else { return (0, nil) }
         
-        let startPassedIndex = if let lastBound = self.last?.upperBound, lastBound <= range.lowerBound {
-            self.endIndex
+        let startPassedIndex: Index
+        if let lastBound = self.last?.upperBound, lastBound <= range.lowerBound {
+            startPassedIndex = self.endIndex
         } else {
-            self.partitioningIndex { range.lowerBound < $0.upperBound }
+            startPassedIndex = try! self.partitioningIndex { range.lowerBound < $0.upperBound }
         }
         let start = (startPassedIndex > self.startIndex) ? self[self.index(before: startPassedIndex)].upperBound : 0
         
@@ -150,7 +151,7 @@ extension RandomAccessCollection where Element == ValueRange<LineEnding>, Index 
         if let startPassed, range.upperBound <= startPassed.upperBound {
             end = startPassed
         } else if range.length > 0 {
-            let index = self.partitioningIndex(in: startPassedIndex..<self.endIndex) { range.upperBound <= $0.upperBound }
+            let index = try! self.partitioningIndex(in: startPassedIndex..<self.endIndex) { range.upperBound <= $0.upperBound }
             end = self.indices.contains(index) ? self[index] : nil
         } else {
             end = nil

@@ -70,12 +70,12 @@ public struct Version: Sendable {
         let regex = try! Regex("(?<major>0|[1-9][0-9]*)\\.(?<minor>0|[1-9][0-9]*)\\.(?<patch>0|[1-9][0-9]*)(-(?<prerelease>.+))?")
         guard
             let match = string.wholeMatch(of: regex),
-            let major = Int(match.major),
-            let minor = Int(match.minor),
-            let patch = Int(match.patch)
+            let major = Int(match["major"]?.substring ?? ""),
+            let minor = Int(match["minor"]?.substring ?? ""),
+            let patch = Int(match["patch"]?.substring ?? "")
         else { return nil }
         
-        let prerelease = match.prerelease.map(String.init)
+        let prerelease = match["prerelease"]?.substring.map(String.init)
         
         if let prerelease, prerelease.prereleaseIdentifiers == nil {
             return nil
@@ -95,7 +95,7 @@ extension Version.Prerelease {
         
         let regex = try! Regex("(?<token>[a-z]+)(\\.(?<number>[0-9]+))?")
         if let match = rawValue.wholeMatch(of: regex) {
-            let rawNumber = match.number.map(String.init)
+            let rawNumber = match["number"]?.substring.map(String.init)
             
             if let rawNumber, rawNumber.count > 1, rawNumber.first == "0" {
                 self = .other(rawValue)
@@ -103,8 +103,9 @@ extension Version.Prerelease {
             }
             
             let number = rawNumber.flatMap(Int.init)
+            let token = String(match["token"]?.substring ?? "")
             
-            self = switch match.token {
+            self = switch token {
                 case "alpha": .alpha(number)
                 case "beta": .beta(number)
                 case "rc": .rc(number)
