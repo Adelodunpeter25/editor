@@ -30,10 +30,12 @@ import TreeSitterC
 import TreeSitterCPP
 import TreeSitterCSS
 import TreeSitterCSharp
+import TreeSitterDockerfile
 import TreeSitterGo
 import TreeSitterHTML
 import TreeSitterJava
 import TreeSitterJavaScript
+import TreeSitterJSON
 import TreeSitterKotlin
 import TreeSitterLatex
 import TreeSitterLua
@@ -55,10 +57,12 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
   case cpp = "C++"
   case cSharp = "C#"
   case css = "CSS"
+  case dockerfile = "Dockerfile"
   case go = "Go"
   case html = "HTML"
   case java = "Java"
   case javaScript = "JavaScript"
+  case json = "JSON"
   case kotlin = "Kotlin"
   case latex = "LaTeX"
   case lua = "Lua"
@@ -84,10 +88,12 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .cpp: ["cpp", "c++", "hpp", "hh", "hxx", "cxx", "cc"]
     case .cSharp: ["csharp", "c#", "cs"]
     case .css: ["css"]
+    case .dockerfile: ["dockerfile", "containerfile"]
     case .go: ["go"]
     case .html: ["html", "htm", "xhtml"]
     case .java: ["java"]
     case .javaScript: ["javascript", "js", "jsx", "mjs", "cjs"]
+    case .json: ["json", "jsonc"]
     case .kotlin: ["kotlin", "kt"]
     case .latex: ["latex", "tex"]
     case .lua: ["lua"]
@@ -145,10 +151,12 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .cpp: tree_sitter_cpp()
     case .cSharp: tree_sitter_c_sharp()
     case .css: tree_sitter_css()
+    case .dockerfile: tree_sitter_dockerfile()
     case .go: tree_sitter_go()
     case .html: tree_sitter_html()
     case .java: tree_sitter_java()
     case .javaScript: tree_sitter_javascript()
+    case .json: tree_sitter_json()
     case .kotlin: tree_sitter_kotlin()
     case .latex: tree_sitter_latex()
     case .lua: tree_sitter_lua()

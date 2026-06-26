@@ -44,6 +44,8 @@ let package = Package(
         .package(url: "https://github.com/DerekStride/tree-sitter-sql", branch: "gh-pages"),
         .package(url: "https://github.com/alex-pinkus/tree-sitter-swift", branch: "with-generated-files"),
         .package(url: "https://github.com/tree-sitter/tree-sitter-typescript", from: Version(0, 23, 2)),
+        .package(url: "https://github.com/tree-sitter/tree-sitter-json", from: Version(0, 24, 8)),
+        .package(url: "https://github.com/camdencheek/tree-sitter-dockerfile", from: Version(0, 2, 0)),
     ],
     targets: [
         .target(
@@ -79,6 +81,8 @@ let package = Package(
                 .product(name: "TreeSitterSql", package: "tree-sitter-sql"),
                 .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
                 .product(name: "TreeSitterTypeScript", package: "tree-sitter-typescript"),
+                .product(name: "TreeSitterJSON", package: "tree-sitter-json"),
+                .product(name: "TreeSitterDockerfile", package: "tree-sitter-dockerfile"),
             ],
             resources: [.copy("Queries")]
         ),
