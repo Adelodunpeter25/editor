@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Kotlin
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (class_declaration
   (type_identifier) @outline.container)

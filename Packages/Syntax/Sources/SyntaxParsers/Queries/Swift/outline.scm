@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Swift
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (class_declaration
   declaration_kind: "class"

@@ -1,13 +1,3 @@
-;
-;  highlights.scm
-;  for Kotlin
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; MARK: Keywords
 ; ----------------------------
 

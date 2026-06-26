@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for HTML
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Titles
 ((element
    (start_tag (tag_name) @tag)) @outline.title

@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Markdown
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ((atx_heading
   (atx_h1_marker)) @outline.heading.1)
 

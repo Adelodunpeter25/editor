@@ -1,13 +1,3 @@
-;
-;  highlights.scm
-;  for HTML
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; MARK: Keywords
 ; ----------------------------
 (tag_name) @keywords

@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for SQL
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (create_database
   name: (identifier) @outline.container)

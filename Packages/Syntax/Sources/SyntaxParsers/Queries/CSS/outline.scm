@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for CSS
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; at-rules with blocks
 (at_rule
   (block)) @outline.container

@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for LaTeX
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Titles
 (title_declaration
   text: (curly_group)) @outline.title

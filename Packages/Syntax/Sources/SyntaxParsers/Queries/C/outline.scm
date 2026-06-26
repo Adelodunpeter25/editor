@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for C
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (struct_specifier
   name: (type_identifier) @outline.container

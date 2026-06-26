@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Python
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (class_definition
   name: (identifier) @outline.container)

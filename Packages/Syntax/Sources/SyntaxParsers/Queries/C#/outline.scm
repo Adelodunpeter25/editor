@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for C#
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (file_scoped_namespace_declaration
   name: (_) @outline.container)

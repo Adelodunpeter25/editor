@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Rust
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (struct_item
   name: (type_identifier) @outline.container)

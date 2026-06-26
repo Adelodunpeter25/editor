@@ -1,13 +1,3 @@
-;
-;  highlights.scm
-;  for Go
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; set defaults at first
 (identifier) @variables
 (field_identifier) @variables

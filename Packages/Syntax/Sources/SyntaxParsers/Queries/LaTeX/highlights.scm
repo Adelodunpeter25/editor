@@ -1,13 +1,3 @@
-;
-;  highlights.scm
-;  for LaTeX
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; MARK: Commands
 ; ----------------------------
 

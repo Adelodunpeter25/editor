@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Go
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Types
 (type_spec
   name: (type_identifier) @outline.container

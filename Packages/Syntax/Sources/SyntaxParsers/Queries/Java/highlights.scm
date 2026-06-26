@@ -1,13 +1,3 @@
-;
-;  highlights.scm
-;  for Java
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; set variables at first
 (identifier) @variables
 

@@ -38,6 +38,40 @@ class FffInstance {
     fff_destroy(handle)
   }
 
+  // MARK: - Index status
+
+  /// Scan progress info from the FFF index.
+  struct ScanProgress {
+    let scannedFilesCount: UInt64
+    let isScanning: Bool
+    let isWatcherReady: Bool
+    let isWarmupComplete: Bool
+  }
+
+  /// Current scan progress (file count, scanning/watcher/warmup flags). Nil if the call fails.
+  var scanProgress: ScanProgress? {
+    guard let result = fff_get_scan_progress(handle) else { return nil }
+    defer { fff_free_result(result) }
+    guard result.pointee.success,
+      let ptr = result.pointee.handle?.assumingMemoryBound(to: FffScanProgress.self)
+    else { return nil }
+    defer { fff_free_scan_progress(ptr) }
+    return ScanProgress(
+      scannedFilesCount: ptr.pointee.scanned_files_count,
+      isScanning: ptr.pointee.is_scanning,
+      isWatcherReady: ptr.pointee.is_watcher_ready,
+      isWarmupComplete: ptr.pointee.is_warmup_complete)
+  }
+
+  /// Health check JSON string (index stats, cache info, etc.). Nil if the call fails.
+  func healthCheck(testPath: String? = nil) -> String? {
+    let pathArg = testPath ?? ""
+    guard let result = fff_health_check(handle, pathArg) else { return nil }
+    defer { fff_free_result(result) }
+    guard result.pointee.success, let raw = result.pointee.handle else { return nil }
+    return String(cString: raw.assumingMemoryBound(to: CChar.self))
+  }
+
   struct SearchResult {
     let relativePath: String
     let fileName: String

@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Scala
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Containers
 (package_clause
   name: (package_identifier) @outline.container)

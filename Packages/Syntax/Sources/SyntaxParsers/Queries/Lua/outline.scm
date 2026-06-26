@@ -1,13 +1,3 @@
-;
-;  outline.scm
-;  for Lua
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; Functions
 (function_declaration
   name: [

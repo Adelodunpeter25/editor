@@ -1,13 +1,3 @@
-;
-;  highlights.scm
-;  for Rust
-;
-;  CotEditor
-;  https://coteditor.com
-;
-;  © 2026 1024jp
-;
-
 ; set defaults at first
 (field_identifier) @variables
 
