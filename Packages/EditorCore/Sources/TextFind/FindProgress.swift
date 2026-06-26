@@ -45,7 +45,7 @@ public final class FindProgress: Sendable {
     }
   }
 
-  private struct Storage {
+  private final class Storage {
 
     var state: State = .ready
     var count: Int = 0
@@ -55,7 +55,7 @@ public final class FindProgress: Sendable {
   // MARK: Private Properties
 
   private let lock = NSLock()
-  private var storage = Storage()
+  private let storage = Storage()
   private let scope: Range<Int>
 
   // MARK: Lifecycle

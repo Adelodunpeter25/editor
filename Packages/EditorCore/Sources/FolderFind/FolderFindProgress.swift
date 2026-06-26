@@ -28,10 +28,20 @@ import Foundation
 
 public final class FolderFindProgress: Sendable {
 
+  private final class Storage {
+
+    var metrics: FolderFind.Metrics
+
+    init(metrics: FolderFind.Metrics) {
+
+      self.metrics = metrics
+    }
+  }
+
   // MARK: Private Properties
 
   private let lock = NSLock()
-  private var storage: FolderFind.Metrics
+  private let storage: Storage
 
   // MARK: Lifecycle
 
@@ -40,7 +50,7 @@ public final class FolderFindProgress: Sendable {
   /// - Parameter findString: The string to search for.
   public init(findString: String) {
 
-    self.storage = FolderFind.Metrics(findString: findString)
+    self.storage = Storage(metrics: FolderFind.Metrics(findString: findString))
   }
 
   // MARK: Public Methods
@@ -50,7 +60,7 @@ public final class FolderFindProgress: Sendable {
 
     self.lock.lock()
     defer { self.lock.unlock() }
-    return self.storage
+    return self.storage.metrics
   }
 
   // MARK: Internal Methods
@@ -61,7 +71,7 @@ public final class FolderFindProgress: Sendable {
   func update(snapshot: FolderFind.Metrics) {
 
     self.lock.lock()
-    self.storage = snapshot
+    self.storage.metrics = snapshot
     self.lock.unlock()
   }
 }
