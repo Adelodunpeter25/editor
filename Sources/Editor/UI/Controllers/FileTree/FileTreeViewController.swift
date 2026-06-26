@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Defaults
 
 /// One repo's file tree. NSOutlineView gives native disclosure, row virtualization, and correct
 /// cursors. Polls git every 1.5s; only reloads when the visible set actually changes (signature),
@@ -269,10 +270,11 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
   }
 
   // Empty dirs persistence
-  var emptyDirsKey: String { "editor.emptyDirs:" + store.repo }
+  var emptyDirsKey: String { AppDefaults.emptyDirsKey(forRepo: store.repo) }
 
   func loadEmptyDirs() {
-    let saved = (UserDefaults.standard.array(forKey: emptyDirsKey) as? [String]) ?? []
+    let key = DefaultKey<[String]>(emptyDirsKey)
+    let saved = UserDefaults.standard[key]
     pendingEmptyDirs = Set(
       saved.filter { dir in
         var isDir: ObjCBool = false
@@ -282,10 +284,11 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
   }
 
   func persistEmptyDirs() {
+    let key = DefaultKey<[String]>(emptyDirsKey)
     if pendingEmptyDirs.isEmpty {
-      UserDefaults.standard.removeObject(forKey: emptyDirsKey)
+      UserDefaults.standard.restore(key: key)
     } else {
-      UserDefaults.standard.set(Array(pendingEmptyDirs), forKey: emptyDirsKey)
+      UserDefaults.standard[key] = Array(pendingEmptyDirs)
     }
   }
 

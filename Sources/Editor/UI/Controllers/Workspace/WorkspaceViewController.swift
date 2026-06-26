@@ -1,4 +1,5 @@
 import AppKit
+import Defaults
 
 /// Root layout: a horizontal split with the sidebar (files) on the left and the workspace (center)
 /// on the right. A *plain* NSSplitView (not NSSplitViewController) so the divider drags reliably.
@@ -40,7 +41,7 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
     else { return }
     if !didSizeOnce {
       didSizeOnce = true
-      let saved = UserDefaults.standard.double(forKey: "editor.sidebarWidth")
+      let saved = UserDefaults.standard[AppDefaults.sidebarWidth]
       let width = saved >= 120 ? CGFloat(saved) : 320
       split.setPosition(width, ofDividerAt: 0)
     } else {
@@ -55,7 +56,7 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
     guard let split = view as? NSSplitView, split.arrangedSubviews.count > 0 else { return }
     let width = split.arrangedSubviews[0].frame.width
     if width >= 120 {
-      UserDefaults.standard.set(Double(width), forKey: "editor.sidebarWidth")
+      UserDefaults.standard[AppDefaults.sidebarWidth] = Double(width)
     }
   }
 

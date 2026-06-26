@@ -20,18 +20,10 @@ final class Settings: ObservableObject {
   private let d = UserDefaults.standard
 
   @Published var expandIgnored: Bool { didSet { d[Keys.expandIgnored] = expandIgnored } }
-  @Published var soundEnabled: Bool { didSet { d[Keys.sound] = soundEnabled } }
-  @Published var notificationsEnabled: Bool {
-    didSet { d[Keys.notifications] = notificationsEnabled }
-  }
   @Published var restoreOnLaunch: Bool { didSet { d[Keys.restore] = restoreOnLaunch } }
   @Published var fontSize: Double { didSet { d[Keys.fontSize] = fontSize } }
   @Published var showResourceMonitor: Bool {
     didSet { d[Keys.resourceMonitor] = showResourceMonitor }
-  }
-  /// Show the menu-bar attention item (aggregate session status + jump). On by default.
-  @Published var showMenuBarStatus: Bool {
-    didSet { d[Keys.menuBarStatus] = showMenuBarStatus }
   }
   /// How the quick-access terminal (⌃`) opens: floating window / centered overlay / bottom panel.
   @Published var quickTermMode: QuickTermMode {
@@ -50,23 +42,17 @@ final class Settings: ObservableObject {
   init() {
     d.register(defaults: [
       Keys.expandIgnored.rawValue: false,
-      Keys.sound.rawValue: true,
-      Keys.notifications.rawValue: true,
       Keys.restore.rawValue: true,
       Keys.fontSize.rawValue: 13.0,
       Keys.resourceMonitor.rawValue: false,
-      Keys.menuBarStatus.rawValue: true,
       Keys.formatOnSave.rawValue: false,
       Keys.quickTermMode.rawValue: QuickTermMode.floating.rawValue,
     ])
     // didSet does not fire for these initial assignments inside init.
     expandIgnored = d[Keys.expandIgnored]
-    soundEnabled = d[Keys.sound]
-    notificationsEnabled = d[Keys.notifications]
     restoreOnLaunch = d[Keys.restore]
     fontSize = d[Keys.fontSize]
     showResourceMonitor = d[Keys.resourceMonitor]
-    showMenuBarStatus = d[Keys.menuBarStatus]
     quickTermMode = d[Keys.quickTermMode] ?? .floating
     disabledFormatters = Set(d[Keys.disabledFormatters])
     formatOnSave = d[Keys.formatOnSave]
@@ -85,12 +71,9 @@ final class Settings: ObservableObject {
 
   private enum Keys {
     static let expandIgnored = DefaultKey<Bool>("expandIgnored")
-    static let sound = DefaultKey<Bool>("soundEnabled")
-    static let notifications = DefaultKey<Bool>("notificationsEnabled")
     static let restore = DefaultKey<Bool>("restoreOnLaunch")
     static let fontSize = DefaultKey<Double>("fontSize")
     static let resourceMonitor = DefaultKey<Bool>("showResourceMonitor")
-    static let menuBarStatus = DefaultKey<Bool>("showMenuBarStatus")
     static let quickTermMode = RawRepresentableDefaultKey<QuickTermMode>("quickTermMode")
     static let disabledFormatters = DefaultKey<[String]>("disabledFormatters")
     static let formatOnSave = DefaultKey<Bool>("formatOnSave")

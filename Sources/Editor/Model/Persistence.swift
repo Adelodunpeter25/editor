@@ -1,4 +1,5 @@
 import AppKit
+import Defaults
 import Foundation
 
 // JSON snapshot persisted to UserDefaults("editor.state"). Tab/session ids are random UUIDs that
@@ -23,23 +24,21 @@ struct PersistedState: Codable {
 }
 
 enum Persistence {
-  static let key = "editor.state"
-  static let recentProjectsKey = "editor.recentProjects"
   static let recentProjectsLimit = 12
 
   static func load() -> PersistedState? {
-    guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+    guard let data = UserDefaults.standard[AppDefaults.persistedState] else { return nil }
     return try? JSONDecoder().decode(PersistedState.self, from: data)
   }
 
   static func save(_ state: PersistedState) {
     if let data = try? JSONEncoder().encode(state) {
-      UserDefaults.standard.set(data, forKey: key)
+      UserDefaults.standard[AppDefaults.persistedState] = data
     }
   }
 
   static func recentProjects() -> [String] {
-    let paths = UserDefaults.standard.stringArray(forKey: recentProjectsKey) ?? []
+    let paths = UserDefaults.standard[AppDefaults.recentProjects]
     return paths.filter { FileManager.default.fileExists(atPath: $0) }
   }
 
@@ -48,7 +47,7 @@ enum Persistence {
     var paths = recentProjects().filter { $0 != resolved }
     paths.insert(resolved, at: 0)
     if paths.count > recentProjectsLimit { paths = Array(paths.prefix(recentProjectsLimit)) }
-    UserDefaults.standard.set(paths, forKey: recentProjectsKey)
+    UserDefaults.standard[AppDefaults.recentProjects] = paths
     // Register with macOS LaunchServices so the dock "Open Recent" list is populated
     // even when the app is not running. Must be called on the main thread.
     let url = URL(fileURLWithPath: resolved)

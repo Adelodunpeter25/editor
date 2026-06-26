@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Defaults
 
 /// The sidebar: a segmented control (Files / Changes / Search) with file-actions toolbar above the
 /// content pane (file tree, git changes list, or search panel).
@@ -130,7 +131,7 @@ final class SidebarViewController: NSViewController {
     pane.layer?.backgroundColor = Theme.sidebarBg.cgColor
 
     filesModeSeg.selectedSegment = max(
-      0, min(2, UserDefaults.standard.integer(forKey: "rightMode")))
+      0, min(2, UserDefaults.standard[AppDefaults.sidebarMode]))
     filesModeSeg.target = self
     filesModeSeg.action = #selector(filesModeChanged)
     filesModeSeg.controlSize = .regular
@@ -189,7 +190,7 @@ final class SidebarViewController: NSViewController {
     // If switching to search, directly add a search tab instead of showing inline
     if newSegment == SidebarMode.search.rawValue {
       // Switch back to the previous mode (before the click)
-      let previousMode = UserDefaults.standard.integer(forKey: "rightMode")
+      let previousMode = UserDefaults.standard[AppDefaults.sidebarMode]
       filesModeSeg.selectedSegment = previousMode
 
       // Add a new search tab
@@ -198,7 +199,7 @@ final class SidebarViewController: NSViewController {
       return
     }
 
-    UserDefaults.standard.set(newSegment, forKey: "rightMode")
+    UserDefaults.standard[AppDefaults.sidebarMode] = newSegment
     showSidebarContent()
   }
 

@@ -1,4 +1,5 @@
 import AppKit
+import Defaults
 
 extension Notification.Name {
   static let editorFileTextDidChange = Notification.Name("EditorFileTextDidChange")
@@ -58,7 +59,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     self.path = path
     self.commitHash = commitHash
     self.onOpenFile = onOpenFile
-    self.split = UserDefaults.standard.bool(forKey: "diffSplit")
+    self.split = UserDefaults.standard[AppDefaults.diffSplit]
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -318,7 +319,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
 
   @objc private func toggleSplit() {
     split = seg.selectedSegment == 1
-    UserDefaults.standard.set(split, forKey: "diffSplit")
+    UserDefaults.standard[AppDefaults.diffSplit] = split
     configureColumns()
     table.reloadData()
   }
