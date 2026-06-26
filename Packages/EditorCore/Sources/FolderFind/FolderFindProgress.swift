@@ -2,7 +2,7 @@ import Foundation
 
 public final class FolderFindProgress: Sendable {
 
-  private final class Storage {
+  private final class Storage: @unchecked Sendable {
 
     var metrics: FolderFind.Metrics
 

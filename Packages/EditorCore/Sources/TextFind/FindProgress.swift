@@ -20,7 +20,7 @@ public final class FindProgress: Sendable {
     }
   }
 
-  private final class Storage {
+  private final class Storage: @unchecked Sendable {
 
     var state: State = .ready
     var count: Int = 0
