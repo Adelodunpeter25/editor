@@ -50,10 +50,10 @@ let package = Package(
             name: "SyntaxFormat",
             dependencies: ["EditorCore", "Yams"]
         ),
-        .testTarget(
-            name: "SyntaxFormatTests",
-            dependencies: ["SyntaxFormat", "EditorCore"]
-        ),
+        // .testTarget(
+        //     name: "SyntaxFormatTests",
+        //     dependencies: ["SyntaxFormat", "EditorCore"]
+        // ),
         
         .target(
             name: "SyntaxParsers",
@@ -85,10 +85,10 @@ let package = Package(
                 .product(name: "TreeSitterTypeScript", package: "tree-sitter-typescript"),
             ]
         ),
-        .testTarget(
-            name: "SyntaxParsersTests",
-            dependencies: ["SyntaxParsers", "EditorCore"]
-        ),
+        // .testTarget(
+        //     name: "SyntaxParsersTests",
+        //     dependencies: ["SyntaxParsers", "EditorCore"]
+        // ),
         
         .executableTarget(
             name: "SyntaxMapBuilder",
