@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.2.0"),
+        .package(name: "EditorCore", path: "Packages/EditorCore"),
     ],
     targets: [
         .target(
@@ -17,6 +18,7 @@ let package = Package(
             name: "Editor",
             dependencies: [
                 .product(name: "SwiftTerm", package: "SwiftTerm"),
+                .product(name: "EditorCore", package: "EditorCore"),
                 "Cfff",
             ],
             path: "Sources/Editor",
