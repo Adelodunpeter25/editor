@@ -152,10 +152,18 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
         session.moveTabToEnd(dragged)
       }
     }
-    // File dragged from the sidebar and dropped onto the tab bar: open it in the active session.
-    // Session.openFile accepts absolute paths directly and handles dedup / replace-if-fresh logic.
+    // File dragged from the sidebar and dropped onto the tab bar: ALWAYS open as a new tab.
+    // We bypass session.openFile() (which can silently replace a fresh tab) because a drag
+    // is an explicit intent — the user wants a new tab for that file.
+    // If the file is already open we just focus it; otherwise we add a fresh tab.
     tabBar.onOpenFilePath = { [weak self] absolutePath in
-      self?.model.activeSession?.openFile(absolutePath)
+      guard let session = self?.model.activeSession else { return }
+      if let existing = session.tabs.first(where: { $0.kind == .file && $0.path == absolutePath }) {
+        session.activate(existing.id)
+      } else {
+        let title = (absolutePath as NSString).lastPathComponent
+        session.addTab(Tab(kind: .file, title: title, path: absolutePath))
+      }
     }
   }
 

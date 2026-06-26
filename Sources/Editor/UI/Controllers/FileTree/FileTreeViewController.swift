@@ -339,22 +339,22 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
     _ ov: NSOutlineView, draggingSession session: NSDraggingSession,
     willBeginAt screenPoint: NSPoint, forItems draggedItems: [Any]
   ) {
-    // Use just the file icon + name as the drag image for a tidy ghost.
-    guard let node = draggedItems.first as? TreeNode,
-      let row = draggedItems.compactMap({ ov.row(forItem: $0) }).first,
-      row >= 0,
-      let cellView = ov.view(atColumn: 0, row: row, makeIfNecessary: false) as? NSView
+    // Snapshot the dragged row's cell view into an NSImage and use it as the
+    // drag ghost. bitmapImageRepForCachingDisplay is the standard AppKit way
+    // to render any NSView to a bitmap without putting it on screen.
+    guard let row = draggedItems.compactMap({ ov.row(forItem: $0) }).first(where: { $0 >= 0 }),
+      let cellView = ov.view(atColumn: 0, row: row, makeIfNecessary: false),
+      let rep = cellView.bitmapImageRepForCachingDisplay(in: cellView.bounds)
     else { return }
+    cellView.cacheDisplay(in: cellView.bounds, to: rep)
     let img = NSImage(size: cellView.bounds.size)
-    img.lockFocus()
-    cellView.draw(cellView.bounds)
-    img.unlockFocus()
+    img.addRepresentation(rep)
     session.enumerateDraggingItems(
       options: [], for: nil, classes: [NSPasteboardItem.self], searchOptions: [:]
-    ) { item, _, _ in
-      item.setDraggingFrame(CGRect(origin: .zero, size: cellView.bounds.size), contents: img)
+    ) { item, _, stop in
+      item.setDraggingFrame(CGRect(origin: .zero, size: img.size), contents: img)
+      stop.pointee = true
     }
-    _ = node  // silence unused warning
   }
 
   // MARK: - Delegate
