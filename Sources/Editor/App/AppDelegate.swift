@@ -193,4 +193,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     return true
   }
 
+  func applicationWillTerminate(_ notification: Notification) {
+    model.saveNow()
+  }
+
 }

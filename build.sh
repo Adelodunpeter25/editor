@@ -26,7 +26,7 @@ cp "$BIN" "$APP/Contents/MacOS/Editor"
 # Copy SwiftPM resource bundles (e.g. Editor_Editor.bundle with the TextMate grammars) into
 # Contents/Resources so they stay inside the code signature; GrammarBundle resolves them from there.
 for b in ".build/$CONFIG"/*.bundle; do
-  [ -e "$b" ] && cp -R "$b" "$APP/Contents/Resources/"
+  [ -e "$b" ] && cp -R -X "$b" "$APP/Contents/Resources/"
 done
 
 # Icon

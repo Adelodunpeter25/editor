@@ -67,6 +67,10 @@ final class AppModel: ObservableObject {
 
   private func scheduleSave() { saveTrigger.send(()) }
 
+  func saveNow() {
+    save()
+  }
+
   private func save() {
     guard settings.restoreOnLaunch else { return }  // stateless when restore is off
     let state = PersistedState(

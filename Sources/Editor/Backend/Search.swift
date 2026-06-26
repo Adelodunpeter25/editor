@@ -1,4 +1,5 @@
 import Foundation
+import TextFind
 
 /// Project-wide text search scoped to one repo. Shells out to `git grep` — every Editor session is a git
 /// repo, so there's no extra dependency: it respects `.gitignore`, is fast, and (with `--untracked`)
