@@ -25,8 +25,8 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import ValueRange
+import Foundation
+import ValueRange
 
 public struct IncompatibleCharacter: Equatable, Hashable, Sendable {
     
@@ -169,7 +169,7 @@ private extension NSString {
             let ok = buffer.withUnsafeMutableBytes { raw -> Bool in
                 guard let base = raw.baseAddress else { return false }
                 
-                return unsafe self.getBytes(base, maxLength: raw.count, usedLength: &usedLength, encoding: encoding.rawValue, options: .allowLossy, range: range, remaining: &remaining)
+                return self.getBytes(base, maxLength: raw.count, usedLength: &usedLength, encoding: encoding.rawValue, options: .allowLossy, range: range, remaining: &remaining)
             }
             
             guard ok else { return nil }
@@ -184,7 +184,7 @@ private extension NSString {
             return buffer.withUnsafeBytes { raw -> String? in
                 guard
                     let base = raw.baseAddress,
-                    let decoded = unsafe NSString(bytes: base, length: usedLength, encoding: encoding.rawValue)
+                    let decoded = NSString(bytes: base, length: usedLength, encoding: encoding.rawValue)
                 else { return nil }
                 
                 return decoded as String

@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension String {
     
@@ -33,7 +33,8 @@ public extension String {
     /// This method does not support Unicode scalar escape (`\u{n}`).
     var unescaped: String {
         
-        self.replacing(/\\([0tnr"'\\])/) { match in
+        let regex = try! Regex("\\\\([0tnr\"'\\\\])")
+        return self.replacing(regex, with: { match in
             // -> According to the Swift documentation, these are the all combinations with backslash.
             //    cf. https://docs.swift.org/swift-book/LanguageGuide/StringsAndCharacters.html#ID295
             switch match.1 {
@@ -46,7 +47,7 @@ public extension String {
                 case "\\": "\\"  // backslash
                 default: fatalError()
             }
-        }
+        })
     }
 }
 

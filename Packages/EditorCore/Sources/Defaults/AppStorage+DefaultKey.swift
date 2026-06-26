@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import SwiftUI
+import SwiftUI
 
 public extension AppStorage {
     

@@ -43,5 +43,5 @@ public struct EntireLineSortPattern: SortPattern, Equatable, Sendable {
     }
     
     
-    public func validate() throws(SortPatternError) { }
+    public func validate() throws { }
 }

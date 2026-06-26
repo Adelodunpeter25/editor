@@ -54,7 +54,7 @@ struct Search {
     ///   - progress: The progress object to update while searching.
     ///   - isIncluded: The predicate to determine whether a file candidate should be searched. If `nil`, the file type option is used.
     /// - Throws: `FileScope.Error` if the file scope is invalid.
-    init(rootURL: URL, query: FolderFind.Query, options: FolderFind.Options, progress: FolderFindProgress?, isIncluded: (@Sendable (FolderFind.Candidate) -> Bool)?) throws(FileScope.Error) {
+    init(rootURL: URL, query: FolderFind.Query, options: FolderFind.Options, progress: FolderFindProgress?, isIncluded: (@Sendable (FolderFind.Candidate) -> Bool)?) throws {
         
         self.rootURL = rootURL
         self.query = query

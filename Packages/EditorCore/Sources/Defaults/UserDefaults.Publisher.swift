@@ -24,8 +24,8 @@
 //  limitations under the License.
 //
 
-public import Combine
-public import Foundation
+import Combine
+import Foundation
 
 public extension UserDefaults {
     
@@ -115,7 +115,7 @@ private extension UserDefaults.Publisher {
         
         func register(initial: Bool) {
             
-            unsafe self.userDefaults?.addObserver(self, forKeyPath: self.key.rawValue, options: initial ? [.new, .initial] : [.new], context: nil)
+            self.userDefaults?.addObserver(self, forKeyPath: self.key.rawValue, options: initial ? [.new, .initial] : [.new], context: nil)
         }
         
         
@@ -125,7 +125,7 @@ private extension UserDefaults.Publisher {
                 let change,
                 keyPath == self.key.rawValue,
                 object as? NSObject == self.userDefaults
-            else { return unsafe super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context) }
+            else { return super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context) }
             
             guard
                 self.demand > 0,

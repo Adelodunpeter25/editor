@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import struct Foundation.NSRange
+import struct Foundation.NSRange
 
 public struct EditingContext: Equatable, Sendable {
     

@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-package import Foundation
+import Foundation
 
 package struct LogicalLine: Equatable, Sendable {
     

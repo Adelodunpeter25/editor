@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public struct TextClipping: Equatable, Sendable, Decodable {
     

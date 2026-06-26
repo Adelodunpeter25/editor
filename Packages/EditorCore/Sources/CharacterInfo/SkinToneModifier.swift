@@ -39,30 +39,15 @@ enum SkinToneModifier: UInt32, Sendable {
         
         switch self {
             case .type12:
-                String(localized: "SkinToneModifier.type12.label",
-                       defaultValue: "Skin Tone I-II",
-                       bundle: .module,
-                       comment: "label for Unicode emoji modifier applying the skin tone to the character")
+                "Skin Tone I-II"
             case .type3:
-                String(localized: "SkinToneModifier.type3.label",
-                       defaultValue: "Skin Tone III",
-                       bundle: .module,
-                       comment: "label for Unicode emoji modifier applying the skin tone to the character")
+                "Skin Tone III"
             case .type4:
-                String(localized: "SkinToneModifier.type4.label",
-                       defaultValue: "Skin Tone IV",
-                       bundle: .module,
-                       comment: "label for Unicode emoji modifier applying the skin tone to the character")
+                "Skin Tone IV"
             case .type5:
-                String(localized: "SkinToneModifier.type5.label",
-                       defaultValue: "Skin Tone V",
-                       bundle: .module,
-                       comment: "label for Unicode emoji modifier applying the skin tone to the character")
+                "Skin Tone V"
             case .type6:
-                String(localized: "SkinToneModifier.type6.label",
-                       defaultValue: "Skin Tone VI",
-                       bundle: .module,
-                       comment: "label for Unicode emoji modifier applying the skin tone to the character")
+                "Skin Tone VI"
         }
     }
 }

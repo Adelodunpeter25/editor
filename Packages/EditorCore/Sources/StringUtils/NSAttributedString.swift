@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation.NSAttributedString
+import Foundation.NSAttributedString
 
 public extension NSAttributedString {
     
@@ -75,9 +75,9 @@ public extension NSAttributedString {
     ///   - stop: A reference to a Boolean value that you can set to true within the closure to stop further processing.
     final func enumerateAttribute<T>(_ attrName: NSAttributedString.Key, type: T.Type, in enumerationRange: NSRange, options: EnumerationOptions = [], using block: (_ value: T, _ range: NSRange, _ stop: UnsafeMutablePointer<ObjCBool>) -> Void) {
         
-        unsafe self.enumerateAttribute(attrName, in: enumerationRange, options: options) { value, range, stop in
+        self.enumerateAttribute(attrName, in: enumerationRange, options: options) { value, range, stop in
             guard let value = value as? T else { return }
-            unsafe block(value, range, stop)
+            block(value, range, stop)
         }
     }
     
@@ -92,7 +92,7 @@ public extension NSAttributedString {
         
         var effectiveRange = NSRange.notFound
         
-        guard unsafe self.attribute(attrName, at: index, longestEffectiveRange: &effectiveRange, in: self.range) != nil else { return nil }
+        guard self.attribute(attrName, at: index, longestEffectiveRange: &effectiveRange, in: self.range) != nil else { return nil }
         
         return effectiveRange
     }
@@ -113,7 +113,7 @@ public extension NSAttributedString {
         guard range.upperBound <= self.length else { assertionFailure(); return false }
         
         var effectiveRange: NSRange = .notFound
-        let value = unsafe self.attribute(attrName, at: range.location, longestEffectiveRange: &effectiveRange, in: range)
+        let value = self.attribute(attrName, at: range.location, longestEffectiveRange: &effectiveRange, in: range)
         
         return value != nil || effectiveRange.upperBound < range.upperBound
     }

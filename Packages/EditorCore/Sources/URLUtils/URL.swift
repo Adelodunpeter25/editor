@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension URL {
     
@@ -146,11 +146,13 @@ public extension FileManager {
 
 public extension URL {
     
-    private static let homeDirectory = if let home = unsafe getpwuid(getuid())?.pointee.pw_dir {
-        unsafe FileManager.default.string(withFileSystemRepresentation: home, length: Int(strlen(home)))
-    } else {
-        NSHomeDirectory()
-    }
+    private static let homeDirectory: String = {
+        if let home = getpwuid(getuid())?.pointee.pw_dir {
+            return FileManager.default.string(withFileSystemRepresentation: home, length: Int(strlen(home)))
+        } else {
+            return NSHomeDirectory()
+        }
+    }()
     
     /// A path string that replaces the user's home directory with a tilde (~) character.
     var pathAbbreviatingWithTilde: String {

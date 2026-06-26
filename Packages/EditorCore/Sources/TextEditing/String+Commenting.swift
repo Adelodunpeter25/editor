@@ -24,8 +24,8 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import StringUtils
+import Foundation
+import StringUtils
 
 public protocol CommentDelimiters: Sendable {
     

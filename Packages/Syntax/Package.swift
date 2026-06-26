@@ -4,7 +4,6 @@ import PackageDescription
 
 let package = Package(
     name: "Syntax",
-    defaultLocalization: "en",
     platforms: [
         .macOS(.v13),
     ],
@@ -21,7 +20,6 @@ let package = Package(
         
         .package(url: "https://github.com/apple/swift-argument-parser", from: Version(1, 7, 0)),
         .package(url: "https://github.com/jpsim/Yams", from: Version(6, 2, 0)),
-        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: Version(0, 62, 0)),
         .package(url: "https://github.com/tree-sitter/swift-tree-sitter", exact: Version(0, 10, 0)),
         
         .package(url: "https://github.com/tree-sitter/tree-sitter-bash", from: Version(0, 25, 1)),
@@ -50,13 +48,11 @@ let package = Package(
     targets: [
         .target(
             name: "SyntaxFormat",
-            dependencies: ["EditorCore", "Yams"],
-            resources: [.process("Resources")]
+            dependencies: ["EditorCore", "Yams"]
         ),
         .testTarget(
             name: "SyntaxFormatTests",
-            dependencies: ["SyntaxFormat", "EditorCore"],
-            resources: [.copy("Syntaxes")]
+            dependencies: ["SyntaxFormat", "EditorCore"]
         ),
         
         .target(
@@ -87,13 +83,11 @@ let package = Package(
                 .product(name: "TreeSitterSql", package: "tree-sitter-sql"),
                 .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
                 .product(name: "TreeSitterTypeScript", package: "tree-sitter-typescript"),
-            ],
-            resources: [.copy("Queries")]
+            ]
         ),
         .testTarget(
             name: "SyntaxParsersTests",
-            dependencies: ["SyntaxParsers", "EditorCore"],
-            resources: [.copy("Samples")]
+            dependencies: ["SyntaxParsers", "EditorCore"]
         ),
         
         .executableTarget(
@@ -111,10 +105,3 @@ let package = Package(
             ]),
     ]
 )
-
-
-for target in package.targets {
-    target.plugins = (target.plugins ?? []) + [
-        .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins"),
-    ]
-}

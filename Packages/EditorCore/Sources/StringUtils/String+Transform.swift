@@ -44,8 +44,10 @@ public extension String {
     /// Straightens all curly quotes.
     var straighteningQuotes: String {
         
-        self.replacing(/[‘’‚‛]/, with: "'")   // U+2018..201B
-            .replacing(/[“”„‟]/, with: "\"")  // U+201C..201F
+        let leftQuotes = try! Regex("[‘’‚‛]")
+        let rightQuotes = try! Regex("[“”„‟]")
+        return self.replacing(leftQuotes, with: "'")   // U+2018..201B
+            .replacing(rightQuotes, with: "\"")  // U+201C..201F
     }
 }
 

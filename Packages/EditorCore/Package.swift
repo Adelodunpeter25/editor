@@ -4,7 +4,6 @@ import PackageDescription
 
 let package = Package(
     name: "EditorCore",
-    defaultLocalization: "en",
     platforms: [
         .macOS(.v13),
     ],
@@ -43,10 +42,9 @@ let package = Package(
         .library(name: "URLUtils", targets: ["URLUtils"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: Version(0, 62, 0)),
     ],
     targets: [
-        .target(name: "CharacterInfo", resources: [.process("Resources")]),
+        .target(name: "CharacterInfo"),
         .testTarget(name: "CharacterInfoTests", dependencies: ["CharacterInfo"]),
         
         .target(name: "Defaults"),
@@ -55,15 +53,15 @@ let package = Package(
         .target(name: "DocumentFile", dependencies: ["FileEncoding", "URLUtils"]),
         .testTarget(name: "DocumentFileTests", dependencies: ["DocumentFile"]),
         
-        .target(name: "FileEncoding", dependencies: ["ValueRange"], resources: [.process("Resources")]),
-        .testTarget(name: "FileEncodingTests", dependencies: ["FileEncoding"], resources: [.process("Resources")]),
+        .target(name: "FileEncoding", dependencies: ["ValueRange"]),
+        .testTarget(name: "FileEncodingTests", dependencies: ["FileEncoding"]),
         
         .target(name: "FolderFind", dependencies: ["DocumentFile", "FileEncoding", "LineEnding", "StringUtils", "TextFind"]),
         .testTarget(name: "FolderFindTests", dependencies: ["FolderFind"]),
         
         .target(name: "Invisible"),
         
-        .target(name: "LineEnding", dependencies: ["StringUtils", "ValueRange"], resources: [.process("Resources")]),
+        .target(name: "LineEnding", dependencies: ["StringUtils", "ValueRange"]),
         .testTarget(name: "LineEndingTests", dependencies: ["LineEnding", "StringUtils"]),
         
         .target(name: "LineSort", dependencies: ["StringUtils"]),
@@ -72,11 +70,11 @@ let package = Package(
         .target(name: "SemanticVersioning"),
         .testTarget(name: "SemanticVersioningTests", dependencies: ["SemanticVersioning"]),
         
-        .target(name: "StringUtils", resources: [.process("Resources")]),
+        .target(name: "StringUtils"),
         .testTarget(name: "StringUtilsTests", dependencies: ["StringUtils"]),
         
         .target(name: "TextClipping"),
-        .testTarget(name: "TextClippingTests", dependencies: ["TextClipping"], resources: [.process("Resources")]),
+        .testTarget(name: "TextClippingTests", dependencies: ["TextClipping"]),
         
         .target(name: "TextEditing", dependencies: ["StringUtils"]),
         .testTarget(name: "TextEditingTests", dependencies: ["TextEditing"]),
@@ -91,10 +89,3 @@ let package = Package(
         .testTarget(name: "ValueRangeTests", dependencies: ["ValueRange"]),
     ]
 )
-
-
-for target in package.targets {
-    target.plugins = (target.plugins ?? []) + [
-        .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins"),
-    ]
-}

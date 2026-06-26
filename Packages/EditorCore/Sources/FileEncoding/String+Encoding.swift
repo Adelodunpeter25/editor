@@ -25,7 +25,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension String {
     
@@ -80,7 +80,7 @@ public extension String {
     ///   - data: The content file.
     ///   - decodingStrategy: The text encoding to read the file.
     /// - Returns: The decoded string and detected file encoding.
-    static func string(data: Data, decodingStrategy: String.DecodingStrategy) throws(CocoaError) -> (String, FileEncoding) {
+    static func string(data: Data, decodingStrategy: String.DecodingStrategy) throws -> (String, FileEncoding) {
         
         // decode Data to String
         let content: String
@@ -123,7 +123,7 @@ extension String {
     ///   - options: The options for encoding detection.
     /// - Returns: The decoded string and used encoding.
     /// - Throws: `CocoaError(.fileReadUnknownStringEncoding)`
-    static func string(data: Data, options: String.DetectionOptions) throws(CocoaError) -> (String, String.Encoding) {
+    static func string(data: Data, options: String.DetectionOptions) throws -> (String, String.Encoding) {
         
         // check BOMs
         for bom in Unicode.BOM.allCases {

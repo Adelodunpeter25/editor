@@ -23,8 +23,8 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import ValueRange
+import Foundation
+import ValueRange
 import StringUtils
 
 public struct TextFind: Equatable, Sendable {
@@ -81,7 +81,7 @@ public struct TextFind: Equatable, Sendable {
     ///   - mode: The settable options for the text search.
     ///   - inSelection: Whether find string only in selectedRanges.
     ///   - selectedRanges: The selected ranges in the text view.
-    public init(for string: String, findString: String, mode: TextFind.Mode, inSelection: Bool = false, selectedRanges: [NSRange] = [NSRange()]) throws(TextFind.Error) {
+    public init(for string: String, findString: String, mode: TextFind.Mode, inSelection: Bool = false, selectedRanges: [NSRange] = [NSRange()]) throws {
         
         assert(!selectedRanges.isEmpty)
         
@@ -423,14 +423,14 @@ public struct TextFind: Equatable, Sendable {
         let string = self.string
         let options: NSRegularExpression.MatchingOptions = [.withTransparentBounds, .withoutAnchoringBounds]
         
-        unsafe self.regex!.enumerateMatches(in: string, options: options, range: range) { result, _, stop in
+        self.regex!.enumerateMatches(in: string, options: options, range: range) { result, _, stop in
             guard let result else { return }
             
             var ioStop = false
             block(result.range, result, &ioStop)
             
             if ioStop {
-                unsafe stop.pointee = ObjCBool(ioStop)
+                stop.pointee = ObjCBool(ioStop)
             }
         }
     }

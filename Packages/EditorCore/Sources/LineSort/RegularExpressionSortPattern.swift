@@ -73,7 +73,7 @@ public struct RegularExpressionSortPattern: SortPattern, Equatable, Sendable {
     
     
     /// Tests the regular expression pattern is valid.
-    public func validate() throws(SortPatternError) {
+    public func validate() throws {
         
         if self.searchPattern.isEmpty {
             throw .emptyPattern

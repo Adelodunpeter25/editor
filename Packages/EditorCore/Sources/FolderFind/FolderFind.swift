@@ -24,10 +24,10 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import FileEncoding
-public import TextFind
-public import UniformTypeIdentifiers
+import Foundation
+import FileEncoding
+import TextFind
+import UniformTypeIdentifiers
 
 public enum FolderFind {
     
@@ -52,7 +52,7 @@ public enum FolderFind {
         /// Validates the query.
         ///
         /// - Throws: `TextFind.Error` if the query is invalid.
-        public func validate() throws(TextFind.Error) {
+        public func validate() throws {
             
             _ = try TextFind(for: "", findString: self.findString, mode: self.mode)
         }

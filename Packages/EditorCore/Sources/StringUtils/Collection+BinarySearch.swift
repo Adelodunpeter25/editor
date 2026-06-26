@@ -41,7 +41,7 @@ public extension RandomAccessCollection {
     ///   - range: The range to search in.
     ///   - predicate: A predicate that partitions the collection.
     /// - Returns: The index of the first element for which `predicate` returns `true`, or `endIndex`.
-    func partitioningIndex<E: Error>(in range: Range<Index>? = nil, where predicate: (Element) throws(E) -> Bool) throws(E) -> Index {
+    func partitioningIndex(in range: Range<Index>? = nil, predicate: (Element) throws -> Bool) throws -> Index {
         
         let range = range ?? self.startIndex..<self.endIndex
         

@@ -24,8 +24,8 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import ValueRange
+import Foundation
+import ValueRange
 
 public extension String {
     
@@ -42,7 +42,7 @@ public extension String {
         let string = self as NSString
         let range = range ?? NSRange(..<string.length)
         
-        unsafe string.enumerateSubstrings(in: range, options: [.byLines, .substringNotRequired]) { _, substringRange, enclosingRange, _ in
+        string.enumerateSubstrings(in: range, options: [.byLines, .substringNotRequired]) { _, substringRange, enclosingRange, _ in
             guard enclosingRange.length > 0 else { return }
             
             let lineEndingRange = NSRange(substringRange.upperBound..<enclosingRange.upperBound)
@@ -96,7 +96,7 @@ public extension String {
         
         var end: Int = 0
         var contentsEnd: Int = 0
-        unsafe nsString.getLineStart(nil, end: &end, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
+        nsString.getLineStart(nil, end: &end, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
         
         let range = NSRange(contentsEnd..<end)
         

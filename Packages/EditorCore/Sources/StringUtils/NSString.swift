@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation.NSString
+import Foundation.NSString
 
 public extension String {
     
@@ -165,7 +165,7 @@ public extension NSString {
         
         var start = 0
         var contentsEnd = 0
-        unsafe self.getLineStart(&start, end: nil, contentsEnd: &contentsEnd, for: range)
+        self.getLineStart(&start, end: nil, contentsEnd: &contentsEnd, for: range)
         
         return NSRange(location: start, length: contentsEnd - start)
     }
@@ -179,7 +179,7 @@ public extension NSString {
     final func lineStartIndex(at index: Int) -> Int {
         
         var start = 0
-        unsafe self.getLineStart(&start, end: nil, contentsEnd: nil, for: NSRange(location: index, length: 0))
+        self.getLineStart(&start, end: nil, contentsEnd: nil, for: NSRange(location: index, length: 0))
         
         return start
     }
@@ -193,7 +193,7 @@ public extension NSString {
     final func lineContentsEndIndex(at index: Int) -> Int {
         
         var contentsEnd = 0
-        unsafe self.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: NSRange(location: index, length: 0))
+        self.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: NSRange(location: index, length: 0))
         
         return contentsEnd
     }
@@ -222,7 +222,7 @@ public extension NSString {
         var lineRanges: [NSRange] = []
         
         for scope in scopes {
-            unsafe self.enumerateSubstrings(in: scope, options: [.byLines, .substringNotRequired]) { _, _, enclosingRange, _ in
+            self.enumerateSubstrings(in: scope, options: [.byLines, .substringNotRequired]) { _, _, enclosingRange, _ in
                 lineRanges.append(enclosingRange)
             }
         }
@@ -247,7 +247,7 @@ public extension NSString {
         var count = 0
         var index = 0
         while index < location {
-            unsafe self.getLineStart(nil, end: &index, contentsEnd: nil, for: NSRange(location: index, length: 0))
+            self.getLineStart(nil, end: &index, contentsEnd: nil, for: NSRange(location: index, length: 0))
             count += 1
         }
         
@@ -318,13 +318,13 @@ public extension NSString {
         
         let range = NSRange(..<min(index + 1, self.length))
         let options: EnumerationOptions = [.byComposedCharacterSequences, .substringNotRequired, .reverse]
-        unsafe self.enumerateSubstrings(in: range, options: options) { _, range, _, stop in
+        self.enumerateSubstrings(in: range, options: options) { _, range, _, stop in
             
             boundary = range.lowerBound
             remainingCount -= 1
             
             if remainingCount <= 0 {
-                unsafe stop.pointee = true
+                stop.pointee = true
             }
         }
         

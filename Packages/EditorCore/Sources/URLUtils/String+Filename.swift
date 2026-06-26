@@ -29,14 +29,18 @@ public extension String {
     /// The remainder of the string after the last dot removed.
     var deletingPathExtension: String {
         
-        self.replacing(/^(.+)\.[^ .]+$/, with: \.1)
+        let regex = try! Regex("^(.+)\\.[^ .]+$")
+        return self.replacing(regex) { match in
+            match.1
+        }
     }
     
     
     /// The file extension part of the receiver by assuming the string is a filename.
     var pathExtension: String? {
         
-        guard let match = self.firstMatch(of: /.\.([^ .]+)$/) else { return nil }
+        let regex = try! Regex("\\.([^ .]+)$")
+        guard let match = self.firstMatch(of: regex) else { return nil }
         
         return String(match.1)
     }
@@ -66,7 +70,8 @@ extension String {
         
         assert(!self.isEmpty)
         
-        let match = self.wholeMatch(of: /(?<base>.+?)(?: (?<number>[0-9]+))?/)!
+        let regex = try! Regex("(?<base>.+?)(?: (?<number>[0-9]+))?")
+        let match = self.wholeMatch(of: regex)!
         let base = String(match.base)
         let count = match.number.flatMap { Int($0) } ?? 1
         

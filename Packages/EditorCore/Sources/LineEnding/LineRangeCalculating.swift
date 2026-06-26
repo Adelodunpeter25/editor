@@ -24,8 +24,8 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import ValueRange
+import Foundation
+import ValueRange
 import StringUtils
 
 public protocol LineRangeCalculating {

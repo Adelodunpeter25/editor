@@ -24,14 +24,15 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension String {
     
     /// The first appeared line ending character.
     var firstLineEnding: Character? {
         
-        self.firstMatch(of: /\R/)?.output.first
+        let regex = try! Regex("\\R")
+        return self.firstMatch(of: regex)?.output.first
     }
 }
 
@@ -67,7 +68,7 @@ public extension StringProtocol {
         var start = self.startIndex
         var end = self.startIndex
         var contentsEnd = self.startIndex
-        unsafe self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: range)
+        self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: range)
         
         return start..<contentsEnd
     }
@@ -85,7 +86,7 @@ public extension StringProtocol {
         var start = self.startIndex
         var end = self.startIndex
         var contentsEnd = self.startIndex
-        unsafe self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
+        self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
         
         return start
     }
@@ -103,7 +104,7 @@ public extension StringProtocol {
         var start = self.startIndex
         var end = self.startIndex
         var contentsEnd = self.startIndex
-        unsafe self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
+        self.getLineStart(&start, end: &end, contentsEnd: &contentsEnd, for: index..<index)
         
         return contentsEnd
     }

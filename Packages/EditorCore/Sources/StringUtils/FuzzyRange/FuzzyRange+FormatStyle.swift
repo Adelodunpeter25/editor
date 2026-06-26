@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 extension FuzzyRange {
     
@@ -85,7 +85,7 @@ extension FuzzyRange {
         ///
         /// - Parameter value: The string representation of `FuzzyRange` instance.
         /// - Returns: A `FuzzyRange` instance.
-        public func parse(_ value: String) throws(ParseError) -> FuzzyRange {
+        public func parse(_ value: String) throws -> FuzzyRange {
             
             let components = value.split(separator: ":", omittingEmptySubsequences: false)
             
@@ -93,7 +93,7 @@ extension FuzzyRange {
                 (1...2).contains(components.count),
                 let location = Int(components[0]),
                 let length = (components.count > 1) ? Int(components[1]) : 0
-            else { throw .invalidValue }
+            else { throw ParseError.invalidValue }
             
             return FuzzyRange(location: location, length: length)
         }

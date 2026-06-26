@@ -38,9 +38,7 @@ public extension Unicode.Scalar {
             modifier.label
             
         } else if self.properties.isVariationSelector {
-            String(localized: "Variant",
-                   bundle: .module,
-                   comment: "label for general Unicode variation selectors")
+            "Variant"
             
         } else {
             nil
@@ -59,15 +57,9 @@ private enum EmojiVariationSelector: UInt32 {
         
         switch self {
             case .emoji:
-                String(localized: "EmojiVariationSelector.emoji.label",
-                       defaultValue: "Emoji Style",
-                       bundle: .module,
-                       comment: "label for the Unicode variation selector that forces to draw the character in the emoji style")
+                "Emoji Style"
             case .text:
-                String(localized: "EmojiVariationSelector.text.label",
-                       defaultValue: "Text Style",
-                       bundle: .module,
-                       comment: "label for the Unicode variation selector that forces to draw the character in the text style")
+                "Text Style"
         }
     }
 }

@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension Version {
     
@@ -84,10 +84,10 @@ extension Version {
         ///
         /// - Parameter value: The string representation of `Version` instance.
         /// - Returns: A `Version` instance.
-        public func parse(_ value: String) throws(ParseError) -> Version {
+        public func parse(_ value: String) throws -> Version {
             
             guard let version = Version(value) else {
-                throw .invalidValue
+                throw ParseError.invalidValue
             }
             
             return version

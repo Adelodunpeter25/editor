@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public struct FileScope: Equatable, Codable, Sendable {
     
@@ -45,7 +45,7 @@ public struct FileScope: Equatable, Codable, Sendable {
     /// Validates rules in the file scope.
     ///
     /// - Throws: `Error.emptyValue` if a rule value is empty, or `Error.invalidRegularExpression` if a regular expression rule is invalid.
-    public func validate() throws(Error) {
+    public func validate() throws {
         
         _ = try Matcher(self)
     }
@@ -102,7 +102,7 @@ public extension FileScope {
         /// Validates the rule.
         ///
         /// - Throws: `Error.emptyValue` if the rule value is empty, or `Error.invalidRegularExpression` if the regular expression pattern is invalid.
-        public func validate() throws(Error) {
+        public func validate() throws {
             
             guard !self.value.isEmpty else {
                 throw .emptyValue
@@ -157,7 +157,7 @@ extension FileScope {
         ///
         /// - Parameter fileScope: The file scope to match.
         /// - Throws: `Error.emptyValue` if a rule value is empty, or `Error.invalidRegularExpression` if a regular expression rule is invalid.
-        init(_ fileScope: FileScope) throws(FileScope.Error) {
+        init(_ fileScope: FileScope) throws {
             
             self.rules = try fileScope.rules.map(CompiledRule.init)
         }
@@ -195,7 +195,7 @@ private extension FileScope.Matcher {
         ///
         /// - Parameter rule: The file scope rule to compile.
         /// - Throws: `FileScope.Error.emptyValue` if the rule value is empty, or `FileScope.Error.invalidRegularExpression` if the regular expression pattern is invalid.
-        init(_ rule: FileScope.Rule) throws(FileScope.Error) {
+        init(_ rule: FileScope.Rule) throws {
             
             guard !rule.value.isEmpty else {
                 throw .emptyValue

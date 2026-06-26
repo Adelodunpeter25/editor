@@ -79,7 +79,7 @@ extension MultipleReplace.Replacement {
     ///
     /// - Parameter line: A single line of TSV input.
     /// - Throws: `TSVParseError.invalidFormat`.
-    init(line: any StringProtocol) throws(TSVParseError) {
+    init(line: any StringProtocol) throws {
         
         let items = line.split(separator: "\t", omittingEmptySubsequences: false)
         

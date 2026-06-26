@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension StringProtocol {
     
@@ -159,7 +159,7 @@ public extension String {
         
         let string = self as NSString
         var count = 0
-        unsafe string.enumerateSubstrings(in: range, options: [.byLines, .substringNotRequired]) { _, _, _, _ in
+        string.enumerateSubstrings(in: range, options: [.byLines, .substringNotRequired]) { _, _, _, _ in
             count += 1
         }
         

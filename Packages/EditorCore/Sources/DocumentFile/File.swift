@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 import UniformTypeIdentifiers
 import URLUtils
 

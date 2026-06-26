@@ -38,7 +38,7 @@ public protocol SortPattern: Equatable, Sendable {
     
     func sortKey(for line: String) -> String?
     func range(for line: String) -> Range<String.Index>?
-    func validate() throws(SortPatternError)
+    func validate() throws
 }
 
 

@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 import StringUtils
 
 public extension String {
@@ -257,7 +257,10 @@ public extension String {
         
         let replacementStrings = ranges
             .map { (self as NSString).substring(with: $0) }
-            .map { $0.replacing(/\s*\R\s*/, with: " ") }
+            .map { 
+                let regex = try! Regex("\\s*\\R\\s*")
+                return $0.replacing(regex, with: " ") 
+            }
         var selectedRanges: [NSRange] = []
         var offset = 0
         for (range, replacementString) in zip(ranges, replacementStrings) {

@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension NSRegularExpression {
     
@@ -39,9 +39,9 @@ public extension NSRegularExpression {
     final func cancellableMatches(in string: String, options: MatchingOptions = [], range: NSRange) throws -> [NSTextCheckingResult] {
         
         var matches: [NSTextCheckingResult] = []
-        unsafe self.enumerateMatches(in: string, options: options, range: range) { match, _, stopPointer in
+        self.enumerateMatches(in: string, options: options, range: range) { match, _, stopPointer in
             if Task.isCancelled {
-                unsafe stopPointer.pointee = ObjCBool(true)
+                stopPointer.pointee = ObjCBool(true)
                 return
             }
             
@@ -67,9 +67,9 @@ public extension NSRegularExpression {
     final func cancellableMatchRanges(in string: String, options: MatchingOptions = [], range: NSRange) throws -> [NSRange] {
         
         var ranges: [NSRange] = []
-        unsafe self.enumerateMatches(in: string, options: options, range: range) { match, _, stopPointer in
+        self.enumerateMatches(in: string, options: options, range: range) { match, _, stopPointer in
             if Task.isCancelled {
-                unsafe stopPointer.pointee = ObjCBool(true)
+                stopPointer.pointee = ObjCBool(true)
                 return
             }
             

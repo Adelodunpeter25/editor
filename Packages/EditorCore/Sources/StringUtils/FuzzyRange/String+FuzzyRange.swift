@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 public extension String {
     
@@ -110,16 +110,16 @@ public extension String {
     ///   - line: The number of the line that allows also a negative value.
     ///   - column: The number of the column that allows also a negative value.
     /// - Returns: An NSRange-based cursor location.
-    func fuzzyLocation(line: Int, column: Int = 0) throws(FuzzyLocationError) -> Int {
+    func fuzzyLocation(line: Int, column: Int = 0) throws -> Int {
         
         let fuzzyLineRange = FuzzyRange(location: line == 0 ? 1 : line, length: 0)
         guard let lineRange = self.rangeForLine(in: fuzzyLineRange, includingLineEnding: false) else {
-            throw .invalidLine(line)
+            throw FuzzyLocationError.invalidLine(line)
         }
         
         let fuzzyColumnRange = FuzzyRange(location: column, length: 0)
         guard let rangeInLine = (self as NSString).substring(with: lineRange).range(in: fuzzyColumnRange) else {
-            throw .invalidColumn(column)
+            throw FuzzyLocationError.invalidColumn(column)
         }
         
         return lineRange.location + rangeInLine.location

@@ -67,8 +67,9 @@ public struct Version: Sendable {
     
     public init?(_ string: String) {
         
+        let regex = try! Regex("(?<major>0|[1-9][0-9]*)\\.(?<minor>0|[1-9][0-9]*)\\.(?<patch>0|[1-9][0-9]*)(-(?<prerelease>.+))?")
         guard
-            let match = string.wholeMatch(of: /(?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?<patch>0|[1-9][0-9]*)(-(?<prerelease>.+))?/),
+            let match = string.wholeMatch(of: regex),
             let major = Int(match.major),
             let minor = Int(match.minor),
             let patch = Int(match.patch)
@@ -92,7 +93,8 @@ extension Version.Prerelease {
     
     init(rawValue: String) {
         
-        if let match = rawValue.wholeMatch(of: /(?<token>[a-z]+)(\.(?<number>[0-9]+))?/) {
+        let regex = try! Regex("(?<token>[a-z]+)(\\.(?<number>[0-9]+))?")
+        if let match = rawValue.wholeMatch(of: regex) {
             let rawNumber = match.number.map(String.init)
             
             if let rawNumber, rawNumber.count > 1, rawNumber.first == "0" {

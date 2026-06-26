@@ -33,33 +33,19 @@ public extension UnicodeNormalizationForm {
         
         switch self {
             case .nfd:
-                String(localized: "UnicodeNormalization.nfd.label",
-                       defaultValue: "NFD",
-                       bundle: .module)
+                "NFD"
             case .nfc:
-                String(localized: "UnicodeNormalization.nfc.label",
-                       defaultValue: "NFC",
-                       bundle: .module)
+                "NFC"
             case .nfkd:
-                String(localized: "UnicodeNormalization.nfkd.label",
-                       defaultValue: "NFKD",
-                       bundle: .module)
+                "NFKD"
             case .nfkc:
-                String(localized: "UnicodeNormalization.nfkc.label",
-                       defaultValue: "NFKC",
-                       bundle: .module)
+                "NFKC"
             case .nfkcCaseFold:
-                String(localized: "UnicodeNormalization.nfkcCaseFold.label",
-                       defaultValue: "NFKC Case-Fold",
-                       bundle: .module)
+                "NFKC Case-Fold"
             case .modifiedNFD:
-                String(localized: "UnicodeNormalization.modifiedNFD.label",
-                       defaultValue: "Modified NFD",
-                       bundle: .module)
+                "Modified NFD"
             case .modifiedNFC:
-                String(localized: "UnicodeNormalization.modifiedNFC.label",
-                       defaultValue: "Modified NFC",
-                       bundle: .module)
+                "Modified NFC"
         }
     }
     
@@ -69,40 +55,19 @@ public extension UnicodeNormalizationForm {
         
         switch self {
             case .nfd:
-                String(localized: "UnicodeNormalization.nfd.description",
-                       defaultValue: "Canonical Decomposition",
-                       bundle: .module,
-                       comment: "description for NFD")
+                "Canonical Decomposition"
             case .nfc:
-                String(localized: "UnicodeNormalization.nfc.description",
-                       defaultValue: "Canonical Decomposition, followed by Canonical Composition",
-                       bundle: .module,
-                       comment: "description for NFC")
+                "Canonical Decomposition, followed by Canonical Composition"
             case .nfkd:
-                String(localized: "UnicodeNormalization.nfkd.description",
-                       defaultValue: "Compatibility Decomposition",
-                       bundle: .module,
-                       comment: "description for NFKD")
+                "Compatibility Decomposition"
             case .nfkc:
-                String(localized: "UnicodeNormalization.nfkc.description",
-                       defaultValue: "Compatibility Decomposition, followed by Canonical Composition",
-                       bundle: .module,
-                       comment: "description for NFKC")
+                "Compatibility Decomposition, followed by Canonical Composition"
             case .nfkcCaseFold:
-                String(localized: "UnicodeNormalization.nfkcCaseFold.description",
-                       defaultValue: "Applying NFKC, case folding, and removal of default-ignorable code points",
-                       bundle: .module,
-                       comment: "description for NFKC case-fold")
+                "Applying NFKC, case folding, and removal of default-ignorable code points"
             case .modifiedNFD:
-                String(localized: "UnicodeNormalization.modifiedNFD.description",
-                       defaultValue: "Unofficial NFD-based normalization form used in HFS+",
-                       bundle: .module,
-                       comment: "description for Modified NFD")
+                "Unofficial NFD-based normalization form used in HFS+"
             case .modifiedNFC:
-                String(localized: "UnicodeNormalization.modifiedNFC.description",
-                       defaultValue: "Unofficial NFC-based normalization form corresponding to Modified NFD",
-                       bundle: .module,
-                       comment: "description for Modified NFC")
+                "Unofficial NFC-based normalization form corresponding to Modified NFD"
         }
     }
 }

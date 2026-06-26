@@ -23,7 +23,7 @@
 //  limitations under the License.
 //
 
-public import Observation
+import Observation
 import Synchronization
 
 @Observable public final class FindProgress: Sendable {

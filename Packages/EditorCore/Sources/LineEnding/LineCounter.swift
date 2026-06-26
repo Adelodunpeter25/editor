@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import ValueRange
+import ValueRange
 
 /// Counts line endings lazily.
 public final class LineCounter: LazyLineEndingCaching {

@@ -23,7 +23,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 import ValueRange
 import StringUtils
 
@@ -154,7 +154,7 @@ extension MultipleReplace {
     ///   - inSelection: Whether find only in selection.
     ///   - progress: The progress object to observe cancellation by the user and notify the find progress.
     /// - Returns: The found ranges. This method will return once all search is finished.
-    public func find(string: String, ranges: [NSRange], inSelection: Bool, progress: FindProgress? = nil) throws(CancellationError) -> [NSRange] {
+    public func find(string: String, ranges: [NSRange], inSelection: Bool, progress: FindProgress? = nil) throws -> [NSRange] {
         
         var result: [NSRange] = []
         
@@ -194,7 +194,7 @@ extension MultipleReplace {
     ///   - inSelection: Whether replace only in selection.
     ///   - progress: The progress object to observe cancellation by the user and notify the replacement progress.
     /// - Returns: The result of the replacement. This method will return once all replacement is finished.
-    public func replace(string: String, ranges: [NSRange], inSelection: Bool, progress: FindProgress? = nil) throws(CancellationError) -> Result {
+    public func replace(string: String, ranges: [NSRange], inSelection: Bool, progress: FindProgress? = nil) throws -> Result {
         
         var result = Result(string: string, selectedRanges: ranges)
         
@@ -288,7 +288,7 @@ extension MultipleReplace.Replacement {
     /// Checks if replacement rule is valid.
     ///
     /// - Parameter regexOptions: The regular expression options to validate with.
-    public func validate(regexOptions: NSRegularExpression.Options = []) throws(TextFind.Error) {
+    public func validate(regexOptions: NSRegularExpression.Options = []) throws {
         
         guard !self.findString.isEmpty else {
             throw .emptyFindString
