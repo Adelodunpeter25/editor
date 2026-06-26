@@ -273,15 +273,25 @@ final class TabChipView: PointerView, NSDraggingSource {
     titleLabel.textColor = isActive ? .labelColor : .secondaryLabelColor
     titleLabel.lineBreakMode = .byTruncatingTail
 
-    closeButton.title = "✕"
     closeButton.isBordered = false
     closeButton.bezelStyle = .inline
     closeButton.font = .systemFont(ofSize: 10)
     closeButton.contentTintColor = .tertiaryLabelColor
-    closeButton.toolTip = "Close tab"
     closeButton.target = self
-    closeButton.action = #selector(closeTapped)
     closeButton.setContentHuggingPriority(.required, for: .horizontal)
+
+    if pinned {
+      closeButton.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Unpin tab")?
+        .withSymbolConfiguration(.init(pointSize: 9, weight: .regular))
+      closeButton.title = ""
+      closeButton.toolTip = "Unpin tab"
+      closeButton.action = #selector(pinTapped)
+    } else {
+      closeButton.image = nil
+      closeButton.title = "✕"
+      closeButton.toolTip = "Close tab"
+      closeButton.action = #selector(closeTapped)
+    }
 
     let stack = NSStackView(views: [indicator, titleLabel, closeButton])
     stack.orientation = .horizontal
