@@ -60,4 +60,37 @@ enum ProjectSearch {
     }
     return Result(files: files, failed: false)
   }
+
+  /// Replace all occurrences of `query` with `replacement` across the given files (from a prior
+  /// `run` result). Returns the number of files modified. Uses the same options (matchCase/wholeWord/
+  /// regex) as `run`. For non-regex mode the query is treated as a literal string. For regex mode,
+  /// `$1`/`$2` capture groups are supported.
+  static func replaceAll(
+    _ query: String, with replacement: String, in repo: String,
+    options: Options, files: [FileHits]
+  ) -> Int {
+    guard !query.isEmpty, !files.isEmpty else { return 0 }
+
+    // Build the regex for replacement.
+    var pattern = options.regex ? query : NSRegularExpression.escapedPattern(for: query)
+    if options.wholeWord { pattern = "\\b" + pattern + "\\b" }
+    let regexOpts: NSRegularExpression.Options = options.matchCase ? [] : [.caseInsensitive]
+    guard let regex = try? NSRegularExpression(pattern: pattern, options: regexOpts) else { return 0 }
+
+    var changedCount = 0
+    for hit in files {
+      let absPath = (repo as NSString).appendingPathComponent(hit.file)
+      guard let content = try? String(contentsOfFile: absPath, encoding: .utf8) else { continue }
+      let mutable = NSMutableString(string: content)
+      let range = NSRange(location: 0, length: mutable.length)
+      let replaced = regex.replaceMatches(
+        in: mutable, range: range, withTemplate: replacement)
+      if replaced > 0 {
+        let newContent = mutable as String
+        try? newContent.write(toFile: absPath, atomically: true, encoding: .utf8)
+        changedCount += 1
+      }
+    }
+    return changedCount
+  }
 }

@@ -60,6 +60,9 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
   private var highlightRegex: NSRegularExpression?
 
   private let field = NSSearchField()
+  private let replaceField = NSSearchField()
+  private let replaceToggleBtn = PointerButton()
+  private let replaceAllBtn = PointerButton()
   private let caseBtn = PointerButton()
   private let wordBtn = PointerButton()
   private let regexBtn = PointerButton()
@@ -67,6 +70,7 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
   private let summary = NSTextField(labelWithString: "")
   private let outline = SearchOutlineView()
   private let scroll = NSScrollView()
+  private let replaceBar = NSView()  // container for replaceField + Replace All button (hidden by default)
 
   /// Sidebar-only: promote the current search to a standalone tab (carrying query + toggles).
   var onOpenAsTab: ((String, ProjectSearch.Options) -> Void)?
@@ -110,6 +114,18 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
     field.setContentHuggingPriority(.defaultLow, for: .horizontal)
     field.translatesAutoresizingMaskIntoConstraints = false
 
+    // Replace toggle (chevron) — shows/hides the replace field.
+    replaceToggleBtn.image = NSImage(
+      systemSymbolName: "chevron.right", accessibilityDescription: nil)?
+      .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
+    replaceToggleBtn.isBordered = false
+    replaceToggleBtn.contentTintColor = NSColor(white: 0.6, alpha: 1)
+    replaceToggleBtn.toolTip = "Toggle replace"
+    replaceToggleBtn.target = self
+    replaceToggleBtn.action = #selector(toggleReplace)
+    replaceToggleBtn.setContentHuggingPriority(.required, for: .horizontal)
+    replaceToggleBtn.translatesAutoresizingMaskIntoConstraints = false
+
     openAsTabBtn.image = NSImage(
       systemSymbolName: "arrow.up.right.square", accessibilityDescription: "Open as tab")?
       .withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
@@ -123,11 +139,39 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
     openAsTabBtn.isHidden = !isPrimary  // only the sidebar instance promotes to a tab
     openAsTabBtn.translatesAutoresizingMaskIntoConstraints = false
 
-    let fieldRow = NSStackView(views: [field, openAsTabBtn])
+    let fieldRow = NSStackView(views: [replaceToggleBtn, field, openAsTabBtn])
     fieldRow.orientation = .horizontal
     fieldRow.spacing = 6
     fieldRow.alignment = .centerY
     fieldRow.translatesAutoresizingMaskIntoConstraints = false
+
+    // Replace field + Replace All button (hidden by default).
+    replaceField.placeholderString = "Replace"
+    replaceField.font = .systemFont(ofSize: 12)
+    replaceField.focusRingType = .none
+    replaceField.sendsWholeSearchString = false
+    replaceField.sendsSearchStringImmediately = false
+    replaceField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    replaceField.translatesAutoresizingMaskIntoConstraints = false
+
+    replaceAllBtn.title = "Replace All"
+    replaceAllBtn.bezelStyle = .rounded
+    replaceAllBtn.font = .systemFont(ofSize: 11)
+    replaceAllBtn.toolTip = "Replace all matches in all files"
+    replaceAllBtn.target = self
+    replaceAllBtn.action = #selector(replaceAllTapped)
+    replaceAllBtn.setContentHuggingPriority(.required, for: .horizontal)
+    replaceAllBtn.translatesAutoresizingMaskIntoConstraints = false
+
+    let replaceRow = NSStackView(views: [replaceField, replaceAllBtn])
+    replaceRow.orientation = .horizontal
+    replaceRow.spacing = 6
+    replaceRow.alignment = .centerY
+    replaceRow.translatesAutoresizingMaskIntoConstraints = false
+
+    replaceBar.addSubview(replaceRow)
+    replaceBar.translatesAutoresizingMaskIntoConstraints = false
+    replaceBar.isHidden = true  // hidden by default
 
     configToggle(caseBtn, "Aa", "Match Case")
     configToggle(wordBtn, "ab", "Whole Word")
@@ -165,6 +209,7 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
     scroll.translatesAutoresizingMaskIntoConstraints = false
 
     root.addSubview(fieldRow)
+    root.addSubview(replaceBar)
     root.addSubview(summary)
     root.addSubview(toggles)
     root.addSubview(scroll)
@@ -173,7 +218,15 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
       fieldRow.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10),
       fieldRow.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10),
 
-      toggles.topAnchor.constraint(equalTo: fieldRow.bottomAnchor, constant: 6),
+      replaceBar.topAnchor.constraint(equalTo: fieldRow.bottomAnchor, constant: 4),
+      replaceBar.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10),
+      replaceBar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10),
+      replaceRow.topAnchor.constraint(equalTo: replaceBar.topAnchor),
+      replaceRow.bottomAnchor.constraint(equalTo: replaceBar.bottomAnchor),
+      replaceRow.leadingAnchor.constraint(equalTo: replaceBar.leadingAnchor),
+      replaceRow.trailingAnchor.constraint(equalTo: replaceBar.trailingAnchor),
+
+      toggles.topAnchor.constraint(equalTo: replaceBar.bottomAnchor, constant: 6),
       toggles.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10),
       summary.centerYAnchor.constraint(equalTo: toggles.centerYAnchor),
       summary.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10),
@@ -217,6 +270,52 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
   }
 
   @objc private func openAsTabTapped() { onOpenAsTab?(field.stringValue, options) }
+
+  @objc private func toggleReplace() {
+    replaceBar.isHidden.toggle()
+    let chevronName = replaceBar.isHidden ? "chevron.right" : "chevron.down"
+    replaceToggleBtn.image = NSImage(
+      systemSymbolName: chevronName, accessibilityDescription: nil)?
+      .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
+    if !replaceBar.isHidden {
+      view.window?.makeFirstResponder(replaceField)
+    }
+  }
+
+  @objc private func replaceAllTapped() {
+    let q = field.stringValue
+    guard !q.isEmpty, !nodes.isEmpty else { return }
+    let replacement = replaceField.stringValue
+
+    // Confirm before modifying files.
+    let matchCount = nodes.reduce(0) { $0 + $1.matches.count }
+    let alert = NSAlert()
+    alert.messageText = "Replace all?"
+    alert.informativeText =
+      "Replace \(matchCount) match\(matchCount == 1 ? "" : "es") in \(nodes.count) file\(nodes.count == 1 ? "" : "s") with \"\(replacement)\"?"
+    alert.addButton(withTitle: "Replace All")
+    alert.addButton(withTitle: "Cancel")
+    alert.alertStyle = .warning
+    guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+    // Run the replace off-main, then re-search to refresh results.
+    let opts = options
+    let repo = self.repo
+    let fileHits = nodes.map { ProjectSearch.FileHits(file: $0.file, matches: []) }
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let changed = ProjectSearch.replaceAll(
+        q, with: replacement, in: repo, options: opts, files: fileHits)
+      DispatchQueue.main.async {
+        guard let self else { return }
+        if changed > 0 {
+          // Notify any open diff views that file content changed on disk.
+          NotificationCenter.default.post(name: .editorFileTextDidChange, object: nil)
+          // Re-run the search to refresh results (matches may have changed).
+          self.runSearch(debounced: false)
+        }
+      }
+    }
+  }
 
   /// Apply a query + toggle state and search — used to seed a standalone tab from the sidebar's "Open as Tab".
   func seed(_ query: String, _ options: ProjectSearch.Options) {
