@@ -107,6 +107,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     DebugHarness.start(model: model)  // dev-only (inert in release)
+
+    // Pre-warm the most common tree-sitter grammars in the background so the first file
+    // open is instant. LanguageRegistry.configuration() reads + compiles query files from
+    // the bundle on the first call (cold); subsequent calls return the cached result.
+    // Running this early means the cache is hot before the user clicks any file.
+    EditorViewController.highlightQueue.async {
+      let common = ["swift", "python", "javascript", "typescript", "rust", "go",
+                    "shell", "markdown", "css", "html", "json", "yaml"]
+      for lang in common { _ = TreeSitterHighlighter.forLanguage(lang) }
+    }
   }
 
   private func showSettingsWindow() {

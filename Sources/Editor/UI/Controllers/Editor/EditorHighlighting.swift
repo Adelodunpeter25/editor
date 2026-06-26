@@ -8,15 +8,22 @@ extension EditorViewController {
   /// re-highlight keeps multi-line regions (strings/comments spanning the edit) correct; running it
   /// off-main means even a large file never blocks typing or scrolling. Edits coalesce via a 150 ms
   /// debounce, and a sequence number drops any pass that a newer edit has superseded.
+  ///
+  /// Optimisation: the text snapshot is taken on main (AppKit requires it), then the entire
+  /// async highlight pipeline is dispatched to the background — the main thread is free the
+  /// moment the snapshot is captured, so even the very first file open feels instant.
   func requestHighlight(debounced: Bool) {
     guard let highlighter else { return }
     highlightSeq += 1
     let seq = highlightSeq
     rehighlightWork?.cancel()
+
+    // Snapshot text on main now (AppKit string is main-thread-only).
+    let content = textView.string
+
     let work = DispatchWorkItem { [weak self] in
-      guard let self else { return }
-      let content = self.textView.string
-      Task {
+      guard let self, self.highlightSeq == seq else { return }
+      Task { [weak self, highlighter] in
         let spans = await highlighter.spans(for: content)
         await MainActor.run { [weak self] in
           guard let self, self.highlightSeq == seq else { return }  // a newer edit won
@@ -25,11 +32,10 @@ extension EditorViewController {
       }
     }
     rehighlightWork = work
-    if debounced {
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
-    } else {
-      work.perform()
-    }
+    // Both debounced and immediate paths run on the highlight queue, not on main.
+    // This keeps main free for the first paint (plain text) while colours are computed.
+    let delay: DispatchTimeInterval = debounced ? .milliseconds(150) : .milliseconds(0)
+    EditorViewController.highlightQueue.asyncAfter(deadline: .now() + delay, execute: work)
   }
 
   /// Recolour the storage from computed spans (text/selection/undo untouched). Skipped if the text
