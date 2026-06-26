@@ -47,7 +47,8 @@ enum Git {
       return cached
     }
     isRepoLock.unlock()
-    let result = Shell.run(git, ["-C", repo, "rev-parse", "--is-inside-work-tree"]) == "true"
+    let gitPath = (repo as NSString).appendingPathComponent(".git")
+    let result = FileManager.default.fileExists(atPath: gitPath)
     isRepoLock.lock()
     isRepoCache[repo] = result
     isRepoLock.unlock()
