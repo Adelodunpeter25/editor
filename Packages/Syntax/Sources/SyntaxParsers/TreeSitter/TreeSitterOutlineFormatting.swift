@@ -166,9 +166,9 @@ extension OutlinePolicy {
         
         guard let node else { return 0 }
         
-        return sequence(first: node, next: \.parent).count { node in
+        return sequence(first: node, next: \.parent).filter { node in
             self.ignoredDepthNodeTypes.isEmpty || !self.ignoredDepthNodeTypes.contains(node.nodeType ?? "")
-        }
+        }.count
     }
     
     

@@ -55,12 +55,12 @@ actor RegexOutlineParser: OutlineParsing {
     /// - Throws: `CancellationError`.
     func parseOutline(in string: String) async throws -> [OutlineItem] {
         
-        let normalizedItems = try await withThrowingTaskGroup { [extractors, policy] group in
+        let normalizedItems = try await withThrowingTaskGroup(of: [OutlineItem].self) { [extractors, policy] group in
             for extractor in extractors {
                 group.addTask { try extractor.items(in: string, range: string.range) }
             }
             
-            let items = try await group.reduce(into: []) { $0 += $1 }
+            let items = try await group.reduce(into: [OutlineItem]()) { $0 += $1 }
                 .sorted(using: [KeyPathComparator(\.range.location),
                                 KeyPathComparator(\.range.length)])
             

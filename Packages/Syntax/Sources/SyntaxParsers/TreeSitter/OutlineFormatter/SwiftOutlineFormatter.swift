@@ -52,7 +52,7 @@ enum SwiftOutlineFormatter: TreeSitterOutlineFormatting {
         guard kind == .mark else { return title }
 
         let comment = Self.commentContent(in: title)
-            .replacing(/^MARK:\s*-?\s*/, with: "")
+            .replacingOccurrences(of: "^MARK:\\s*-?\\s*", with: "", options: .regularExpression)
 
         return comment.isEmpty ? nil : comment
     }
@@ -67,12 +67,14 @@ private extension SwiftOutlineFormatter {
     /// - Returns: The title text without surrounding comment delimiters.
     static func commentContent(in title: String) -> String {
         
-        if let match = title.wholeMatch(of: /\/\/\s*(.+)/) {  // inline comment
-            String(match.output.1).trimmingCharacters(in: .whitespacesAndNewlines)
-        } else if let match = title.wholeMatch(of: /\/\*+\s*(.+)\s*\*\//) {  // block comment
-            String(match.output.1).trimmingCharacters(in: .whitespacesAndNewlines)
+        if let match = title.wholeMatch(of: try! Regex("\\/\\/\\s*(.+)")) {  // inline comment
+            let group1: Substring = match.output[1].substring ?? Substring()
+            return String(group1).trimmingCharacters(in: .whitespacesAndNewlines)
+        } else if let match = title.wholeMatch(of: try! Regex("\\/\\*+\\s*(.+)\\s*\\*\\/")) {  // block comment
+            let group1: Substring = match.output[1].substring ?? Substring()
+            return String(group1).trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            title
+            return title
         }
     }
     
@@ -123,7 +125,8 @@ private extension SwiftOutlineFormatter {
     /// - Returns: The initializer display name, if it can be derived.
     private static func initializerBaseName(in signatureText: String) -> String? {
         
-        signatureText.firstMatch(of: /^init[!?]?/).map { String($0.output) }
+        guard let match = signatureText.firstMatch(of: try! Regex("^init[!?]?")) else { return nil }
+        return String(describing: match.output)
     }
     
     

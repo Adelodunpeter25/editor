@@ -43,7 +43,7 @@ enum LaTeXOutlineFormatter: TreeSitterOutlineFormatting {
     static func formatTitle(_ title: String, kind: Syntax.Outline.Kind) -> String? {
         
         let normalized = title
-            .replacing(/\s+/, with: " ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
         return normalized.isEmpty ? nil : normalized

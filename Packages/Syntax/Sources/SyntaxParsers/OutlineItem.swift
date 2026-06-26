@@ -24,8 +24,8 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import SyntaxFormat
+import Foundation
+import SyntaxFormat
 
 public struct OutlineItem: Hashable, Equatable, Sendable, Identifiable {
     

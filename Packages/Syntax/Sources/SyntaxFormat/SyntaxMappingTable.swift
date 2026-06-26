@@ -116,16 +116,21 @@ public struct SyntaxMappingTable: Equatable, Sendable {
     /// - Returns: The interpreter name if found; otherwise `nil`.
     static func scanInterpreterInShebang(_ source: String) -> SyntaxName? {
         
+        let regex = try! Regex("#!\\s*(?<first>\\S+)(?<rest>[^\\n]*)")
         guard
-            let shebang = source.firstMatch(of: /^#!\s*(?<first>\S+)(?<rest>[^\n]*)/),
-            let interpreter = shebang.first.split(separator: "/").last
+            let shebang = source.firstMatch(of: regex),
+            let firstMatch: Substring = shebang["first"]?.substring,
+            let interpreter = firstMatch.split(separator: "/").last
         else { return nil }
         
         if interpreter == "env" {
-            return shebang.rest
-                .split(whereSeparator: \.isWhitespace)
-                .first { !$0.hasPrefix("-") }
-                .map(String.init)
+            if let restMatch: Substring = shebang["rest"]?.substring {
+                return restMatch
+                    .split(whereSeparator: { $0.isWhitespace })
+                    .first { !$0.hasPrefix("-") }
+                    .map(String.init)
+            }
+            return nil
         }
         
         return String(interpreter)

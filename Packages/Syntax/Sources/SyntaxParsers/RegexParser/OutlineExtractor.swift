@@ -69,24 +69,27 @@ struct OutlineExtractor: Sendable {
                 let title = (self.template.isEmpty
                              ? (string as NSString).substring(with: result.range)
                              : self.regex.replacementString(for: result, in: string, offset: 0, template: self.template))
-                    .replacing(/(\S)\s+/) { "\($0.1) " }
+                    .replacingOccurrences(of: "(\\S)\\s+", with: "$1 ", options: .regularExpression)
                 
+                let indentRegex = try! Regex("(?<indent>\\s*)(?<title>.+)$")
                 guard
-                    let match = title.firstMatch(of: /^(?<indent>\s*)(?<title>.+)$/),
-                    !match.title.isEmpty
+                    let match = title.firstMatch(of: indentRegex),
+                    let titleMatch: Substring = match["title"]?.substring,
+                    !titleMatch.isEmpty
                 else { return nil }
                 
                 let kind: Syntax.Outline.Kind? = switch self.kind {
                     case .heading(_?): .heading(nil)
                     default: self.kind
                 }
+                let indentMatch: Substring = match["indent"]?.substring ?? Substring()
                 let indent: OutlineItem.Indent = switch self.kind {
                     case .title: .level(0)
                     case .heading(let level?): .level(level)
-                    default: .string(String(match.indent))
+                    default: .string(String(indentMatch))
                 }
                 
-                return OutlineItem(title: String(match.title), range: result.range, kind: kind, indent: indent)
+                return OutlineItem(title: String(titleMatch), range: result.range, kind: kind, indent: indent)
             }
     }
 }

@@ -109,9 +109,9 @@ private extension ScalaOutlineFormatter {
     private static func normalizedClause(_ clause: String) -> String {
         
         clause
-            .replacing(/\s+/, with: " ")
-            .replacing(/\(\s+/, with: "(")
-            .replacing(/\s+\)/, with: ")")
-            .replacing(/\s*,\s*/, with: ", ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
+            .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
     }
 }

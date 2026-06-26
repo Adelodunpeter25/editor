@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import SyntaxFormat
+import SyntaxFormat
 
 import TreeSitterBash
 import TreeSitterC
@@ -102,28 +102,28 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     var language: OpaquePointer {
         
         switch self {
-            case .bash: unsafe tree_sitter_bash()
-            case .c: unsafe tree_sitter_c()
-            case .cpp: unsafe tree_sitter_cpp()
-            case .cSharp: unsafe tree_sitter_c_sharp()
-            case .css: unsafe tree_sitter_css()
-            case .go: unsafe tree_sitter_go()
-            case .html: unsafe tree_sitter_html()
-            case .java: unsafe tree_sitter_java()
-            case .javaScript: unsafe tree_sitter_javascript()
-            case .kotlin: unsafe tree_sitter_kotlin()
-            case .latex: unsafe tree_sitter_latex()
-            case .lua: unsafe tree_sitter_lua()
-            case .makefile: unsafe tree_sitter_make()
-            case .markdown: unsafe tree_sitter_markdown()
-            case .php: unsafe tree_sitter_php()
-            case .python: unsafe tree_sitter_python()
-            case .ruby: unsafe tree_sitter_ruby()
-            case .rust: unsafe tree_sitter_rust()
-            case .scala: unsafe tree_sitter_scala()
-            case .sql: unsafe tree_sitter_sql()
-            case .swift: unsafe tree_sitter_swift()
-            case .typeScript: unsafe tree_sitter_typescript()
+            case .bash: tree_sitter_bash()
+            case .c: tree_sitter_c()
+            case .cpp: tree_sitter_cpp()
+            case .cSharp: tree_sitter_c_sharp()
+            case .css: tree_sitter_css()
+            case .go: tree_sitter_go()
+            case .html: tree_sitter_html()
+            case .java: tree_sitter_java()
+            case .javaScript: tree_sitter_javascript()
+            case .kotlin: tree_sitter_kotlin()
+            case .latex: tree_sitter_latex()
+            case .lua: tree_sitter_lua()
+            case .makefile: tree_sitter_make()
+            case .markdown: tree_sitter_markdown()
+            case .php: tree_sitter_php()
+            case .python: tree_sitter_python()
+            case .ruby: tree_sitter_ruby()
+            case .rust: tree_sitter_rust()
+            case .scala: tree_sitter_scala()
+            case .sql: tree_sitter_sql()
+            case .swift: tree_sitter_swift()
+            case .typeScript: tree_sitter_typescript()
         }
     }
 }

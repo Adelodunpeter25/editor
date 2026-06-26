@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 
 /// Support for reading and writing `Syntax` as a package.
 ///

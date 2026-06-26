@@ -24,7 +24,7 @@
 //  limitations under the License.
 //
 
-public import Foundation
+import Foundation
 import OSLog
 import UniformTypeIdentifiers
 import Yams

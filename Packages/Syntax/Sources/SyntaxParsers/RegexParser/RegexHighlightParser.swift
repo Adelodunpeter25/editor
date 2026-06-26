@@ -60,7 +60,7 @@ actor RegexHighlightParser: HighlightParsing {
     /// - Throws: `CancellationError`.
     func parseHighlights(in string: String, range: NSRange) async throws -> (highlights: [Highlight], updateRange: NSRange)? {
         
-        try await withThrowingTaskGroup { [extractors, nestables] group in
+        try await withThrowingTaskGroup(of: [SyntaxType: [NSRange]].self) { [extractors, nestables] group in
             group.addTask { try nestables.parseHighlights(in: string, range: range) }
             
             for (type, extractors) in extractors {
@@ -69,7 +69,7 @@ actor RegexHighlightParser: HighlightParsing {
                 }
             }
             
-            let dictionary: [SyntaxType: [NSRange]] = try await group.reduce(into: [:]) { dictionary, partial in
+            let dictionary: [SyntaxType: [NSRange]] = try await group.reduce(into: [SyntaxType: [NSRange]]()) { dictionary, partial in
                 for (type, ranges) in partial {
                     dictionary[type, default: []].append(contentsOf: ranges)
                 }

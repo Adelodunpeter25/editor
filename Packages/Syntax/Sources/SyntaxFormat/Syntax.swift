@@ -25,7 +25,7 @@
 //  limitations under the License.
 //
 
-public import StringUtils
+import StringUtils
 import Foundation
 
 public struct Syntax: Equatable, Sendable {

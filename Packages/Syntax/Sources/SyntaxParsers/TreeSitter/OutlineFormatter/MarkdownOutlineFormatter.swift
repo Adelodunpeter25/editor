@@ -44,8 +44,8 @@ enum MarkdownOutlineFormatter: TreeSitterOutlineFormatting {
             .first.map(String.init) ?? title
         
         let normalized = firstLine
-            .replacing(/^#{1,6}[ \t]*/, with: "")  // ATX prefix
-            .replacing(/[ \t]*#+[ \t]*$/, with: "")  // optional ATX closing
+            .replacingOccurrences(of: "^#{1,6}[ \\t]*", with: "", options: .regularExpression)  // ATX prefix
+            .replacingOccurrences(of: "[ \\t]*#+[ \\t]*$", with: "", options: .regularExpression)  // optional ATX closing
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
         return normalized.isEmpty ? nil : normalized

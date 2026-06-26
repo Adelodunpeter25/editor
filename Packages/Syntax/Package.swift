@@ -79,7 +79,8 @@ let package = Package(
                 .product(name: "TreeSitterSql", package: "tree-sitter-sql"),
                 .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
                 .product(name: "TreeSitterTypeScript", package: "tree-sitter-typescript"),
-            ]
+            ],
+            resources: [.copy("Queries")]
         ),
         
         .executableTarget(

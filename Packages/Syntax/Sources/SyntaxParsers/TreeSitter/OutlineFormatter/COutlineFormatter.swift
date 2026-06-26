@@ -64,7 +64,7 @@ private extension COutlineFormatter {
         else { return nil }
         
         let parameterList = source.substring(with: parameters.range)
-            .replacing(/\s+/, with: " ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
         let title = source.substring(with: name.range) + parameterList
         let range = name.range.union(parameters.range)
         

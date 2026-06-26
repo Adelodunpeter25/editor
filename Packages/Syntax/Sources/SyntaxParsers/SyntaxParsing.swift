@@ -24,9 +24,9 @@
 //  limitations under the License.
 //
 
-public import Foundation
-public import SyntaxFormat
-public import ValueRange
+import Foundation
+import SyntaxFormat
+import ValueRange
 
 public typealias Highlight = ValueRange<SyntaxType>
 

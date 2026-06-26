@@ -25,7 +25,6 @@
 //
 
 import Foundation
-import Synchronization
 import SwiftTreeSitter
 
 extension Query.Definition {
@@ -51,7 +50,8 @@ public final class LanguageRegistry: Sendable {
     // MARK: Private Properties
     
     private let directoryURL: URL
-    private let cachedConfiguration: Mutex<[TreeSitterSyntax: LanguageConfiguration]> = .init([:])
+    private let lock = NSLock()
+    private var cachedConfiguration: [TreeSitterSyntax: LanguageConfiguration] = [:]
     
     
     // MARK: Lifecycle
@@ -69,7 +69,7 @@ public final class LanguageRegistry: Sendable {
     /// - Parameters:
     ///   - name: The provider or injection name (e.g., "javascript", "markdown_inline").
     /// - Returns: A cached or newly created `LanguageConfiguration` if the language is supported, otherwise `nil`.
-    nonisolated func languageProvider(name: String) -> LanguageConfiguration? {
+    func languageProvider(name: String) -> LanguageConfiguration? {
         
         guard let syntax = TreeSitterSyntax(providerName: name) else { return nil }
         
@@ -82,22 +82,27 @@ public final class LanguageRegistry: Sendable {
     /// - Parameters:
     ///   - syntax: The target syntax.
     /// - Returns: A language configuration.
-    nonisolated func configuration(for syntax: TreeSitterSyntax) throws(RegistryError) -> LanguageConfiguration {
+    func configuration(for syntax: TreeSitterSyntax) throws -> LanguageConfiguration {
         
-        if let cache = self.cachedConfiguration.withLock({ $0[syntax] }) {
+        self.lock.lock()
+        if let cache = self.cachedConfiguration[syntax] {
+            self.lock.unlock()
             return cache
         }
+        self.lock.unlock()
         
         let queriesURL = self.queriesURL(for: syntax)
         
-        guard (try? queriesURL.checkResourceIsReachable()) == true else { throw .noQueriesDirectory }
+        guard (try? queriesURL.checkResourceIsReachable()) == true else { throw RegistryError.noQueriesDirectory }
         
         let queries = syntax.loadQueries(at: queriesURL)
         
-        guard !queries.isEmpty else { throw .emptyQueries }
+        guard !queries.isEmpty else { throw RegistryError.emptyQueries }
         
-        let config = unsafe LanguageConfiguration(syntax.language, name: syntax.name, queries: queries)
-        self.cachedConfiguration.withLock { $0[syntax] = config }
+        let config = LanguageConfiguration(syntax.language, name: syntax.name, queries: queries)
+        self.lock.lock()
+        self.cachedConfiguration[syntax] = config
+        self.lock.unlock()
         
         return config
     }
@@ -108,7 +113,7 @@ public final class LanguageRegistry: Sendable {
     /// - Parameters:
     ///   - syntax: The target syntax.
     /// - Returns: A file URL.
-    nonisolated func queriesURL(for syntax: TreeSitterSyntax) -> URL {
+    func queriesURL(for syntax: TreeSitterSyntax) -> URL {
         
         self.directoryURL.appending(component: syntax.name)
     }
@@ -153,7 +158,7 @@ private extension TreeSitterSyntax {
             
             guard (try? queryURL.resourceValues(forKeys: [.isReadableKey]))?.isReadable == true else { continue }
             
-            let language = unsafe Language(self.language)
+            let language = Language(self.language)
             do {
                 queries[definition] = try Query(language: language, url: queryURL)
             } catch {

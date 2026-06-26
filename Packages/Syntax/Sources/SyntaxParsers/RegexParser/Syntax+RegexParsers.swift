@@ -25,7 +25,7 @@
 //  limitations under the License.
 
 import Foundation
-public import SyntaxFormat
+import SyntaxFormat
 import StringUtils
 
 extension Syntax {
@@ -138,7 +138,7 @@ extension Syntax.Highlight {
         assert(!words.isEmpty)
         
         let rawBoundary = String(Set("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz" + words.joined()).sorted())
-            .replacing(/\s/, with: "")
+            .replacingOccurrences(of: "\\s", with: "", options: .regularExpression)
         let boundary = NSRegularExpression.escapedPattern(for: rawBoundary)
             .replacing("]", with: "\\]")
             .replacing("-", with: "\\-")

@@ -123,15 +123,15 @@ private extension CSharpOutlineFormatter {
     private static func normalizedSignature(_ signature: String) -> String {
         
         signature
-            .replacing(/\s+/, with: " ")
-            .replacing(/\(\s+/, with: "(")
-            .replacing(/\s+\)/, with: ")")
-            .replacing(/\s+\(/, with: "(")
-            .replacing(/\s+</, with: "<")
-            .replacing(/<\s+/, with: "<")
-            .replacing(/\s+>/, with: ">")
-            .replacing(/\.\s+/, with: ".")
-            .replacing(/\s*,\s*/, with: ", ")
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\(\\s+", with: "(", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+\\)", with: ")", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+\\(", with: "(", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+<", with: "<", options: .regularExpression)
+            .replacingOccurrences(of: "<\\s+", with: "<", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+>", with: ">", options: .regularExpression)
+            .replacingOccurrences(of: "\\.\\s+", with: ".", options: .regularExpression)
+            .replacingOccurrences(of: "\\s*,\\s*", with: ", ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

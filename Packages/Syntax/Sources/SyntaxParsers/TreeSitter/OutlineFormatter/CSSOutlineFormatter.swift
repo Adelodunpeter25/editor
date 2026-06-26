@@ -38,7 +38,7 @@ enum CSSOutlineFormatter: TreeSitterOutlineFormatting {
             title[...]
         }
         
-        let normalized = header.replacing(/\s+/, with: " ")
+        let normalized = header.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         
         return normalized.isEmpty ? nil : normalized

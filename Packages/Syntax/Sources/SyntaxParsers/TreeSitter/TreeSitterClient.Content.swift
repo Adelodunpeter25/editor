@@ -76,22 +76,22 @@ extension TreeSitterClient.Content {
     ///   - delta: The change in length between pre-edit and post-edit strings.
     ///   - insertedText: The inserted text that occupies `editedRange`.
     /// - Returns: An `InputEdit` describing the change for tree-sitter.
-    mutating func applyEdit(editedRange: NSRange, delta: Int, insertedText: String) throws(EditError) -> InputEdit {
+    mutating func applyEdit(editedRange: NSRange, delta: Int, insertedText: String) throws -> InputEdit {
         
         guard
             editedRange.location >= 0,
             insertedText.length == editedRange.length
-        else { throw .invalidRange }
+        else { throw EditError.invalidRange }
         
         let oldLength = editedRange.length - delta
         
-        guard oldLength >= 0 else { throw .invalidRange }
+        guard oldLength >= 0 else { throw EditError.invalidRange }
         
         let preEditRange = NSRange(location: editedRange.location, length: oldLength)
         let preEditString = self.string as NSString
         let preEditLineStarts = self.lineStarts
         
-        guard preEditRange.upperBound <= preEditString.length else { throw .invalidRange }
+        guard preEditRange.upperBound <= preEditString.length else { throw EditError.invalidRange }
         
         let editsCRLFBoundary = preEditString.hasCRLFBoundary(at: preEditRange.lowerBound) ||
                                 preEditString.hasCRLFBoundary(at: preEditRange.upperBound)
@@ -121,7 +121,7 @@ extension TreeSitterClient.Content {
         assert(location >= 0)
         assert(lineStarts.first == 0)
         
-        let upperIndex = lineStarts.partitioningIndex { $0 > location }
+        let upperIndex = try! lineStarts.partitioningIndex { $0 > location }
         let row = lineStarts.index(before: upperIndex)
         let lineStart = lineStarts[row]
         
@@ -148,8 +148,8 @@ extension TreeSitterClient.Content {
             return
         }
         
-        let removalStartIndex = self.lineStarts.partitioningIndex { $0 > preEditRange.lowerBound }
-        let shiftStartIndex = self.lineStarts.partitioningIndex { $0 > preEditRange.upperBound }
+        let removalStartIndex = try! self.lineStarts.partitioningIndex { $0 > preEditRange.lowerBound }
+        let shiftStartIndex = try! self.lineStarts.partitioningIndex { $0 > preEditRange.upperBound }
         let insertedLineStarts = insertedText.lineStartIndexes().dropFirst()
         
         var lineStarts = Array(self.lineStarts[..<removalStartIndex])
@@ -179,7 +179,7 @@ private extension NSString {
         while location < self.length {
             var lineEnd = 0
             var contentsEnd = 0
-            unsafe self.getLineStart(nil, end: &lineEnd, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
+            self.getLineStart(nil, end: &lineEnd, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
             
             if contentsEnd < lineEnd {
                 lineStarts.append(lineEnd)

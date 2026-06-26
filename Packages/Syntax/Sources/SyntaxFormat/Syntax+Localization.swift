@@ -31,14 +31,8 @@ public extension Syntax.Kind {
     var label: String {
         
         switch self {
-            case .general:
-                String(localized: "Syntax.Kind.general.label",
-                       defaultValue: "General",
-                       bundle: .module)
-            case .code:
-                String(localized: "Syntax.Kind.code.label",
-                       defaultValue: "Code",
-                       bundle: .module)
+            case .general: "General"
+            case .code: "Code"
         }
     }
 }
@@ -49,46 +43,16 @@ public extension SyntaxType {
     var label: String {
         
         switch self {
-            case .keywords:
-                String(localized: "SyntaxType.keywords.label",
-                       defaultValue: "Keywords",
-                       bundle: .module)
-            case .commands:
-                String(localized: "SyntaxType.commands.label",
-                       defaultValue: "Commands",
-                       bundle: .module)
-            case .types:
-                String(localized: "SyntaxType.types.label",
-                       defaultValue: "Types",
-                       bundle: .module)
-            case .attributes:
-                String(localized: "SyntaxType.attributes.label",
-                       defaultValue: "Attributes",
-                       bundle: .module)
-            case .variables:
-                String(localized: "SyntaxType.variables.label",
-                       defaultValue: "Variables",
-                       bundle: .module)
-            case .values:
-                String(localized: "SyntaxType.values.label",
-                       defaultValue: "Values",
-                       bundle: .module)
-            case .numbers:
-                String(localized: "SyntaxType.numbers.label",
-                       defaultValue: "Numbers",
-                       bundle: .module)
-            case .strings:
-                String(localized: "SyntaxType.strings.label",
-                       defaultValue: "Strings",
-                       bundle: .module)
-            case .characters:
-                String(localized: "SyntaxType.characters.label",
-                       defaultValue: "Characters",
-                       bundle: .module)
-            case .comments:
-                String(localized: "SyntaxType.comments.label",
-                       defaultValue: "Comments",
-                       bundle: .module)
+            case .keywords: "Keywords"
+            case .commands: "Commands"
+            case .types: "Types"
+            case .attributes: "Attributes"
+            case .variables: "Variables"
+            case .values: "Values"
+            case .numbers: "Numbers"
+            case .strings: "Strings"
+            case .characters: "Characters"
+            case .comments: "Comments"
         }
     }
 }
@@ -99,38 +63,16 @@ public extension Syntax.Outline.Kind {
     var label: String {
         
         switch self {
-            case .container:
-                String(localized: "Syntax.Outline.Kind.container.label",
-                       defaultValue: "Container",
-                       bundle: .module)
-            case .value:
-                String(localized: "Syntax.Outline.Kind.value.label",
-                       defaultValue: "Value",
-                       bundle: .module)
-            case .function:
-                String(localized: "Syntax.Outline.Kind.function.label",
-                       defaultValue: "Function",
-                       bundle: .module)
-            case .title:
-                String(localized: "Syntax.Outline.Kind.title.label",
-                       defaultValue: "Title",
-                       bundle: .module)
+            case .container: "Container"
+            case .value: "Value"
+            case .function: "Function"
+            case .title: "Title"
             case .heading(let level?):
-                String(localized: "Syntax.Outline.Kind.heading.level.label",
-                       defaultValue: "Heading \(level)",
-                       bundle: .module)
+                "Heading \(level)"
             case .heading(nil):
-                String(localized: "Syntax.Outline.Kind.heading.label",
-                       defaultValue: "Heading",
-                       bundle: .module)
-            case .mark:
-                String(localized: "Syntax.Outline.Kind.mark.label",
-                       defaultValue: "Mark",
-                       bundle: .module)
-            case .separator:
-                String(localized: "Syntax.Outline.Kind.separator.label",
-                       defaultValue: "Separator",
-                       bundle: .module)
+                "Heading"
+            case .mark: "Mark"
+            case .separator: "Separator"
         }
     }
 }
