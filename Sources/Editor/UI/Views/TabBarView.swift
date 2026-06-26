@@ -21,7 +21,7 @@ final class TabBarView: NSView {
   var onOpenFilePath: ((String) -> Void)?
 
   private let chips = NSStackView()
-  private let scrollView = NSScrollView()
+  private let scrollView = HorizontalScrollView()
   private let dropIndicator = NSView()  // vertical insertion line shown while dragging a chip
 
   override init(frame frameRect: NSRect) {
@@ -358,4 +358,39 @@ final class TabChipView: PointerView, NSDraggingSource {
   ) -> NSDragOperation { .move }
 
   @objc func closeTapped() { onClose() }
+}
+
+// MARK: - HorizontalScrollView
+
+/// A scroll view that converts vertical wheel/trackpad scroll deltas to horizontal scrolling, so a
+/// traditional mouse wheel (which only sends vertical deltas) can scroll the tab strip horizontally.
+/// Horizontal deltas pass through unchanged. Shift+wheel is already horizontal on macOS, so this only
+/// kicks in for plain vertical scrolling when there's no vertical content to scroll.
+final class HorizontalScrollView: NSScrollView {
+  override func scrollWheel(with event: NSEvent) {
+    // If the scroll has a horizontal delta, let the superclass handle it (trackpad two-finger).
+    if event.deltaX != 0 {
+      super.scrollWheel(with: event)
+      return
+    }
+    // Convert vertical delta to horizontal. Only do this when we can't scroll vertically (we never
+    // have vertical content in the tab bar) and we *can* scroll horizontally.
+    guard event.deltaY != 0,
+      let clip = documentView?.enclosingScrollView?.contentView
+    else {
+      super.scrollWheel(with: event)
+      return
+    }
+    let docWidth = documentView?.frame.width ?? 0
+    let clipWidth = clip.bounds.width
+    guard docWidth > clipWidth else {
+      super.scrollWheel(with: event)
+      return
+    }
+    // Synthesize a horizontal scroll event with the vertical delta.
+    let h = NSPoint(
+      x: max(0, min(docWidth - clipWidth, clip.bounds.origin.x - event.deltaY * 10)),
+      y: 0)
+    clip.setBoundsOrigin(h)
+  }
 }
