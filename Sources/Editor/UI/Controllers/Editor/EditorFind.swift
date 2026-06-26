@@ -54,6 +54,7 @@ extension EditorViewController {
     clearFindHighlights()
     findMatches = []
     findCurrent = -1
+    textView.setSelectedRange(NSRange(location: 0, length: 0))  // clear selection
     view.window?.makeKeyAndOrderFront(nil)  // return key to the main window
     view.window?.makeFirstResponder(textView)
   }
