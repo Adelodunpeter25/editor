@@ -20,6 +20,7 @@ let package = Package(
                 .product(name: "SwiftTerm", package: "SwiftTerm"),
                 .product(name: "LineEnding", package: "EditorCore"),
                 .product(name: "TextFind", package: "EditorCore"),
+                .product(name: "ValueRange", package: "EditorCore"),
                 "Cfff",
             ],
             path: "Sources/Editor",

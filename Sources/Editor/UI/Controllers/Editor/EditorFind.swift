@@ -1,4 +1,5 @@
 import AppKit
+import TextFind
 
 extension EditorViewController {
 
@@ -104,41 +105,86 @@ extension EditorViewController {
   func replaceCurrent() {
     guard let bar = findBar, findMatches.indices.contains(findCurrent) else { return }
     let r = findMatches[findCurrent]
-    let replacement = expandedReplacement(for: r, bar: bar)
-    if textView.shouldChangeText(in: r, replacementString: replacement) {
-      textView.textStorage?.replaceCharacters(in: r, with: replacement)
-      textView.didChangeText()
+    
+    let mode: TextFind.Mode
+    if bar.regex {
+      var opts: NSRegularExpression.Options = []
+      if !bar.matchCase { opts.insert(.caseInsensitive) }
+      mode = .regularExpression(options: opts, unescapesReplacement: true)
+    } else {
+      var opts: NSString.CompareOptions = []
+      if !bar.matchCase { opts.insert(.caseInsensitive) }
+      mode = .textual(options: opts, fullWord: bar.wholeWord)
+    }
+    
+    do {
+      let textFind = try TextFind(
+        for: textView.string,
+        findString: bar.query,
+        mode: mode,
+        inSelection: false,
+        selectedRanges: [r]
+      )
+      if let replacement = textFind.replace(with: bar.replaceText) {
+        if textView.shouldChangeText(in: replacement.range, replacementString: replacement.value) {
+          textView.textStorage?.replaceCharacters(in: replacement.range, with: replacement.value)
+          textView.didChangeText()
+        }
+      }
+    } catch {
+      // Fallback to literal replacement
+      if textView.shouldChangeText(in: r, replacementString: bar.replaceText) {
+        textView.textStorage?.replaceCharacters(in: r, with: bar.replaceText)
+        textView.didChangeText()
+      }
     }
   }
 
   /// Replace every match in a single undoable edit (reverse order keeps the earlier ranges valid).
   func replaceAll() {
     guard let bar = findBar, !findMatches.isEmpty else { return }
-    let ns = textView.string as NSString
-    let result = NSMutableString(string: ns)
-    for r in findMatches.reversed() {
-      result.replaceCharacters(in: r, with: expandedReplacement(for: r, bar: bar))
+    
+    let mode: TextFind.Mode
+    if bar.regex {
+      var opts: NSRegularExpression.Options = []
+      if !bar.matchCase { opts.insert(.caseInsensitive) }
+      mode = .regularExpression(options: opts, unescapesReplacement: true)
+    } else {
+      var opts: NSString.CompareOptions = []
+      if !bar.matchCase { opts.insert(.caseInsensitive) }
+      mode = .textual(options: opts, fullWord: bar.wholeWord)
     }
-    let full = NSRange(location: 0, length: ns.length)
-    if textView.shouldChangeText(in: full, replacementString: result as String) {
-      textView.textStorage?.replaceCharacters(in: full, with: result as String)
-      textView.didChangeText()
+    
+    do {
+      let textFind = try TextFind(
+        for: textView.string,
+        findString: bar.query,
+        mode: mode,
+        inSelection: false,
+        selectedRanges: [NSRange(location: 0, length: (textView.string as NSString).length)]
+      )
+      let (replacementItems, _) = textFind.replaceAll(with: bar.replaceText) { _, _, _ in }
+      
+      // Apply replacements in reverse order to keep ranges valid
+      for item in replacementItems.reversed() {
+        if textView.shouldChangeText(in: item.range, replacementString: item.value) {
+          textView.textStorage?.replaceCharacters(in: item.range, with: item.value)
+          textView.didChangeText()
+        }
+      }
+    } catch {
+      // Fallback to manual replacement
+      let ns = textView.string as NSString
+      let result = NSMutableString(string: ns)
+      for r in findMatches.reversed() {
+        result.replaceCharacters(in: r, with: bar.replaceText)
+      }
+      let full = NSRange(location: 0, length: ns.length)
+      if textView.shouldChangeText(in: full, replacementString: result as String) {
+        textView.textStorage?.replaceCharacters(in: full, with: result as String)
+        textView.didChangeText()
+      }
     }
-  }
-
-  /// In regex mode, expand `$1`-style templates against the matched text; otherwise a literal replacement.
-  func expandedReplacement(for range: NSRange, bar: FindBar) -> String {
-    guard bar.regex else { return bar.replaceText }
-    var opts: NSRegularExpression.Options = []
-    if !bar.matchCase { opts.insert(.caseInsensitive) }
-    let pattern = bar.wholeWord ? "\\b(?:\(bar.query))\\b" : bar.query
-    guard let re = try? NSRegularExpression(pattern: pattern, options: opts) else {
-      return bar.replaceText
-    }
-    let matched = (textView.string as NSString).substring(with: range)
-    return re.stringByReplacingMatches(
-      in: matched, range: NSRange(location: 0, length: (matched as NSString).length),
-      withTemplate: bar.replaceText)
   }
 
   /// ⌘E — search for the current selection.
@@ -171,7 +217,6 @@ extension EditorViewController {
     findMatches = []
     bar.setInvalid(false)
     let full = textView.string
-    let ns = full as NSString
     let q = bar.query
     guard !q.isEmpty else {
       findCurrent = -1
@@ -179,30 +224,31 @@ extension EditorViewController {
       return
     }
 
+    let mode: TextFind.Mode
     if bar.regex {
       var opts: NSRegularExpression.Options = []
       if !bar.matchCase { opts.insert(.caseInsensitive) }
-      let pattern = bar.wholeWord ? "\\b(?:\(q))\\b" : q
-      guard let re = try? NSRegularExpression(pattern: pattern, options: opts) else {
-        bar.setInvalid(true)
-        findCurrent = -1
-        bar.setCount(current: 0, total: 0)
-        return
-      }
-      re.enumerateMatches(in: full, range: NSRange(location: 0, length: ns.length)) { m, _, _ in
-        if let r = m?.range, r.length > 0 { findMatches.append(r) }
-      }
+      mode = .regularExpression(options: opts, unescapesReplacement: true)
     } else {
       var opts: NSString.CompareOptions = []
       if !bar.matchCase { opts.insert(.caseInsensitive) }
-      var from = 0
-      while from < ns.length {
-        let r = ns.range(
-          of: q, options: opts, range: NSRange(location: from, length: ns.length - from))
-        if r.location == NSNotFound { break }
-        if !bar.wholeWord || isWholeWord(r, ns) { findMatches.append(r) }
-        from = r.location + max(1, r.length)
-      }
+      mode = .textual(options: opts, fullWord: bar.wholeWord)
+    }
+
+    do {
+      let textFind = try TextFind(
+        for: full,
+        findString: q,
+        mode: mode,
+        inSelection: false,
+        selectedRanges: [NSRange(location: 0, length: (full as NSString).length)]
+      )
+      findMatches = try textFind.matches
+    } catch {
+      bar.setInvalid(true)
+      findCurrent = -1
+      bar.setCount(current: 0, total: 0)
+      return
     }
 
     if findMatches.isEmpty {
@@ -238,16 +284,5 @@ extension EditorViewController {
     lm.removeTemporaryAttribute(
       .backgroundColor,
       forCharacterRange: NSRange(location: 0, length: (textView.string as NSString).length))
-  }
-
-  func isWholeWord(_ r: NSRange, _ s: NSString) -> Bool {
-    func word(_ c: unichar) -> Bool {
-      guard let u = UnicodeScalar(c) else { return false }
-      return CharacterSet.alphanumerics.contains(u) || u == "_"
-    }
-    let before = r.location > 0 ? word(s.character(at: r.location - 1)) : false
-    let afterIdx = r.location + r.length
-    let after = afterIdx < s.length ? word(s.character(at: afterIdx)) : false
-    return !before && !after
   }
 }
