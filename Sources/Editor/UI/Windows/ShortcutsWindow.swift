@@ -219,15 +219,4 @@ final class ShortcutsWindowController: NSWindowController {
     ])
     return row
   }
-
-  /// Render the panel content to a PNG for design verification (the panel is a separate window the
-  /// screenshot harness can't grab unless it's key).
-  func debugRender(to path: String) {
-    guard let root = window?.contentView,
-      let rep = root.bitmapImageRepForCachingDisplay(in: root.bounds)
-    else { return }
-    root.layoutSubtreeIfNeeded()
-    root.cacheDisplay(in: root.bounds, to: rep)
-    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
-  }
 }

@@ -342,37 +342,6 @@ final class QuickTerminalController: NSObject, NSWindowDelegate {
     hide()
     return false
   }
-
-  // MARK: - Debug
-  func debugState() -> [String: Any] {
-    var d: [String: Any] = ["shown": isShown, "mode": shownMode.map { "\($0)" } ?? "none"]
-    if let s = model.activeSession, let list = lists[s.id] {
-      d["count"] = list.ids.count
-      d["activeIndex"] = (list.ids.firstIndex(of: list.activeID) ?? -1) + 1  // 1-based; 0 = none
-      d["text"] = TerminalStore.shared.debugText(list.activeID) ?? ""
-    } else {
-      d["count"] = 0
-      d["text"] = ""
-    }
-    return d
-  }
-  /// The on-screen shell's id, so the harness `quickSend` can target it.
-  var debugActiveID: String? {
-    guard let s = model.activeSession, let list = lists[s.id] else { return nil }
-    return list.activeID
-  }
-  func debugNewTerminal() { addTerminal() }
-  func debugSelect(_ index: Int) {
-    guard let s = model.activeSession, let list = lists[s.id], list.ids.indices.contains(index)
-    else { return }
-    selectTerminal(list.ids[index])
-  }
-  func debugClose(_ index: Int) {
-    guard let s = model.activeSession, let list = lists[s.id], list.ids.indices.contains(index)
-    else { return }
-    closeTerminal(list.ids[index])
-  }
-  func debugOpenAsTab() { openActiveAsTab() }
 }
 
 /// The chrome shared by all three quick-terminal modes: a header strip (a chip per shell + new / open-as-tab

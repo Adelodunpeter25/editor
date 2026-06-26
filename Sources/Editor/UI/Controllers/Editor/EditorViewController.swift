@@ -368,9 +368,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     onSavedAs?(url.path)
   }
 
-  /// DEV harness: run the save-as transition with a fixed path (the real `NSSavePanel` is modal/HID).
-  func debugSaveAs(_ path: String) { performSaveAs(to: URL(fileURLWithPath: path)) }
-
   /// Make the text view first responder — called when its tab becomes active so you can type / search /
   /// jump without clicking into it first.
   func focusText() { textView?.window?.makeFirstResponder(textView) }

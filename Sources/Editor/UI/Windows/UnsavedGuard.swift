@@ -12,20 +12,14 @@ enum UnsavedGuard {
 
   enum Response { case save, dontSave, cancel }
 
-  /// Dev-harness only: when non-nil, close confirmations skip the modal and use this answer (so the
-  /// close/quit wiring is testable without clicking a dialog). Never set in release — `DebugHarness`
-  /// is gated on `Bundle.main.isDev`.
-  static var debugResponse: Response?
-
   /// One dirty tab → Save / Cancel / Don't Save. Returns `true` if the caller may close it.
   static func confirmClose(_ tab: Tab) -> Bool {
     guard tab.dirty else { return true }
     return apply(
-      debugResponse
-        ?? ask(
-          message: "Do you want to save the changes you made to “\(tab.title)”?",
-          info: "Your changes will be lost if you don’t save them.",
-          saveTitle: "Save & Close", dontSaveTitle: "Don’t Save & Close"), to: [tab])
+      ask(
+        message: "Do you want to save the changes you made to “\(tab.title)”?",
+        info: "Your changes will be lost if you don’t save them.",
+        saveTitle: "Save & Close", dontSaveTitle: "Don’t Save & Close"), to: [tab])
   }
 
   /// Dirty tabs closing together (folder/app) → Save All / Cancel / Discard. Returns `true` to proceed.
@@ -33,11 +27,10 @@ enum UnsavedGuard {
     guard !dirty.isEmpty else { return true }
     if dirty.count == 1 { return confirmClose(dirty[0]) }
     return apply(
-      debugResponse
-        ?? ask(
-          message: "You have unsaved changes in \(dirty.count) files.",
-          info: "Do you want to save them before \(verb)?",
-          saveTitle: "Save All", dontSaveTitle: "Discard"), to: dirty)
+      ask(
+        message: "You have unsaved changes in \(dirty.count) files.",
+        info: "Do you want to save them before \(verb)?",
+        saveTitle: "Save All", dontSaveTitle: "Discard"), to: dirty)
   }
 
   /// Run the three-button alert and map the click to a `Response`.

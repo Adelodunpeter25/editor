@@ -17,7 +17,6 @@ enum CommandPaletteHook {
 final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableViewDataSource,
   NSTableViewDelegate
 {
-  static weak var current: CommandPaletteController?
 
   private let model: AppModel
   private weak var host: NSView?
@@ -92,7 +91,6 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
 
   private func present() {
     guard let host, let session = model.activeSession else { return }
-    CommandPaletteController.current = self
 
     if overlay == nil { buildUI() }
     guard let overlay else { return }
@@ -459,26 +457,6 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
     let prefix = repo.hasSuffix("/") ? repo : repo + "/"
     return abs.hasPrefix(prefix)
       ? String(abs.dropFirst(prefix.count)) : (abs as NSString).lastPathComponent
-  }
-
-  // MARK: - Debug harness hooks (HID can't drive ⌘P / arrows in the sandbox)
-
-  func debugType(_ text: String) {
-    field.stringValue = text
-    selected = 0
-    applyFilter()
-  }
-  func debugMove(_ delta: Int) { move(delta) }
-  func debugOpenSelected() { openSelected() }
-  func debugState() -> [String: Any] {
-    let label: Any =
-      mode == .command
-      ? (commandHits.indices.contains(selected) ? commandHits[selected].title as Any : NSNull())
-      : (hits.indices.contains(selected) ? hits[selected].rel as Any : NSNull())
-    return [
-      "shown": isShown, "query": field.stringValue, "mode": "\(mode)",
-      "results": resultCount, "selected": selected, "selectedPath": label,
-    ]
   }
 }
 

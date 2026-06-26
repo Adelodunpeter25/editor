@@ -5,7 +5,6 @@ import Defaults
 /// The sidebar: a segmented control (Files / Changes / Search) with file-actions toolbar above the
 /// content pane (file tree, git changes list, or search panel).
 final class SidebarViewController: NSViewController {
-  static weak var current: SidebarViewController?  // for the debug harness (segment switching)
   private let model: AppModel
   private var cancellables = Set<AnyCancellable>()
   private var sessionRevealObservers: [String: AnyCancellable] = [:]  // per-session reveal refresh
@@ -61,7 +60,6 @@ final class SidebarViewController: NSViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    SidebarViewController.current = self
     SidebarSearchHook.reveal = { [weak self] in self?.revealSearch() }
     model.objectWillChange
       .receive(on: RunLoop.main)
@@ -389,11 +387,6 @@ final class SidebarViewController: NSViewController {
 
   func revealSearch() {
     filesModeSeg.selectedSegment = SidebarMode.search.rawValue
-    filesModeChanged()
-  }
-
-  func debugSelectMode(_ index: Int) {
-    filesModeSeg.selectedSegment = max(0, min(2, index))
     filesModeChanged()
   }
 

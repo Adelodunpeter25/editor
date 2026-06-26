@@ -26,10 +26,8 @@ enum SearchSeed {
 final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOutlineViewDataSource,
   NSOutlineViewDelegate
 {
-  /// The sidebar instance, exposed for the debug harness (HID can't drive the field in the sandbox).
+  /// The sidebar instance, exposed for static access (e.g. sidebar reveal hooks).
   static weak var current: SearchViewController?
-  /// The most recent standalone-tab instance, likewise for the harness.
-  static weak var currentTab: SearchViewController?
 
   private let repo: String
   private let fff: FffInstance?
@@ -86,8 +84,6 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
     super.init(nibName: nil, bundle: nil)
     if isPrimary {
       SearchViewController.current = self
-    } else {
-      SearchViewController.currentTab = self
     }
   }
 
@@ -96,7 +92,6 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
 
   deinit {
     if SearchViewController.current === self { SearchViewController.current = nil }
-    if SearchViewController.currentTab === self { SearchViewController.currentTab = nil }
   }
 
   // MARK: - View
@@ -393,34 +388,6 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
 
   func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
     SearchRowView()
-  }
-
-  // MARK: - Debug harness
-
-  /// Synchronous search for the harness (small scratch repos; deterministic — no debounce/async).
-  func debugRun(_ query: String) {
-    field.stringValue = query
-    applyResult(ProjectSearch.run(query, in: repo, fff: fff, options: options), query: query)
-  }
-  /// Stand-in for the "Open as Tab" button click (HID can't drive it in the sandbox).
-  func debugOpenAsTab() { onOpenAsTab?(field.stringValue, options) }
-  /// Open the first match (stands in for a result click — HID can't drive the outline in the sandbox).
-  func debugOpenFirst() {
-    guard let f = nodes.first, let m = f.matches.first else { return }
-    onOpen(m.file, m.line)
-  }
-  func debugState() -> [String: Any] {
-    var d: [String: Any] = [
-      "query": field.stringValue,
-      "files": nodes.count,
-      "matches": nodes.reduce(0) { $0 + $1.matches.count },
-      "failed": failed,
-    ]
-    if let f = nodes.first, let m = f.matches.first {
-      d["firstFile"] = f.file
-      d["firstLine"] = m.line
-    }
-    return d
   }
 }
 

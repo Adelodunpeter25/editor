@@ -146,43 +146,6 @@ final class TerminalStore {
   }
 
   func send(_ id: String, _ txt: String) { views[id]?.send(txt: txt) }
-
-  // MARK: Debug harness (DEV only)
-
-  func debugScroll(_ id: String, up: Bool, lines: Int) {
-    views[id]?.debugScroll(up: up, lines: lines)
-  }
-
-  /// The terminal's visible grid as text (rtrimmed, trailing blank lines dropped). Lets the
-  /// harness assert on actual rendered output instead of relying on the self-screenshot, which
-  /// can't capture SwiftTerm's CoreText drawing.
-  func debugText(_ id: String) -> String? {
-    guard let v = views[id], let t = v.terminal else { return nil }
-    var lines: [String] = []
-    for r in 0..<t.rows {
-      var line = ""
-      for c in 0..<t.cols {
-        let ch = t.getCharacter(col: c, row: r) ?? " "
-        line.append(ch == "\u{0}" ? " " : ch)
-      }
-      lines.append(String(line.reversed().drop(while: { $0 == " " }).reversed()))
-    }
-    while let last = lines.last, last.isEmpty { lines.removeLast() }
-    return lines.joined(separator: "\n")
-  }
-
-  func debugState(_ id: String) -> [String: Any]? {
-    guard let v = views[id], let t = v.terminal else { return nil }
-    return [
-      "isAlternateBuffer": t.isCurrentBufferAlternate,
-      "mouseMode": String(describing: t.mouseMode),
-      "scrollPosition": v.scrollPosition,
-      "canScroll": v.canScroll,
-      "rows": t.rows,
-      "cols": t.cols,
-      "repaints": v.repaintCount,
-    ]
-  }
 }
 
 // MARK: - Process termination
@@ -304,10 +267,5 @@ final class EditorTerminalView: LocalProcessTerminalView {
     } else {
       if up { scrollUp(lines: lines) } else { scrollDown(lines: lines) }
     }
-  }
-
-  /// DEV harness entry point: scroll without a real wheel event.
-  func debugScroll(up: Bool, lines: Int) {
-    performScroll(up: up, lines: lines, at: CGPoint(x: bounds.midX, y: bounds.midY), flags: [])
   }
 }

@@ -21,7 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var cancellables = Set<AnyCancellable>()
   private var settingsWC: SettingsWindowController?
   private let resourceMonitor = ResourceMonitor()
-  private var attentionItem: AttentionItem!
   private var pendingOpenPaths: [String] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -64,19 +63,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self, selector: #selector(appBecameActive),
       name: NSApplication.didBecomeActiveNotification, object: nil)
 
-    // Menu-bar attention item: glanceable session status + jump, even while Editor is in the background.
-    attentionItem = AttentionItem(model: model)
-    attentionItem.onJump = { [weak self] sessionID, tabID in
-      guard let self else { return }
-      if let session = self.model.sessions.first(where: { $0.id == sessionID }) {
-        self.model.activeSessionID = sessionID
-        if let tabID { session.activate(tabID) }
-      }
-      NSApp.activate(ignoringOtherApps: true)
-      self.windowController.showWindow(nil)
-    }
-    attentionItem.start()
-
     // Live resource usage of Editor's own process, shown in the bottom status bar (the bar reads the
     // setting to show/hide; only the *running* monitor produces updates).
     resourceMonitor.onUpdate = { memMB, cpu in ResourceStatus.onUpdate?(memMB, cpu) }
@@ -105,8 +91,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self?.showSettingsWindow()
       self?.settingsWC?.showFormatters()
     }
-
-    DebugHarness.start(model: model)  // dev-only (inert in release)
 
     // Pre-warm the tree-sitter grammars in the background so the first file
     // open is instant. LanguageRegistry.configuration() reads + compiles query files from

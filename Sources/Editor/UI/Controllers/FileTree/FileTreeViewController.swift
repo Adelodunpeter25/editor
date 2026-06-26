@@ -34,9 +34,6 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
   var isEditing: Bool { editingNode != nil }
   static let draftId = "\u{1}draft"
 
-  /// The live tree VC (for the dev harness to drive). Only one is mounted at a time.
-  static weak var current: FileTreeViewController?
-
   init(
     store: RepoStore, settings: Settings,
     onOpen: @escaping (String) -> Void,
@@ -86,7 +83,6 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    Self.current = self
     loadEmptyDirs()
     store.$files
       .sink { [weak self] files in self?.applyFiles(files) }

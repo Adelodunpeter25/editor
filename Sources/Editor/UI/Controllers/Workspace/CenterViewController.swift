@@ -411,7 +411,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
       return vc.view
     case .search:
       // A full-width project search in the center. `isPrimary: false` so it doesn't steal the
-      // sidebar instance's `SearchViewController.current` (the harness target).
+      // sidebar instance's `SearchViewController.current` static reference.
       let vc = SearchViewController(
         repo: session.url, fff: session.fff, isPrimary: false,
         onOpen: { rel, line in FileNavigator.openAt?(rel, line) })

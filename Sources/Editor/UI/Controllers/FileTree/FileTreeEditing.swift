@@ -7,38 +7,6 @@ extension FileTreeViewController {
   func beginNewFile() { beginCreate(.newFile, parent: targetFolder()) }
   func beginNewFolder() { beginCreate(.newFolder, parent: targetFolder()) }
 
-  /// Dev-harness hook: run the inline create end-to-end (begin → name → commit) without a keyboard.
-  func debugCreate(name: String, folder: Bool) {
-    beginCreate(folder ? .newFolder : .newFile, parent: targetFolder())
-    finishEditing(name: name)
-  }
-
-  /// Dev-harness hooks for the context-menu mutations.
-  func debugRename(rel: String, to newName: String) {
-    guard let node = findNode(rel, in: roots) else { return }
-    beginRename(node)
-    finishEditing(name: newName)
-  }
-  func debugDelete(rel: String) {
-    guard let node = findNode(rel, in: roots) else { return }
-    let abs = (store.repo as NSString).appendingPathComponent(node.id)
-    try? FileManager.default.trashItem(at: URL(fileURLWithPath: abs), resultingItemURL: nil)
-    expandedPaths.remove(node.id)
-    if pendingEmptyDirs.remove(node.id) != nil { persistEmptyDirs() }
-    onDelete(node.id)
-    store.refreshNow()
-  }
-
-  /// Dev-harness hook: expand every folder.
-  func debugExpandAll() {
-    restoring = true
-    outline.expandItem(nil, expandChildren: true)
-    restoring = false
-    for row in 0..<outline.numberOfRows {
-      if let n = outline.item(atRow: row) as? TreeNode, n.isFolder { expandedPaths.insert(n.id) }
-    }
-  }
-
   /// Insert an empty draft row in the given folder (nil = root) and start inline editing it.
   func beginCreate(_ kind: EditKind, parent: TreeNode?) {
     guard editingNode == nil else { return }

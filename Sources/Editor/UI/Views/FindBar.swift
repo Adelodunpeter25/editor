@@ -237,8 +237,4 @@ final class FindBar: NSView, NSTextFieldDelegate {
 
   func setQuery(_ s: String) { field.stringValue = s }
   func setReplace(_ s: String) { replaceField.stringValue = s }
-  func debugToggle(_ which: String) {
-    let b = which == "case" ? caseBtn : which == "word" ? wordBtn : regexBtn
-    b.state = b.state == .on ? .off : .on
-  }
 }
