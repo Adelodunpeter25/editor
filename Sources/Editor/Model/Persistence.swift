@@ -39,7 +39,11 @@ enum Persistence {
 
   static func recentProjects() -> [String] {
     let paths = UserDefaults.standard[AppDefaults.recentProjects]
-    return paths.filter { FileManager.default.fileExists(atPath: $0) }
+    let filtered = paths.filter { FileManager.default.fileExists(atPath: $0) }
+    if filtered.count != paths.count {
+      UserDefaults.standard[AppDefaults.recentProjects] = filtered
+    }
+    return filtered
   }
 
   static func noteRecentProject(_ path: String) {

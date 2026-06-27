@@ -156,7 +156,7 @@ extension AppDelegate {
   @objc private func openRecentProjectFromDock(_ sender: NSMenuItem) {
     guard let path = sender.representedObject as? String else { return }
     model.openRepo(path)
-    windowController.showWindow(nil)
+    windowController?.showWindow(nil)
     NSApp.activate(ignoringOtherApps: true)
   }
 
