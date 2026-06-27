@@ -357,7 +357,8 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
           })
         : nil
       let vc = EditorViewController(
-        path: tab.path ?? "", settings: model.settings, onDirty: onDirty, untitled: untitled)
+        path: tab.path ?? "", repoURL: session.url, settings: model.settings, onDirty: onDirty,
+        untitled: untitled)
       addChild(vc)
       contentVCs[tab.id] = vc
       return vc.view

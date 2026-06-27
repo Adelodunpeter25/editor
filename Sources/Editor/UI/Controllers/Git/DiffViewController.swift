@@ -72,11 +72,9 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     root.wantsLayer = true
     root.layer?.backgroundColor = NSColor(white: 0.118, alpha: 1).cgColor
 
-    // Header: path + Unified/Split + open-to-edit.
-    let pathLabel = NSTextField(labelWithString: path)
-    pathLabel.font = .systemFont(ofSize: 12)
-    pathLabel.textColor = NSColor(white: 0.8, alpha: 1)
-    pathLabel.lineBreakMode = .byTruncatingMiddle
+    // Header: breadcrumb path + Unified/Split + open-to-edit.
+    let breadcrumb = PathBreadcrumbView()
+    breadcrumb.configure(path: path, commitHash: commitHash)
 
     seg.selectedSegment = split ? 1 : 0
     seg.target = self
@@ -93,10 +91,10 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
     openBtn.controlSize = .small
     openBtn.toolTip = "Open file to edit"
 
-    let header = NSStackView(views: [pathLabel, NSView(), seg, openBtn])
+    let header = NSStackView(views: [breadcrumb, NSView(), seg, openBtn])
     header.orientation = .horizontal
     header.spacing = 8
-    header.edgeInsets = NSEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+    header.edgeInsets = NSEdgeInsets(top: 4, left: 0, bottom: 4, right: 10)
     header.translatesAutoresizingMaskIntoConstraints = false
 
     table.headerView = nil

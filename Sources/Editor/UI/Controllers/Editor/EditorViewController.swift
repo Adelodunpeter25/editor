@@ -34,6 +34,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   }
 
   var path: String  // absolute file path (mutable: a rename retargets it in place; "" while untitled)
+  var repoURL: String?  // repo root — strips prefix for the breadcrumb display
   private var untitled: UntitledFile?  // non-nil until a blank "New File" tab is first saved
   private(set) var lineEnding: LineEnding = .lf  // status bar — detected on load
   private(set) var indentStyle = "Spaces: 4"
@@ -74,10 +75,12 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   static let formatQueue = DispatchQueue(label: "com.editor.format", qos: .userInitiated)
 
   init(
-    path: String, settings: Settings, onDirty: @escaping (Bool) -> Void,
+    path: String, repoURL: String? = nil, settings: Settings,
+    onDirty: @escaping (Bool) -> Void,
     untitled: UntitledFile? = nil
   ) {
     self.path = path
+    self.repoURL = repoURL
     self.untitled = untitled
     self.settings = settings
     self.onDirty = onDirty
@@ -168,10 +171,37 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
     self.scrollView = scroll
 
+    // Breadcrumb bar — shows the file's repo-relative path above the editor.
+    // Hidden for untitled files (no path yet) since there's nothing meaningful to show.
+    let breadcrumb = PathBreadcrumbView()
+    if !path.isEmpty {
+      breadcrumb.configure(path: path, relativeTo: repoURL)
+    } else {
+      breadcrumb.isHidden = true
+    }
+
+    // Wrap breadcrumb + scroll view in a vertical stack so the bar sits flush above the editor.
+    let wrapper = NSView()
+    wrapper.wantsLayer = true
+    wrapper.layer?.backgroundColor = TreeSitterTheme.background.cgColor
+    breadcrumb.translatesAutoresizingMaskIntoConstraints = false
+    scroll.translatesAutoresizingMaskIntoConstraints = false
+    wrapper.addSubview(breadcrumb)
+    wrapper.addSubview(scroll)
+    NSLayoutConstraint.activate([
+      breadcrumb.topAnchor.constraint(equalTo: wrapper.topAnchor),
+      breadcrumb.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+      breadcrumb.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+      scroll.topAnchor.constraint(equalTo: breadcrumb.bottomAnchor),
+      scroll.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+      scroll.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+      scroll.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
+    ])
+
     // The find bar floats in its own child window (UI/FindBar in a FindPanel), pinned to the editor's
     // top-right (VS Code style) — a separate window has its own cursor-rect domain, so the bar's button
     // cursors don't conflict with the text view's I-beam the way a same-window overlay subview did.
-    self.view = scroll
+    self.view = wrapper
     startWatchingExternalChanges()
   }
 

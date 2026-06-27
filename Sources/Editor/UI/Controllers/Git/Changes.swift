@@ -4,7 +4,7 @@ import Combine
 // MARK: - Changes view controller
 
 final class ChangesViewController: NSViewController, NSTextFieldDelegate, NSTableViewDataSource,
-  NSTableViewDelegate
+  NSTableViewDelegate, NSMenuDelegate
 {
   private let store: RepoStore
   private let onOpenDiff: (String) -> Void
@@ -102,6 +102,11 @@ final class ChangesViewController: NSViewController, NSTextFieldDelegate, NSTabl
     tableView.delegate = self
     tableView.target = self
     tableView.action = #selector(rowClicked)  // single-click a file row → open its diff
+
+    // Right-click context menu — populated per-row in menuNeedsUpdate.
+    let tableMenu = NSMenu()
+    tableMenu.delegate = self
+    tableView.menu = tableMenu
 
     let scroll = NSScrollView()
     scroll.drawsBackground = false
@@ -305,6 +310,26 @@ final class ChangesViewController: NSViewController, NSTextFieldDelegate, NSTabl
     let row = tableView.clickedRow
     guard row >= 0, row < items.count, case .file(let f, _) = items[row] else { return }
     onOpenDiff(f.path)
+  }
+
+  // MARK: Context menu (NSMenuDelegate)
+
+  /// Called just before the menu appears — build it fresh for whichever row was right-clicked.
+  func menuNeedsUpdate(_ menu: NSMenu) {
+    menu.removeAllItems()
+    let row = tableView.clickedRow
+    guard row >= 0, row < items.count, case .file(let f, let staged) = items[row] else { return }
+    let built = GitChangeContextMenu.menu(
+      for: f,
+      staged: staged,
+      onOpenDiff: { [weak self] in self?.onOpenDiff(f.path) },
+      onOpenFile: { [weak self] in self?.onOpenFile(f.path) },
+      onStageToggle: { [weak self] in
+        staged ? self?.store.unstage(f.path) : self?.store.stage(f.path)
+      },
+      onDiscard: { [weak self] in self?.confirmDiscard(f) }
+    )
+    for item in built.items { menu.addItem(item.copy() as! NSMenuItem) }
   }
 }
 
