@@ -52,6 +52,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   private var cancellables = Set<AnyCancellable>()
   var rehighlightWork: DispatchWorkItem?
   var highlightSeq = 0
+  private var fileWatcher: FileChangeWatcher?
+  private var suppressTextChangeCallbacks = false
   /// All tokenizing runs on one shared serial queue: it keeps the UI responsive on large files and
   /// serialises access to the shared (per-language) highlighter, whose regexes compile lazily.
   static let highlightQueue = DispatchQueue(label: "com.editor.highlight", qos: .userInitiated)
@@ -170,6 +172,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     // top-right (VS Code style) — a separate window has its own cursor-rect domain, so the bar's button
     // cursors don't conflict with the text view's I-beam the way a same-window overlay subview did.
     self.view = scroll
+    startWatchingExternalChanges()
   }
 
   override func viewDidLoad() {
@@ -178,12 +181,15 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
       in: &cancellables)
   }
 
+  deinit { stopWatchingExternalChanges() }
+
   override func viewDidLayout() {
     super.viewDidLayout()
     if findVisible { positionFindPanel() }  // keep the floating bar pinned through sidebar/split resizes
   }
 
   func textDidChange(_ notification: Notification) {
+    guard !suppressTextChangeCallbacks else { return }
     onDirty(textView.string != saved)
     NotificationCenter.default.post(
       name: .editorFileTextDidChange, object: self,
@@ -418,6 +424,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   /// grammar for the (possibly new) extension. Content, cursor, undo, and dirty state are untouched.
   func retarget(to newPath: String) {
     guard newPath != path else { return }
+    stopWatchingExternalChanges()
     path = newPath
     languageOverride = nil  // new path → re-detect language
     highlighter = TreeSitterHighlighter.forPath(newPath)
@@ -431,5 +438,50 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     } else {
       requestHighlight(debounced: false)
     }
+    startWatchingExternalChanges()
+  }
+
+  private func startWatchingExternalChanges() {
+    stopWatchingExternalChanges()
+    guard !path.isEmpty else { return }
+    fileWatcher = FileChangeWatcher(path: path) { [weak self] in
+      self?.reloadFromDiskIfNeeded()
+    }
+    fileWatcher?.start()
+  }
+
+  private func stopWatchingExternalChanges() {
+    fileWatcher?.stop()
+    fileWatcher = nil
+  }
+
+  /// Pull in a clean on-disk change. Dirty editors keep their local buffer and ignore outside writes.
+  private func reloadFromDiskIfNeeded() {
+    guard !path.isEmpty, textView?.string == saved else { return }
+    guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return }
+    guard content != textView.string else { return }
+
+    let selection = textView.selectedRange()
+    suppressTextChangeCallbacks = true
+    defer { suppressTextChangeCallbacks = false }
+    textStorage.setAttributedString(
+      NSAttributedString(
+        string: content,
+        attributes: [.font: mono(lastFontSize), .foregroundColor: TreeSitterTheme.base]))
+    saved = content
+    textView.setSelectedRange(
+      NSRange(
+        location: min(selection.location, (content as NSString).length),
+        length: 0))
+    lineEnding = LineEnding.detect(in: content) ?? .lf
+    indentStyle = EditorViewController.detectIndent(content)
+    lineRuler.reload()
+    gitGutter?.reload()
+    onDirty(false)
+    requestHighlight(debounced: false)
+    EditorStatus.onChange?()
+    NotificationCenter.default.post(
+      name: .editorFileTextDidChange, object: self,
+      userInfo: ["path": path, "text": content])
   }
 }

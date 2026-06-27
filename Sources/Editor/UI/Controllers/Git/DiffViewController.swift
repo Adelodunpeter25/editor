@@ -37,6 +37,7 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
   private var reloadWork: DispatchWorkItem?
   private var loadSeq = 0
   private var highlighter: TreeSitterHighlighter?
+  private var fileWatcher: FileChangeWatcher?
   private var newSpans: [(NSRange, NSColor)] = []  // syntax spans for the new file content
   private var oldSpans: [(NSRange, NSColor)] = []  // syntax spans for the old file content
   private var newLineOffsets: [Int] = []  // char offset of each line start in the new text
@@ -145,12 +146,18 @@ final class DiffViewController: NSViewController, NSTableViewDataSource, NSTable
       NotificationCenter.default.addObserver(
         self, selector: #selector(editorFileTextDidChange(_:)),
         name: .editorFileTextDidChange, object: nil)
+      fileWatcher = FileChangeWatcher(path: URL(fileURLWithPath: repo).appendingPathComponent(path).path) {
+        [weak self] in
+        self?.load()
+      }
+      fileWatcher?.start()
     }
     load()
   }
 
   deinit {
     NotificationCenter.default.removeObserver(self)
+    fileWatcher?.stop()
   }
 
   @objc private func editorFileTextDidChange(_ note: Notification) {

@@ -10,11 +10,13 @@ final class ImageViewController: NSViewController, SourceEditing {
   private let onDirty: (Bool) -> Void
   private let scrollView = NSScrollView()
   private let imageView = NSImageView()
+  private var footer: NSTextField?
   private var sourceScroll: NSView?
   private var editor: EditorViewController?  // SVG only: editable source pane
   private var toggle: PointerSegmentedControl?
   private var nativeSize: NSSize = .zero
   private var didInitialFit = false
+  private var textObserver: NSObjectProtocol?
 
   var sourceEditor: EditorViewController? { editor }
 
@@ -77,6 +79,7 @@ final class ImageViewController: NSViewController, SourceEditing {
     let footer = NSTextField(labelWithString: Self.metadata(path: path, image: image))
     footer.font = .systemFont(ofSize: 11)
     footer.textColor = NSColor(white: 0.5, alpha: 1)
+    self.footer = footer
     let bottomBar = NSStackView(views: [footer, NSView()])
     bottomBar.orientation = .horizontal
     bottomBar.alignment = .centerY
@@ -100,6 +103,25 @@ final class ImageViewController: NSViewController, SourceEditing {
     let doubleClick = NSClickGestureRecognizer(target: self, action: #selector(toggleZoom))
     doubleClick.numberOfClicksRequired = 2
     imageView.addGestureRecognizer(doubleClick)
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    textObserver = NotificationCenter.default.addObserver(
+      forName: .editorFileTextDidChange, object: nil, queue: .main
+    ) { [weak self] note in
+      guard let self,
+        let changedPath = note.userInfo?["path"] as? String,
+        changedPath == self.path
+      else { return }
+      self.refreshDisplay()
+    }
+  }
+
+  deinit {
+    if let textObserver {
+      NotificationCenter.default.removeObserver(textObserver)
+    }
   }
 
   /// SVG only: an editable source pane (the real editor, hidden initially) + a footer Image/Source
@@ -139,12 +161,7 @@ final class ImageViewController: NSViewController, SourceEditing {
 
   @objc private func modeChanged(_ sender: NSSegmentedControl) {
     let showSource = sender.selectedSegment == 1
-    if !showSource, let editor {  // returning to Image: re-render from the edited SVG source
-      if let img = NSImage(data: Data(editor.text.utf8)), img.isValid {
-        imageView.image = img
-        nativeSize = Self.pixelSize(of: img)
-      }
-    }
+    if !showSource { refreshDisplay() }
     sourceScroll?.isHidden = !showSource
     scrollView.isHidden = showSource
   }
@@ -194,6 +211,27 @@ final class ImageViewController: NSViewController, SourceEditing {
       parts.append(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
     }
     return parts.joined(separator: "  ·  ")
+  }
+
+  private func refreshDisplay() {
+    if isSVG, let editor {
+      if let img = NSImage(data: Data(editor.text.utf8)), img.isValid {
+        imageView.image = img
+        nativeSize = Self.pixelSize(of: img)
+      }
+    } else {
+      let image = NSImage(contentsOfFile: path)
+      nativeSize = Self.pixelSize(of: image)
+      imageView.image = image
+    }
+    footer?.stringValue = Self.metadata(path: path, image: imageView.image)
+    if !didInitialFit, nativeSize != .zero, view.bounds.width > 1 {
+      didInitialFit = true
+      let fit = fitMagnification()
+      scrollView.minMagnification = min(fit, 1) * 0.25
+      scrollView.maxMagnification = max(1, fit) * 8
+      scrollView.magnification = min(fit, 1)
+    }
   }
 }
 

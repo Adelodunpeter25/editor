@@ -13,6 +13,7 @@ final class MarkdownViewController: NSViewController, SourceEditing {
   private var previewTextView: NSTextView!
   private var sourceScroll: NSView!
   private var toggle: PointerSegmentedControl!
+  private var textObserver: NSObjectProtocol?
 
   var sourceEditor: EditorViewController? { editor }
 
@@ -86,6 +87,25 @@ final class MarkdownViewController: NSViewController, SourceEditing {
     self.view = root
   }
 
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    textObserver = NotificationCenter.default.addObserver(
+      forName: .editorFileTextDidChange, object: nil, queue: .main
+    ) { [weak self] note in
+      guard let self,
+        let changedPath = note.userInfo?["path"] as? String,
+        changedPath == self.path
+      else { return }
+      self.refreshPreview()
+    }
+  }
+
+  deinit {
+    if let textObserver {
+      NotificationCenter.default.removeObserver(textObserver)
+    }
+  }
+
   /// Rendered preview — explicit TextKit 1 stack (so NSTextTable / attachments render), read-only.
   private func makePreview(_ rendered: NSAttributedString) -> NSScrollView {
     let storage = NSTextStorage(attributedString: rendered)
@@ -129,10 +149,7 @@ final class MarkdownViewController: NSViewController, SourceEditing {
 
   @objc private func modeChanged(_ sender: NSSegmentedControl) {
     let showPreview = sender.selectedSegment == 1
-    if showPreview {  // switching to Preview: re-render live from the editor's current text
-      previewTextView.textStorage?.setAttributedString(
-        MarkdownRenderer.render(editor.text, baseURL: baseURL))
-    }
+    if showPreview { refreshPreview() }
     sourceScroll.isHidden = showPreview
     previewScroll.isHidden = !showPreview
   }
@@ -142,5 +159,10 @@ final class MarkdownViewController: NSViewController, SourceEditing {
   func setSourceVisible(_ visible: Bool) {
     toggle.selectedSegment = visible ? 0 : 1
     modeChanged(toggle)
+  }
+
+  private func refreshPreview() {
+    previewTextView.textStorage?.setAttributedString(
+      MarkdownRenderer.render(editor.text, baseURL: baseURL))
   }
 }
