@@ -6,6 +6,8 @@ cd "$(dirname "$0")"
 
 CONFIG="${1:-debug}"
 VER="${EDITOR_VERSION:-0.1.0}"
+ED_PREFIX="${ED_INSTALL_PREFIX:-$HOME/.local}"
+ED_BIN_DIR="$ED_PREFIX/bin"
 
 if [ "$CONFIG" = "debug" ]; then
   APP="Editor Dev.app"; NAME="Editor Dev"; BID="com.adelodunpeter.editor.dev"; ICNS="AppIconDev.icns"
@@ -18,6 +20,13 @@ echo "==> swift build ($CONFIG)"
 swift build -c "$CONFIG"
 
 BIN=".build/$CONFIG/Editor"
+ED_BIN=".build/$CONFIG/ed"
+
+echo "==> installing ed launcher to $ED_BIN_DIR/ed"
+mkdir -p "$ED_BIN_DIR"
+cp "$ED_BIN" "$ED_BIN_DIR/ed"
+chmod +x "$ED_BIN_DIR/ed"
+
 echo "==> bundling $APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
