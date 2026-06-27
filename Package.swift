@@ -4,6 +4,9 @@ import PackageDescription
 let package = Package(
     name: "Editor",
     platforms: [.macOS(.v13)],
+    products: [
+        .executable(name: "ed", targets: ["ed"]),
+    ],
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.2.0"),
         .package(name: "EditorCore", path: "Packages/EditorCore"),
@@ -41,6 +44,10 @@ let package = Package(
                 .linkedLibrary("iconv"),
                 .unsafeFlags(["-L", "Sources/Cfff"])
             ]
+        ),
+        .executableTarget(
+            name: "ed",
+            path: "Sources/ed"
         ),
     ],
     swiftLanguageVersions: [.v5]
