@@ -25,8 +25,3 @@ Features are grouped by theme and tagged with rough sizing (S/M/L) and a priorit
 ## Extensibility
 
 - **Extension API** [L, P3] — Large and cross-cutting. Benefits from the editor's internal API surface being stable first. Defer until P1/P2 items land, then scope a minimal plugin contract (commands, text manipulation, sidebar items) before expanding.
-
-## Notes
-
-- Items tagged **P3 / explore** (vim mode, extension API, autocomplete strategy) have a build-vs-integrate decision to make before committing.
-- Multi-window is called out as P1 despite being large because retrofitting it later is painful — it's a "decide early" item, not necessarily a "ship early" one.

@@ -338,8 +338,6 @@ final class ChangesViewController: NSViewController, NSTextFieldDelegate, NSTabl
 private final class ChangeRowView: PointerView {
   private let file: FileEntry
   private let staged: Bool
-  private let actions: NSStackView
-  private var tracking: NSTrackingArea?
 
   init(
     file: FileEntry, staged: Bool, onOpenFile: @escaping () -> Void,
@@ -347,7 +345,6 @@ private final class ChangeRowView: PointerView {
   ) {
     self.file = file
     self.staged = staged
-    self.actions = NSStackView()
     super.init(frame: .zero)
     wantsLayer = true
 
@@ -377,25 +374,7 @@ private final class ChangeRowView: PointerView {
     badge.textColor = color
     badge.setContentHuggingPriority(.required, for: .horizontal)
 
-    actions.orientation = .horizontal
-    actions.spacing = 2
-    actions.isHidden = true
-    func actionButton(_ symbol: String, _ tip: String, _ run: @escaping () -> Void) -> ClosureButton
-    {
-      let b = ClosureButton(symbol: symbol, action: run)
-      b.toolTip = tip
-      b.widthAnchor.constraint(equalToConstant: 22).isActive = true  // larger hit area than the bare glyph
-      b.heightAnchor.constraint(equalToConstant: 20).isActive = true
-      return b
-    }
-    actions.addArrangedSubview(actionButton("arrow.uturn.backward", "Discard changes", onDiscard))
-    if file.status != .deleted {
-      actions.addArrangedSubview(actionButton("square.and.pencil", "Open file to edit", onOpenFile))
-    }
-    actions.addArrangedSubview(
-      actionButton(staged ? "minus" : "plus", staged ? "Unstage" : "Stage", onStageToggle))
-
-    let stack = NSStackView(views: [name, dirLabel, NSView(), actions, badge])
+    let stack = NSStackView(views: [name, dirLabel, NSView(), badge])
     stack.orientation = .horizontal
     stack.spacing = 6
     stack.edgeInsets = NSEdgeInsets(top: 3, left: 10, bottom: 3, right: 10)
@@ -422,24 +401,6 @@ private final class ChangeRowView: PointerView {
     case .conflict: return "C"
     default: return "•"
     }
-  }
-
-  override func updateTrackingAreas() {
-    super.updateTrackingAreas()
-    if let tracking { removeTrackingArea(tracking) }
-    let t = NSTrackingArea(
-      rect: bounds, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-      owner: self)
-    addTrackingArea(t)
-    tracking = t
-  }
-  override func mouseEntered(with event: NSEvent) {
-    layer?.backgroundColor = NSColor(white: 0.2, alpha: 1).cgColor
-    actions.isHidden = false
-  }
-  override func mouseExited(with event: NSEvent) {
-    layer?.backgroundColor = NSColor.clear.cgColor
-    actions.isHidden = true
   }
 }
 

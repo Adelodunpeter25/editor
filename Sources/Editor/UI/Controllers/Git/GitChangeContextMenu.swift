@@ -34,25 +34,25 @@ enum GitChangeContextMenu {
     onDiscard: @escaping () -> Void
   ) {
     // ── Primary actions ───────────────────────────────────────────────────────
-    menu.addItem(item("View Diff", symbol: "arrow.left.arrow.right", action: onOpenDiff))
+    menu.addItem(item("View Diff", action: onOpenDiff))
 
     if file.status != .deleted {
-      menu.addItem(item("Open in Editor", symbol: "square.and.pencil", action: onOpenFile))
+      menu.addItem(item("Open in Editor", action: onOpenFile))
     }
 
     menu.addItem(.separator())
 
     // ── Stage / Unstage ───────────────────────────────────────────────────────
     if staged {
-      menu.addItem(item("Unstage", symbol: "minus", action: onStageToggle))
+      menu.addItem(item("Unstage", action: onStageToggle))
     } else {
-      menu.addItem(item("Stage", symbol: "plus", action: onStageToggle))
+      menu.addItem(item("Stage", action: onStageToggle))
     }
 
     menu.addItem(.separator())
 
     // ── Destructive ───────────────────────────────────────────────────────────
-    let discard = item("Discard Changes…", symbol: "arrow.uturn.backward", action: onDiscard)
+    let discard = item("Discard Changes…", action: onDiscard)
     discard.attributedTitle = NSAttributedString(
       string: "Discard Changes…",
       attributes: [.foregroundColor: NSColor.systemRed])
@@ -75,12 +75,9 @@ enum GitChangeContextMenu {
 
   private static func item(
     _ title: String,
-    symbol: String,
     action: @escaping () -> Void
   ) -> NSMenuItem {
     let item = ClosureMenuItem(title: title, action: action)
-    item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-      .withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
     item.isEnabled = true
     return item
   }
