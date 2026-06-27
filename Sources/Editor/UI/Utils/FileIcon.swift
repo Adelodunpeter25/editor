@@ -11,6 +11,33 @@ enum FileIcon {
       .withSymbolConfiguration(.init(pointSize: size, weight: .regular))
   }
 
+  /// Returns a pre-tinted SF Symbol image for the given filename (the color is baked in, so it
+  /// renders correctly inside NSOutlineView cells where contentTintColor is unreliable).
+  static func tintedIcon(forFilename filename: String, color: NSColor, size: CGFloat = 11)
+    -> NSImage?
+  {
+    guard let img = icon(forFilename: filename, size: size) else { return nil }
+    return tint(img, with: color)
+  }
+
+  /// Folder icon (expanded or collapsed), pre-tinted with the folder color.
+  static func tintedFolderIcon(expanded: Bool, size: CGFloat = 12) -> NSImage? {
+    guard let img = folderIcon(expanded: expanded, size: size) else { return nil }
+    return tint(img, with: folderColor())
+  }
+
+  /// Bake a color into a template SF Symbol image (sourceAtop compositing).
+  private static func tint(_ image: NSImage, with color: NSColor) -> NSImage {
+    let size = image.size
+    let result = NSImage(size: size)
+    result.lockFocus()
+    image.draw(in: NSRect(origin: .zero, size: size))
+    color.withAlphaComponent(1).set()
+    NSRect(origin: .zero, size: size).fill(using: .sourceAtop)
+    result.unlockFocus()
+    return result
+  }
+
   /// Returns the SF Symbol name for a given filename (checks well-known names first, then extension).
   static func symbolName(forFilename filename: String) -> String {
     let lower = filename.lowercased()

@@ -369,11 +369,9 @@ final class FileTreeViewController: NSViewController, NSOutlineViewDataSource,
       field.placeholderString = nil
     }
 
-    // Icon — tinted by file type, not git status (text color carries status).
+    // Icon — color is baked into the image (contentTintColor is unreliable in outline view cells).
     cell.iconView?.isHidden = false
     cell.iconView?.image = FileTreeCellView.icon(for: node, expanded: ov.isItemExpanded(node))
-    cell.iconView?.contentTintColor =
-      (node.isFolder || node.isDir) ? FileIcon.folderColor() : FileIcon.color(forFilename: node.name)
 
     let title = node.name + ((node.isDir && !node.isFolder) ? "/" : "")
     let color = nsStatusColor(node.status)

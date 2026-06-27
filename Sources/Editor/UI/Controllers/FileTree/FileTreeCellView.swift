@@ -37,9 +37,11 @@ final class FileTreeCellView: NSTableCellView {
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError() }
 
-  /// Pick an appropriate SF Symbol icon for the node.
+  /// Pick an appropriate SF Symbol icon for the node, pre-tinted with the file-type color.
+  /// The color is baked in because contentTintColor is unreliable inside NSOutlineView cells
+  /// (the row view's interiorBackgroundStyle interferes with view-level tinting).
   static func icon(for node: TreeNode, expanded: Bool) -> NSImage? {
-    if node.isFolder || node.isDir { return FileIcon.folderIcon(expanded: false) }
-    return FileIcon.icon(forFilename: node.name)
+    if node.isFolder || node.isDir { return FileIcon.tintedFolderIcon(expanded: false) }
+    return FileIcon.tintedIcon(forFilename: node.name, color: FileIcon.color(forFilename: node.name))
   }
 }
