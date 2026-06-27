@@ -4,9 +4,9 @@ Features are grouped by theme and tagged with rough sizing (S/M/L) and a priorit
 
 ## Platform Integration
 
-- **CLI `ed .` to open current directory** [S, P1] — Ship a small launcher binary and add it to `PATH`. Pairs naturally with the "open with" registration below.
-- **macOS "open with" registration** [S, P1] — Register support for developer file types (including `.db`, `.sqlite`, `.sqlite3`) so the editor shows up in Finder's "open with" dropdown.
-- **Multi-window / multi-project support** [L, P1] — Architecturally significant; should be decided early before the codebase hardens around single-window assumptions. Affects document model, workspace state, and most controllers.
+- **CLI `ed .` to open current directory** [S, P1] — Still missing. Ship a tiny launcher binary that resolves the current directory and asks the app to open it, ideally reusing the same open-repo path as Finder / Dock / "Open Folder…".
+- **macOS "open with" registration** [S, P1] — Partially done for folders already; extend the app bundle to register the file types we care about (`.db`, `.sqlite`, `.sqlite3`) so Finder offers Editor in "Open With" for those files too.
+- **Multi-window / multi-project support** [L, P1] — Still a real architecture change. Needs a decision early because `ed .` and broader project workflow are much cleaner if the app can open multiple independent windows instead of one shared workspace.
 
 ## Editor Capabilities
 
