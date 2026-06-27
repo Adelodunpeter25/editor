@@ -319,7 +319,8 @@ final class ChangesViewController: NSViewController, NSTextFieldDelegate, NSTabl
     menu.removeAllItems()
     let row = tableView.clickedRow
     guard row >= 0, row < items.count, case .file(let f, let staged) = items[row] else { return }
-    let built = GitChangeContextMenu.menu(
+    GitChangeContextMenu.populate(
+      menu,
       for: f,
       staged: staged,
       onOpenDiff: { [weak self] in self?.onOpenDiff(f.path) },
@@ -329,7 +330,6 @@ final class ChangesViewController: NSViewController, NSTextFieldDelegate, NSTabl
       },
       onDiscard: { [weak self] in self?.confirmDiscard(f) }
     )
-    for item in built.items { menu.addItem(item.copy() as! NSMenuItem) }
   }
 }
 

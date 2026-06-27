@@ -13,27 +13,27 @@ import AppKit
 /// ```
 enum GitChangeContextMenu {
 
-  /// Returns a fully configured `NSMenu` for a single changed file.
+  /// Populates `menu` with items for a single changed file.
+  /// Items are added directly — no copy needed.
   ///
   /// - Parameters:
+  ///   - menu: The menu to populate (cleared by the caller before this is called).
   ///   - file: The git-changed file entry.
   ///   - staged: Whether the file is in the staged section.
   ///   - onOpenDiff: Open the file's diff tab.
   ///   - onOpenFile: Open the file in the editor.
   ///   - onStageToggle: Stage the file (if unstaged) or unstage it (if staged).
   ///   - onDiscard: Discard this file's changes (with confirmation handled by the caller).
-  static func menu(
+  static func populate(
+    _ menu: NSMenu,
     for file: FileEntry,
     staged: Bool,
     onOpenDiff: @escaping () -> Void,
     onOpenFile: @escaping () -> Void,
     onStageToggle: @escaping () -> Void,
     onDiscard: @escaping () -> Void
-  ) -> NSMenu {
-    let menu = NSMenu()
-    menu.autoenablesItems = false
-
-    // ── Primary action ────────────────────────────────────────────────────────
+  ) {
+    // ── Primary actions ───────────────────────────────────────────────────────
     menu.addItem(item("View Diff", symbol: "arrow.left.arrow.right", action: onOpenDiff))
 
     if file.status != .deleted {
@@ -58,7 +58,7 @@ enum GitChangeContextMenu {
       attributes: [.foregroundColor: NSColor.systemRed])
     menu.addItem(discard)
 
-    // ── File info (disabled, cosmetic) ────────────────────────────────────────
+    // ── File path (disabled, cosmetic) ────────────────────────────────────────
     menu.addItem(.separator())
     let info = NSMenuItem(title: file.path, action: nil, keyEquivalent: "")
     info.isEnabled = false
@@ -69,8 +69,6 @@ enum GitChangeContextMenu {
         .font: NSFont.systemFont(ofSize: 11),
       ])
     menu.addItem(info)
-
-    return menu
   }
 
   // MARK: - Private helpers

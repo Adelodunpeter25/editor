@@ -22,11 +22,6 @@ Features are grouped by theme and tagged with rough sizing (S/M/L) and a priorit
 - **Multiple remotes** [M, P2] — UI to list, add, remove remotes and choose which to push/pull.
 - **Submodules / worktrees** [L, P3] — Clarify intent: the current "multiple `.git` files" bullet likely means submodules or worktrees. Both are non-trivial; pick one first.
 
-## Polish
-
-- **Colored sidebar icons (or native Finder icons)** [S, P1] — Low effort, high visibility. Quick win.
-- **Boilerplate cleanup / consistency pass** [S, P1] — Ongoing; headers, naming, dead code.
-
 ## Extensibility
 
 - **Extension API** [L, P3] — Large and cross-cutting. Benefits from the editor's internal API surface being stable first. Defer until P1/P2 items land, then scope a minimal plugin contract (commands, text manipulation, sidebar items) before expanding.
