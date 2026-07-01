@@ -362,19 +362,12 @@ private final class ChangeRowView: PointerView {
     }
     name.lineBreakMode = .byTruncatingTail
 
-    let dir = (file.path as NSString).deletingLastPathComponent
-    let dirLabel = NSTextField(labelWithString: dir)
-    dirLabel.font = .systemFont(ofSize: 11)
-    dirLabel.textColor = NSColor(white: 0.4, alpha: 1)
-    dirLabel.lineBreakMode = .byTruncatingHead
-    dirLabel.isHidden = dir.isEmpty
-
     let badge = NSTextField(labelWithString: Self.badge(file.status))
     badge.font = .systemFont(ofSize: 11, weight: .semibold)
     badge.textColor = color
     badge.setContentHuggingPriority(.required, for: .horizontal)
 
-    let stack = NSStackView(views: [name, dirLabel, NSView(), badge])
+    let stack = NSStackView(views: [name, NSView(), badge])
     stack.orientation = .horizontal
     stack.spacing = 6
     stack.edgeInsets = NSEdgeInsets(top: 3, left: 10, bottom: 3, right: 10)
