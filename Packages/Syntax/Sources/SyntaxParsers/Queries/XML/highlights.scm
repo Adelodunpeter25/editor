@@ -1,8 +1,10 @@
+; MARK: Comments
+; ----------------------------
+(Comment) @comments
+
+
 ; MARK: Keywords
 ; ----------------------------
-(tag_name) @keywords
-(erroneous_end_tag_name) @keywords
-
 "xml" @keywords
 
 [
@@ -22,17 +24,33 @@
   "#FIXED"
 ] @keywords
 
+(elementdecl
+  "ELEMENT" @keywords
+  (Name) @keywords)
+
+(doctypedecl
+  "DOCTYPE" @keywords)
+
+(doctypedecl
+  (Name) @keywords)
+
 
 ; MARK: Commands
 ; ----------------------------
 (PI) @commands
 (PI (PITarget) @commands)
-(doctype) @commands
 
 
 ; MARK: Attributes
 ; ----------------------------
-(attribute_name) @attributes
+(Attribute
+  (Name) @attributes)
+
+(AttDef
+  (Name) @attributes)
+
+(PseudoAtt
+  (Name) @attributes)
 
 [
   "version"
@@ -43,37 +61,46 @@
 
 ; MARK: Strings
 ; ----------------------------
-(attribute
-  (attribute_value) @strings)
+(Attribute
+  (AttValue) @strings)
 
-(attribute
-  (quoted_attribute_value) @strings)
+(DefaultDecl
+  (AttValue) @strings)
 
-(EntityValue) @strings
+(GEDecl
+  (EntityValue) @strings)
 
-(SystemLiteral) @strings
+(PEDecl
+  (EntityValue) @strings)
+
+(PseudoAtt
+  (PseudoAttValue) @strings)
 
 (PubidLiteral) @strings
+
+(SystemLiteral
+  (URI) @strings)
 
 
 ; MARK: Characters
 ; ----------------------------
-(entity) @characters
-
-(CHARREF) @characters
-
-
-; MARK: Comments
-; ----------------------------
-(comment) @comments
+(EntityRef) @characters
+(CharRef) @characters
+(PEReference) @characters
 
 
 ; MARK: Types
 ; ----------------------------
-(Name) @types
+(STag
+  (Name) @types)
+
+(ETag
+  (Name) @types)
+
+(EmptyElemTag
+  (Name) @types)
 
 (EncName) @types
-
 (VersionNum) @types
 
 
