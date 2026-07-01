@@ -57,18 +57,6 @@ enum GitChangeContextMenu {
       string: "Discard Changes…",
       attributes: [.foregroundColor: NSColor.systemRed])
     menu.addItem(discard)
-
-    // ── File path (disabled, cosmetic) ────────────────────────────────────────
-    menu.addItem(.separator())
-    let info = NSMenuItem(title: file.path, action: nil, keyEquivalent: "")
-    info.isEnabled = false
-    info.attributedTitle = NSAttributedString(
-      string: file.path,
-      attributes: [
-        .foregroundColor: NSColor(white: 0.45, alpha: 1),
-        .font: NSFont.systemFont(ofSize: 11),
-      ])
-    menu.addItem(info)
   }
 
   // MARK: - Private helpers
