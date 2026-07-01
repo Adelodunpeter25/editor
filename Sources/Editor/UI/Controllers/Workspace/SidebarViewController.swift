@@ -97,10 +97,14 @@ final class SidebarViewController: NSViewController {
   /// Auto-reveal the active file in the tree (VS Code-style): when the active tab is a file, expand to
   /// it, select it, scroll it in. Files mode only; deduped so we don't fight manual scrolling.
   private func revealActiveFile() {
-    guard sidebarMode == .files, let treeVC,
-      let session = model.activeSession, let tab = session.activeTab,
+    guard sidebarMode == .files, let treeVC else { return }
+    guard let session = model.activeSession, let tab = session.activeTab,
       tab.kind == .file, let abs = tab.path
-    else { return }
+    else {
+      lastRevealedPath = nil
+      treeVC.outline.deselectAll(nil)
+      return
+    }
     let prefix = session.url.hasSuffix("/") ? session.url : session.url + "/"
     let rel = abs.hasPrefix(prefix) ? String(abs.dropFirst(prefix.count)) : abs
     guard rel != lastRevealedPath else { return }
