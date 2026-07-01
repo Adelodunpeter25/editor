@@ -72,8 +72,6 @@ enum LanguageUtil {
     "lua": "lua",
     "scala": "scala",
     "sc": "scala",
-    "tex": "latex",
-    "ltx": "latex",
   ]
 
   private static let fenceAliases: [String: String] = [
@@ -100,7 +98,6 @@ enum LanguageUtil {
     "dockerfile": "dockerfile",
     "cs": "csharp",
     "kt": "kotlin",
-    "tex": "latex",
     "dart": "dart",
   ]
 
@@ -124,7 +121,6 @@ enum LanguageUtil {
     "objcpp": "Objective-C++",
     "kotlin": "Kotlin",
     "scala": "Scala",
-    "latex": "LaTeX",
     "shell": "Shell",
     "makefile": "Makefile",
     "markdown": "Markdown",

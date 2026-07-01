@@ -145,15 +145,6 @@
       }
     },
     {
-      "identity" : "tree-sitter-latex",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/1024jp/tree-sitter-latex",
-      "state" : {
-        "branch" : "swiftPackage",
-        "revision" : "e27d10e475cb091fb15df58a0d055ff6464e6024"
-      }
-    },
-    {
       "identity" : "tree-sitter-lua",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/1024jp/tree-sitter-lua",

@@ -91,8 +91,6 @@ extension TreeSitterSyntax {
       JavaScriptOutlineFormatter.self
     case .kotlin:
       KotlinOutlineFormatter.self
-    case .latex:
-      LaTeXOutlineFormatter.self
     case .lua:
       LuaOutlineFormatter.self
     case .markdown:

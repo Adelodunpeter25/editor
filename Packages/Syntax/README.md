@@ -20,7 +20,6 @@ The following languages are currently supported by tree-sitter in this package:
 - JavaScript
 - JSON
 - Kotlin
-- LaTeX
 - Lua
 - Makefile
 - Markdown (outline extraction only)

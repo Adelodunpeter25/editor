@@ -12,7 +12,6 @@ import TreeSitterJava
 import TreeSitterJavaScript
 import TreeSitterJSON
 import TreeSitterKotlin
-import TreeSitterLatex
 import TreeSitterLua
 import TreeSitterMake
 import TreeSitterMarkdown
@@ -42,7 +41,6 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
   case javaScript = "JavaScript"
   case json = "JSON"
   case kotlin = "Kotlin"
-  case latex = "LaTeX"
   case lua = "Lua"
   case makefile = "Makefile"
   case markdown = "Markdown"
@@ -76,7 +74,6 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .javaScript: ["javascript", "js", "jsx", "mjs", "cjs"]
     case .json: ["json", "jsonc"]
     case .kotlin: ["kotlin", "kt"]
-    case .latex: ["latex", "tex"]
     case .lua: ["lua"]
     case .makefile: ["makefile", "mk"]
     case .markdown: ["markdown", "md"]
@@ -142,7 +139,6 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .javaScript: tree_sitter_javascript()
     case .json: tree_sitter_json()
     case .kotlin: tree_sitter_kotlin()
-    case .latex: tree_sitter_latex()
     case .lua: tree_sitter_lua()
     case .makefile: tree_sitter_make()
     case .markdown: tree_sitter_markdown()
