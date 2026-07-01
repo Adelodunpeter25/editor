@@ -186,7 +186,7 @@ final class CommandPaletteController: NSObject, NSTextFieldDelegate, NSTableView
       guard result.fileHits.indices.contains(selected) else { return }
       let rel = result.fileHits[selected].rel
       dismiss()
-      model.activeSession?.openFile(rel)
+      model.activeSession?.openFile(rel, replaceCurrent: false)
     }
   }
 

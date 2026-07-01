@@ -137,7 +137,7 @@ final class Session: ObservableObject, Identifiable {
 
   // MARK: - Files / diffs
 
-  func openFile(_ path: String) {
+  func openFile(_ path: String, replaceCurrent: Bool = true) {
     let abs = absolute(path)
     if let existing = tabs.first(where: { $0.kind == .file && $0.path == abs }) {
       activate(existing.id)
@@ -145,7 +145,8 @@ final class Session: ObservableObject, Identifiable {
     }
     // If the active tab is replaceable (not dirty, not pinned, file tab opened < 10 min ago),
     // replace it instead of adding a new tab.
-    if let idx = tabs.firstIndex(where: { $0.id == activeTabID }),
+    if replaceCurrent,
+      let idx = tabs.firstIndex(where: { $0.id == activeTabID }),
       isTabReplaceable(tabs[idx])
     {
       let oldID = tabs[idx].id
