@@ -4,6 +4,7 @@ import TreeSitterC
 import TreeSitterCPP
 import TreeSitterCSS
 import TreeSitterCSharp
+import TreeSitterDart
 import TreeSitterDockerfile
 import TreeSitterGo
 import TreeSitterHTML
@@ -23,6 +24,8 @@ import TreeSitterScala
 import TreeSitterSql
 import TreeSitterSwift
 import TreeSitterTypeScript
+import TreeSitterXML
+import TreeSitterYAML
 
 public enum TreeSitterSyntax: String, CaseIterable, Sendable {
 
@@ -31,6 +34,7 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
   case cpp = "C++"
   case cSharp = "C#"
   case css = "CSS"
+  case dart = "Dart"
   case dockerfile = "Dockerfile"
   case go = "Go"
   case html = "HTML"
@@ -50,6 +54,8 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
   case sql = "SQL"
   case swift = "Swift"
   case typeScript = "TypeScript"
+  case xml = "XML"
+  case yaml = "YAML"
 
   var name: String { self.rawValue }
 
@@ -62,6 +68,7 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .cpp: ["cpp", "c++", "hpp", "hh", "hxx", "cxx", "cc"]
     case .cSharp: ["csharp", "c#", "cs"]
     case .css: ["css"]
+    case .dart: ["dart"]
     case .dockerfile: ["dockerfile", "containerfile"]
     case .go: ["go"]
     case .html: ["html", "htm", "xhtml"]
@@ -81,6 +88,8 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .sql: ["sql"]
     case .swift: ["swift"]
     case .typeScript: ["typescript", "ts", "tsx", "mts", "cts"]
+    case .xml: ["xml", "svg", "plist", "xsd", "rss"]
+    case .yaml: ["yaml", "yml"]
     }
   }
 
@@ -125,6 +134,7 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .cpp: tree_sitter_cpp()
     case .cSharp: tree_sitter_c_sharp()
     case .css: tree_sitter_css()
+    case .dart: tree_sitter_dart()
     case .dockerfile: tree_sitter_dockerfile()
     case .go: tree_sitter_go()
     case .html: tree_sitter_html()
@@ -144,6 +154,8 @@ public enum TreeSitterSyntax: String, CaseIterable, Sendable {
     case .sql: tree_sitter_sql()
     case .swift: tree_sitter_swift()
     case .typeScript: tree_sitter_typescript()
+    case .xml: tree_sitter_xml()
+    case .yaml: tree_sitter_yaml()
     }
   }
 }

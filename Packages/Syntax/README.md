@@ -12,10 +12,13 @@ The following languages are currently supported by tree-sitter in this package:
 - C#
 - C++
 - CSS
+- Dart
+- Dockerfile
 - Go
 - HTML
 - Java
 - JavaScript
+- JSON
 - Kotlin
 - LaTeX
 - Lua
@@ -29,3 +32,5 @@ The following languages are currently supported by tree-sitter in this package:
 - SQL
 - Swift
 - TypeScript
+- XML
+- YAML

@@ -253,6 +253,15 @@
       }
     },
     {
+      "identity" : "tree-sitter-xml",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter-grammars/tree-sitter-xml",
+      "state" : {
+        "revision" : "4b64dd3a03ec002258d6268d712fd93716d6ab57",
+        "version" : "0.7.0"
+      }
+    },
+    {
       "identity" : "yams",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpsim/Yams",

@@ -46,6 +46,7 @@ let package = Package(
         .package(url: "https://github.com/tree-sitter/tree-sitter-typescript", from: Version(0, 23, 2)),
         .package(url: "https://github.com/tree-sitter/tree-sitter-json", from: Version(0, 24, 8)),
         .package(url: "https://github.com/camdencheek/tree-sitter-dockerfile", from: Version(0, 2, 0)),
+        .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-xml", from: Version(0, 7, 0)),
     ],
     targets: [
         .target(
@@ -83,8 +84,31 @@ let package = Package(
                 .product(name: "TreeSitterTypeScript", package: "tree-sitter-typescript"),
                 .product(name: "TreeSitterJSON", package: "tree-sitter-json"),
                 .product(name: "TreeSitterDockerfile", package: "tree-sitter-dockerfile"),
+                .product(name: "TreeSitterXML", package: "tree-sitter-xml"),
+                "TreeSitterDart",
+                "TreeSitterYAML",
             ],
             resources: [.copy("Queries")]
+        ),
+        
+        .target(
+            name: "TreeSitterDart",
+            dependencies: [
+                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+            ],
+            path: "Sources/TreeSitterDart",
+            publicHeadersPath: "include",
+            cSettings: [.headerSearchPath("Sources/TreeSitterDart")]
+        ),
+        
+        .target(
+            name: "TreeSitterYAML",
+            dependencies: [
+                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+            ],
+            path: "Sources/TreeSitterYAML",
+            publicHeadersPath: "include",
+            cSettings: [.headerSearchPath("Sources/TreeSitterYAML")]
         ),
         
         .executableTarget(

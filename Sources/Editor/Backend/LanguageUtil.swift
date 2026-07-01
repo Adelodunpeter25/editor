@@ -33,6 +33,7 @@ enum LanguageUtil {
     "java": "java",
     "kt": "kotlin",
     "kts": "kotlin",
+    "dart": "dart",
     "rb": "ruby",
     "rake": "ruby",
     "gemspec": "ruby",
@@ -100,6 +101,7 @@ enum LanguageUtil {
     "cs": "csharp",
     "kt": "kotlin",
     "tex": "latex",
+    "dart": "dart",
   ]
 
   private static let langDisplayNames: [String: String] = [
@@ -126,6 +128,7 @@ enum LanguageUtil {
     "shell": "Shell",
     "makefile": "Makefile",
     "markdown": "Markdown",
+    "dart": "Dart",
   ]
 
   /// Map a file path to a bundled grammar key. Filename is checked first (Dockerfile, Makefile),
