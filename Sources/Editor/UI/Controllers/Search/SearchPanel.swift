@@ -201,7 +201,7 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
     outline.dataSource = self
     outline.delegate = self
     outline.target = self
-    outline.action = #selector(rowClicked)
+    outline.doubleAction = #selector(rowDoubleClicked)
 
     scroll.documentView = outline
     scroll.hasVerticalScroller = true
@@ -426,12 +426,12 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
 
   // MARK: - Clicks
 
-  @objc private func rowClicked() {
+  @objc private func rowDoubleClicked() {
     let row = outline.clickedRow
     guard row >= 0, let item = outline.item(atRow: row) else { return }
     if let m = item as? MatchNode {
       onOpen(m.file, m.line)
-    } else if let f = item as? FileNode {  // click a file header → toggle its matches
+    } else if let f = item as? FileNode {  // double click a file header → toggle its matches
       if outline.isItemExpanded(f) { outline.collapseItem(f) } else { outline.expandItem(f) }
       outline.reloadItem(f)  // refresh the chevron direction
     }
@@ -492,7 +492,7 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate, NSOut
 
 /// Outline view with the system disclosure triangle hidden (`frameOfOutlineCell` → `.zero`) so every row's
 /// content starts flush at the column's left edge — no reserved triangle column indenting the match rows.
-/// The file cell draws its own chevron instead, and clicking a file row toggles it (see `rowClicked`).
+/// The file cell draws its own chevron instead, and double clicking a file row toggles it (see `rowDoubleClicked`).
 private final class SearchOutlineView: PointerOutlineView {
   override func frameOfOutlineCell(atRow row: Int) -> NSRect { .zero }
 }
