@@ -102,6 +102,7 @@ final class SidebarViewController: NSViewController {
       tab.kind == .file, let abs = tab.path
     else {
       lastRevealedPath = nil
+      treeVC.reveal("")
       treeVC.outline.deselectAll(nil)
       return
     }
