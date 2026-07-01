@@ -113,7 +113,9 @@ final class LineNumberRuler: NSRulerView {
       lineEndingsProcessed = 0  // reset so we re-walk from the beginning on next append
     }
     guard let counter = lineCounter else { return }
-    let target = min(charIndex, max(0, counter.length - 1))
+    // Buffer 10,000 characters (approx. 150–200 lines) ahead of the visible area so
+    // line numbers are pre-generated before they scroll into the viewport.
+    let target = min(charIndex + 10000, max(0, counter.length - 1))
     if target < lineStartsParsedUpTo { return }
 
     // Force the lazy parser to cover the entire line containing target.
