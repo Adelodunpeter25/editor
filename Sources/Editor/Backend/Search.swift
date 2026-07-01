@@ -71,15 +71,7 @@ enum ProjectSearch {
   ) -> Int {
     guard !query.isEmpty, !files.isEmpty else { return 0 }
 
-    // Map our Options to TextFind.Mode.
-    let mode: TextFind.Mode
-    if options.regex {
-      let regexOpts: NSRegularExpression.Options = options.matchCase ? [] : [.caseInsensitive]
-      mode = .regularExpression(options: regexOpts, unescapesReplacement: true)
-    } else {
-      let compareOpts: String.CompareOptions = options.matchCase ? [] : [.caseInsensitive]
-      mode = .textual(options: compareOpts, fullWord: options.wholeWord)
-    }
+    let mode = options.textFindMode
 
     var changedCount = 0
     for hit in files {
@@ -103,5 +95,17 @@ enum ProjectSearch {
       changedCount += 1
     }
     return changedCount
+  }
+}
+
+extension ProjectSearch.Options {
+  var textFindMode: TextFind.Mode {
+    if regex {
+      let regexOpts: NSRegularExpression.Options = matchCase ? [] : [.caseInsensitive]
+      return .regularExpression(options: regexOpts, unescapesReplacement: true)
+    } else {
+      let compareOpts: String.CompareOptions = matchCase ? [] : [.caseInsensitive]
+      return .textual(options: compareOpts, fullWord: wholeWord)
+    }
   }
 }
