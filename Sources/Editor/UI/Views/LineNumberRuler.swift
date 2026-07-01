@@ -113,11 +113,11 @@ final class LineNumberRuler: NSRulerView {
       lineEndingsProcessed = 0  // reset so we re-walk from the beginning on next append
     }
     guard let counter = lineCounter else { return }
-    let target = min(charIndex + 1, counter.length)
-    if target <= lineStartsParsedUpTo { return }
+    let target = min(charIndex, max(0, counter.length - 1))
+    if target < lineStartsParsedUpTo { return }
 
-    // Force the lazy parser to cover up to `target`.
-    _ = counter.lineNumber(at: target)
+    // Force the lazy parser to cover the entire line containing target.
+    _ = counter.lineRange(at: target)
 
     // Only iterate endings we haven't seen yet — counter.lineEndings grows monotonically
     // as more of the document is parsed. Skipping already-processed entries keeps this O(new) per call.
@@ -126,7 +126,7 @@ final class LineNumberRuler: NSRulerView {
       lineStarts.append(le.upperBound)
     }
     lineEndingsProcessed = endings.count
-    lineStartsParsedUpTo = target
+    lineStartsParsedUpTo = target + 1
   }
 
   /// 1-based (line, column) for a character index — for the status bar. Reuses the cached line index.
