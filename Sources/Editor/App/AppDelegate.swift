@@ -17,8 +17,8 @@ enum NewItemHook {
 final class AppDelegate: NSObject, NSApplicationDelegate {
   let model = AppModel()
   /// One window controller per session (keyed by session id), plus at most one welcome window
-  /// (nil key) shown when no sessions are open.
-  private var windowControllers: [String?: MainWindowController] = [:]
+  /// (nil key) shown when no sessions are open. Internal so AppMenu's extension can route to it.
+  var windowControllers: [String?: MainWindowController] = [:]
   private var keyMonitor: Any?
   private var cancellables = Set<AnyCancellable>()
   private var settingsWC: SettingsWindowController?
@@ -144,8 +144,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     QuickTerminalHook.toggle = { [weak self] in self?.keyWindowController?.toggleQuickTerminal() }
   }
 
-  /// The welcome window (no session), shown when no sessions are open.
-  private func showWelcomeWindow() {
+  /// The welcome window (no session), shown when no sessions are open. Internal so the
+  /// File > New Window menu item (in AppMenu.swift) can call it.
+  func showWelcomeWindow() {
     guard windowControllers[nil] == nil else { return }
     let wc = MainWindowController(model: model, session: nil)
     wc.onClosed = { [weak self] id in self?.windowDidClose(sessionID: id) }
