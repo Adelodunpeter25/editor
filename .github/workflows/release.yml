@@ -1,0 +1,90 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write  # needed to create tags and releases
+
+jobs:
+  build-and-release:
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so we can list all tags
+
+      - name: Compute next version
+        id: version
+        run: |
+          # Versioning scheme:
+          #   patch: 0-9, then rolls over to next minor (patch=0, minor+1)
+          #   minor: 0-9, then rolls over to 1.0.0
+          #   max:   1.0.0 (stop incrementing once reached)
+          #
+          # Example: 0.1.8 → 0.1.9 → 0.2.0 → ... → 0.9.9 → 1.0.0
+
+          latest=$(git tag --list "v*" --sort=-v:refname | head -1)
+          echo "Latest tag: ${latest:-none}"
+
+          if [ -z "$latest" ]; then
+            next="0.1.0"
+          else
+            ver="${latest#v}"
+            IFS='.' read -r major minor patch <<< "$ver"
+            major=${major:-0}; minor=${minor:-0}; patch=${patch:-0}
+
+            patch=$((patch + 1))
+            if [ "$patch" -gt 9 ]; then
+              patch=0
+              minor=$((minor + 1))
+            fi
+            if [ "$minor" -gt 9 ]; then
+              minor=0
+              major=1
+              patch=0
+            fi
+            # Cap at 1.0.0
+            if [ "$major" -ge 1 ]; then
+              major=1; minor=0; patch=0
+            fi
+            next="$major.$minor.$patch"
+          fi
+
+          echo "Next version: $next"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+          # If 1.0.0 already exists, skip the release.
+          if git tag --list "v1.0.0" | grep -q .; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release app
+        if: steps.version.outputs.skip != 'true'
+        env:
+          EDITOR_VERSION: ${{ steps.version.outputs.version }}
+          ED_INSTALL_PREFIX: /tmp/ed-install  # don't install ed launcher in CI
+        run: |
+          ./build.sh release
+
+      - name: Create zip archive
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          cd "Editor.app/.."
+          ditto -c -k --keepParent "Editor.app" "Editor-${{ steps.version.outputs.version }}.zip"
+
+      - name: Create GitHub release
+        if: steps.version.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ver="${{ steps.version.outputs.version }}"
+          gh release create "v${ver}" \
+            "Editor-${ver}.zip" \
+            --title "Editor ${ver}" \
+            --notes "Release ${ver}" \
+            --latest
