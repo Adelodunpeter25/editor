@@ -9,10 +9,10 @@ final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
   private let sidebarVC: SidebarViewController
   private var didSizeOnce = false
 
-  init(model: AppModel) {
+  init(model: AppModel, session: Session?) {
     self.model = model
-    self.centerVC = CenterViewController(model: model)
-    self.sidebarVC = SidebarViewController(model: model)
+    self.centerVC = CenterViewController(model: model, session: session)
+    self.sidebarVC = SidebarViewController(model: model, session: session)
     super.init(nibName: nil, bundle: nil)
   }
 

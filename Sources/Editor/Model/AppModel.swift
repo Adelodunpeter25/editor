@@ -8,6 +8,10 @@ final class AppModel: ObservableObject {
   @Published var activeSessionID: String? = nil
   @Published var showSettings: Bool = false
 
+  /// Called whenever a session is opened (new or focused-existing). AppDelegate sinks this to
+  /// create a window for a new session, or focus the existing window for an already-open repo.
+  var onSessionOpened: ((Session) -> Void)?
+
   let settings = Settings()
 
   private var cancellables = Set<AnyCancellable>()
@@ -39,12 +43,14 @@ final class AppModel: ObservableObject {
     Persistence.noteRecentProject(resolved)
     if let existing = sessions.first(where: { $0.url == resolved }) {
       activeSessionID = existing.id
+      onSessionOpened?(existing)
       return existing
     }
     let session = Session(url: resolved)
     observe(session)
     sessions.append(session)
     activeSessionID = session.id
+    onSessionOpened?(session)
     return session
   }
 

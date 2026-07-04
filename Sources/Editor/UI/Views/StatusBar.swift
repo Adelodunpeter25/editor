@@ -17,6 +17,8 @@ enum ResourceStatus { static var onUpdate: ((_ memMB: Double, _ cpu: Double) -> 
 /// **line-ending** (LF/CRLF), and **language**.
 final class StatusBarView: NSView {
   private let model: AppModel
+  /// The session this status bar is bound to. Nil = welcome window (bar hidden).
+  private let session: Session?
   private var cancellables = Set<AnyCancellable>()
   private var sessionObserver: AnyCancellable?
 
@@ -30,17 +32,15 @@ final class StatusBarView: NSView {
   private let shortcutsButton = StatusBarView.flatButton()  // always-visible, far right
   private lazy var editorItems: [NSView] = [lnColButton, indentButton, eolButton, langButton]
 
-  init(model: AppModel) {
+  init(model: AppModel, session: Session?) {
     self.model = model
+    self.session = session
     super.init(frame: .zero)
     wantsLayer = true
     layer?.backgroundColor = NSColor(white: 0.14, alpha: 1).cgColor
     buildUI()
 
     EditorStatus.onChange = { [weak self] in self?.render() }
-    model.objectWillChange.receive(on: RunLoop.main)
-      .sink { [weak self] in self?.observeActiveSession() }
-      .store(in: &cancellables)
     // Track the shared font size (⌘ +/−) so the bar scales with the editor/terminal.
     model.settings.$fontSize.receive(on: RunLoop.main)
       .sink { [weak self] _ in
@@ -60,7 +60,7 @@ final class StatusBarView: NSView {
     model.settings.$showResourceMonitor.receive(on: RunLoop.main)
       .sink { [weak self] _ in self?.render() }
       .store(in: &cancellables)
-    observeActiveSession()
+    observeSession()
   }
 
   @available(*, unavailable)
@@ -73,16 +73,16 @@ final class StatusBarView: NSView {
     NSSize(width: NSView.noIntrinsicMetric, height: ceil(statusFontSize) + 11)
   }
 
-  private func observeActiveSession() {
-    sessionObserver = model.activeSession?.objectWillChange
+  private func observeSession() {
+    sessionObserver = session?.objectWillChange
       .receive(on: RunLoop.main).sink { [weak self] in self?.render() }
     DispatchQueue.main.async { [weak self] in self?.render() }  // after CenterViewController.render set ActiveEditor.current
   }
 
   private func render() {
-    isHidden = model.activeSession == nil
+    isHidden = session == nil
 
-    let branch = model.activeSession?.gitBranch
+    let branch = session?.gitBranch
     setTitle(branchButton, branch ?? "")
     branchButton.isHidden = branch == nil
 
@@ -178,8 +178,8 @@ final class StatusBarView: NSView {
   // MARK: - Branch (switch / create / delete)
 
   @objc private func branchClicked() {
-    guard let repo = model.activeSession?.url else { return }
-    let current = model.activeSession?.gitBranch
+    guard let repo = session?.url else { return }
+    let current = session?.gitBranch
     let branches = Git.localBranches(repo)
     let menu = NSMenu()
     for b in branches {
@@ -209,14 +209,14 @@ final class StatusBarView: NSView {
   }
 
   @objc private func checkoutBranch(_ item: NSMenuItem) {
-    guard let b = item.representedObject as? String, let repo = model.activeSession?.url else {
+    guard let b = item.representedObject as? String, let repo = session?.url else {
       return
     }
     runGit({ Git.checkout(repo, b) }, failTitle: "Couldn’t switch to “\(b)”")
   }
 
   @objc private func createBranchClicked() {
-    guard let repo = model.activeSession?.url else { return }
+    guard let repo = session?.url else { return }
     let alert = NSAlert()
     alert.messageText = "Create New Branch"
     let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
@@ -232,7 +232,7 @@ final class StatusBarView: NSView {
   }
 
   @objc private func deleteBranchClicked(_ item: NSMenuItem) {
-    guard let b = item.representedObject as? String, let repo = model.activeSession?.url else {
+    guard let b = item.representedObject as? String, let repo = session?.url else {
       return
     }
     // Always confirm (merged-check upfront so it's a single, appropriately-worded dialog).
@@ -268,10 +268,10 @@ final class StatusBarView: NSView {
   }
 
   private func refreshBranch() {
-    guard let repo = model.activeSession?.url else { return }
+    guard let repo = session?.url else { return }
     DispatchQueue.global().async {
       let b = Git.branch(repo)
-      DispatchQueue.main.async { self.model.activeSession?.gitBranch = b }
+      DispatchQueue.main.async { self.session?.gitBranch = b }
     }
   }
 
