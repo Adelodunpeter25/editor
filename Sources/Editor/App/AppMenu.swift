@@ -180,7 +180,7 @@ extension AppDelegate {
   @objc private func openRecentProject(_ sender: NSMenuItem) {
     guard let path = sender.representedObject as? String else { return }
     // Already open → just focus its window (no dialog needed).
-    if let existing = model.sessions.first(where: { $0.url == path }) {
+    if model.sessions.contains(where: { $0.url == path }) {
       model.openRepo(path)  // focuses existing
       return
     }

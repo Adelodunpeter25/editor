@@ -278,6 +278,12 @@ extension EditorViewController {
     textView.setSelectedRange(r)
     centerSelection()
     bar.setCount(current: findCurrent + 1, total: findMatches.count)
+    // setSelectedRange makes the text view first responder, stealing focus from the find bar's
+    // search field. Restore focus so the user can keep typing their query.
+    if findVisible, let panel = findPanel {
+      panel.makeKeyAndOrderFront(nil)
+      panel.makeFirstResponder(bar.field)
+    }
   }
 
   func clearFindHighlights() {
