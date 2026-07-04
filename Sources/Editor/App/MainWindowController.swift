@@ -1,13 +1,23 @@
 import AppKit
 
-/// The single main window. Hosts the `WorkspaceViewController` (the split layout). Window frame
-/// persists via an autosave name.
+/// One window bound to a single `Session` (one window = one repo). A nil session = the welcome
+/// window (no folder open yet); opening a folder from it creates a new session window and closes
+/// the welcome window. Window frame persists via a per-session autosave name.
 final class MainWindowController: NSWindowController, NSWindowDelegate {
+  private let model: AppModel
   private let palette: CommandPaletteController
   private let quickTerm: QuickTerminalController
+  /// The session this window is bound to. Nil for the welcome window.
+  let sessionID: String?
+  /// Called after the window closes (session removed from model) so AppDelegate can drop it from
+  /// its window map and show the welcome window if no windows remain.
+  var onClosed: ((String?) -> Void)?
 
-  init(model: AppModel) {
-    let workspace = WorkspaceViewController(model: model)
+  init(model: AppModel, session: Session?) {
+    self.model = model
+    self.sessionID = session?.id
+
+    let workspace = WorkspaceViewController(model: model, session: session)
     self.palette = CommandPaletteController(model: model)
     self.quickTerm = QuickTerminalController(model: model)
 
@@ -34,14 +44,16 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     container.view = root
 
     let window = NSWindow(contentViewController: container)
-    window.title = "Editor"
+    window.title = session?.name ?? "Editor"
     window.backgroundColor = NSColor(white: 0.11, alpha: 1)  // workspace backdrop (no layer on terminal ancestors)
     // NB: NOT .fullSizeContentView — that draws content under the title bar, hiding the tab bar
     // and the Files/Changes toggle behind it.
     window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
     window.minSize = NSSize(width: 900, height: 600)
-    window.setFrameAutosaveName("EditorMainWindow")
-    let restored = window.setFrameUsingName("EditorMainWindow")
+    // Per-session autosave name so each window remembers its own frame across launches.
+    let autosaveName = sessionID.map { "EditorWindow-\($0)" } ?? "EditorMainWindow"
+    window.setFrameAutosaveName(autosaveName)
+    let restored = window.setFrameUsingName(autosaveName)
     if !restored {
       window.setContentSize(NSSize(width: 1100, height: 720))
       window.center()
@@ -51,34 +63,58 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
 
     // ⌘P quick-open overlays the whole content area (above the banner + workspace).
     palette.attach(to: root)
-    CommandPaletteHook.toggle = { [weak palette] in palette?.toggle() }
-    CommandPaletteHook.command = { [weak palette] in palette?.toggleCommand() }
-    CommandPaletteHook.lineJump = { [weak palette] in palette?.presentLineJump() }
 
     // ⌃` quick terminal: the centered-overlay mode also mounts into root.
     quickTerm.attach(root: root)
-    QuickTerminalHook.toggle = { [weak quickTerm] in quickTerm?.toggle() }
     TerminalStore.shared.onQuickExit = { [weak quickTerm] quickID in
       quickTerm?.handleShellExit(quickID: quickID)
     }
   }
 
+  // MARK: - Per-window actions (routed from AppDelegate via the key window)
+
+  func togglePalette() { palette.toggle() }
+  func toggleCommandPalette() { palette.toggleCommand() }
+  func presentLineJump() { palette.presentLineJump() }
+  func toggleQuickTerminal() { quickTerm.toggle() }
+
+  /// This window's center view controller (for routing global hooks like DiffNavigator).
+  var centerViewController: CenterViewController? {
+    let container = contentViewController
+    let workspace = container?.children.first { $0 is WorkspaceViewController } as? WorkspaceViewController
+    return workspace?.centerVC
+  }
+
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) not used") }
 
-  /// Closing the only window quits the app (`applicationShouldTerminateAfterLastWindowClosed`), so route
-  /// the red close button through `terminate` — that hits the unsaved-changes guard in AppDelegate.
-  /// Returning false here means the window only closes once the guard (and termination) approve it.
+  /// Closing a window: confirm unsaved edits for THIS window's session only (not all sessions), then
+  /// close the session. The app quits when the last window closes
+  /// (`applicationShouldTerminateAfterLastWindowClosed`), which runs the full quit guard.
   func windowShouldClose(_ sender: NSWindow) -> Bool {
-    NSApp.terminate(nil)
-    return false
+    if let sessionID, let session = model.sessions.first(where: { $0.id == sessionID }) {
+      let dirty = session.tabs.filter { $0.dirty }
+      if !dirty.isEmpty {
+        guard UnsavedGuard.confirmCloseMany(dirty, verb: "closing") else { return false }
+      }
+      model.closeSession(sessionID)
+    }
+    onClosed?(sessionID)
+    return true
+  }
+
+  func windowDidBecomeKey(_ notification: Notification) {
+    // Track the key window's session as the active one (menus, key monitor, global hooks target it).
+    if let sessionID {
+      model.activeSessionID = sessionID
+    }
   }
 
   func windowDidResize(_ notification: Notification) {
-    window?.saveFrame(usingName: "EditorMainWindow")
+    if let autosaveName = window?.frameAutosaveName { window?.saveFrame(usingName: autosaveName) }
   }
 
   func windowDidMove(_ notification: Notification) {
-    window?.saveFrame(usingName: "EditorMainWindow")
+    if let autosaveName = window?.frameAutosaveName { window?.saveFrame(usingName: autosaveName) }
   }
 }

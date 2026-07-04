@@ -53,9 +53,18 @@ extension AppDelegate {
       withTitle: "New Project…", action: #selector(newProject), keyEquivalent: "n")
     newProj.keyEquivalentModifierMask = [.command, .shift]
     newProj.target = self
+    let newWindow = fileMenu.addItem(
+      withTitle: "New Window", action: #selector(newWindowItem), keyEquivalent: "n")
+    newWindow.keyEquivalentModifierMask = [.command, .control]
+    newWindow.target = self
     let open = fileMenu.addItem(
       withTitle: "Open Folder…", action: #selector(openFolder), keyEquivalent: "o")
     open.target = self
+    // Open Recent submenu — dynamically populated via NSMenuDelegate (see `menuNeedsUpdate`).
+    let openRecentItem = fileMenu.addItem(withTitle: "Open Recent", action: nil, keyEquivalent: "")
+    let openRecentMenu = NSMenu(title: "Open Recent")
+    openRecentItem.submenu = openRecentMenu
+    openRecentMenu.delegate = self
     fileMenu.addItem(.separator())
     let newFile = fileMenu.addItem(
       withTitle: "New File", action: #selector(newFileItem), keyEquivalent: "n")
@@ -155,9 +164,69 @@ extension AppDelegate {
 
   @objc private func openRecentProjectFromDock(_ sender: NSMenuItem) {
     guard let path = sender.representedObject as? String else { return }
-    model.openRepo(path)
-    windowController?.showWindow(nil)
+    model.openRepo(path)  // onSessionOpened → focus/create window
     NSApp.activate(ignoringOtherApps: true)
+  }
+
+  /// File > New Window — open a fresh welcome window (no project). The welcome window's
+  /// "Open Folder…" button or ⌘O loads a project into a new session window.
+  @objc private func newWindowItem() {
+    showWelcomeWindow()
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  /// File > Open Recent → click a project. Asks "new window or current window?" first.
+  /// If the project is already open, focuses its window regardless of the choice.
+  @objc private func openRecentProject(_ sender: NSMenuItem) {
+    guard let path = sender.representedObject as? String else { return }
+    // Already open → just focus its window (no dialog needed).
+    if let existing = model.sessions.first(where: { $0.url == path }) {
+      model.openRepo(path)  // focuses existing
+      return
+    }
+    let name = (path as NSString).lastPathComponent
+    let alert = NSAlert()
+    alert.messageText = "Open “\(name)”"
+    alert.informativeText = "Open in a new window, or replace the current window?"
+    alert.addButton(withTitle: "New Window")
+    alert.addButton(withTitle: "Current Window")
+    alert.addButton(withTitle: "Cancel")
+    alert.alertStyle = .informational
+    let choice = alert.runModal()
+    if choice == .alertThirdButtonReturn { return }  // Cancel
+    if choice == .alertFirstButtonReturn {
+      // New window — openRepo creates a session + window (via onSessionOpened).
+      model.openRepo(path)
+    } else {
+      // Current window — close the key window's session, then open the repo. The new session
+      // opens a new window; to make it feel like the same window, preserve the old frame.
+      openInCurrentWindow(path)
+    }
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  /// Replace the key window's session with a new project, preserving the window frame.
+  private func openInCurrentWindow(_ path: String) {
+    guard let keyWindow = NSApp.keyWindow,
+      let wc = windowControllers.values.first(where: { $0.window === keyWindow }),
+      let oldSessionID = wc.sessionID
+    else {
+      // No key window (shouldn't happen) — fall back to a plain new-window open.
+      model.openRepo(path)
+      return
+    }
+    let oldFrame = keyWindow.frame
+    // Close the old session (this closes its window via onClosed → windowDidClose).
+    model.closeSession(oldSessionID)
+    // Open the new repo (creates a session + window via onSessionOpened → showWindow).
+    model.openRepo(path)
+    // Apply the old frame to the new window so it feels like the same window.
+    if let newSession = model.sessions.first(where: { $0.url == path }),
+      let newWC = windowControllers[newSession.id]
+    {
+      newWC.window?.setFrame(oldFrame, display: true)
+      newWC.window?.makeKeyAndOrderFront(nil)
+    }
   }
 
   @objc private func newProject() { NewProject.present(model: model) }
@@ -183,4 +252,38 @@ extension AppDelegate {
   @objc private func findUseSelection() { ActiveEditor.current?.useSelectionForFind() }
   @objc private func findReplace() { ActiveEditor.current?.showReplace() }
   @objc private func findInFilesAction() { SidebarSearchHook.reveal?() }
+}
+
+extension AppDelegate: NSMenuDelegate {
+  /// Populate the "Open Recent" submenu just before it's shown, so it always reflects the current
+  /// recent-projects list (and drops entries for repos that no longer exist on disk).
+  func menuNeedsUpdate(_ menu: NSMenu) {
+    let recent = Persistence.recentProjects()
+    menu.removeAllItems()
+    if recent.isEmpty {
+      let item = menu.addItem(withTitle: "No Recent Projects", action: nil, keyEquivalent: "")
+      item.isEnabled = false
+      return
+    }
+    for path in recent {
+      let item = NSMenuItem(
+        title: (path as NSString).lastPathComponent, action: #selector(openRecentProject(_:)),
+        keyEquivalent: "")
+      item.target = self
+      item.representedObject = path
+      item.toolTip = path
+      let icon = NSWorkspace.shared.icon(forFile: path)
+      icon.size = NSSize(width: 16, height: 16)
+      item.image = icon
+      menu.addItem(item)
+    }
+    menu.addItem(.separator())
+    let clear = menu.addItem(
+      withTitle: "Clear Recent Projects", action: #selector(clearRecentProjects), keyEquivalent: "")
+    clear.target = self
+  }
+
+  @objc private func clearRecentProjects() {
+    UserDefaults.standard[AppDefaults.recentProjects] = [String]()
+  }
 }

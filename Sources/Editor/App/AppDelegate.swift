@@ -16,7 +16,9 @@ enum NewItemHook {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   let model = AppModel()
-  var windowController: MainWindowController!
+  /// One window controller per session (keyed by session id), plus at most one welcome window
+  /// (nil key) shown when no sessions are open. Internal so AppMenu's extension can route to it.
+  var windowControllers: [String?: MainWindowController] = [:]
   private var keyMonitor: Any?
   private var cancellables = Set<AnyCancellable>()
   private var settingsWC: SettingsWindowController?
@@ -32,7 +34,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     NSApp.appearance = NSAppearance(named: .darkAqua)
     buildMenu()
 
-    windowController = MainWindowController(model: model)
+    // Multi-window: create one window per restored session, or a welcome window if none.
+    model.onSessionOpened = { [weak self] session in
+      self?.showWindow(for: session)
+    }
 
     if !pendingOpenPaths.isEmpty {
       for path in pendingOpenPaths {
@@ -41,11 +46,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       pendingOpenPaths.removeAll()
     }
 
-    windowController.showWindow(nil)
+    if model.sessions.isEmpty {
+      showWelcomeWindow()
+    } else {
+      for session in model.sessions {
+        let wc = MainWindowController(model: model, session: session)
+        wc.onClosed = { [weak self] id in self?.windowDidClose(sessionID: id) }
+        windowControllers[session.id] = wc
+        wc.showWindow(nil)
+      }
+      // Make the active session's window key.
+      if let activeID = model.activeSessionID,
+        let wc = windowControllers[activeID]
+      {
+        wc.window?.makeKeyAndOrderFront(nil)
+      } else {
+        windowControllers.values.first?.window?.makeKeyAndOrderFront(nil)
+      }
+    }
+
     NSApp.activate(ignoringOtherApps: true)
 
     wireTerminalHandlers()
     installKeyMonitor()
+    installGlobalHooks()
 
     // New File / New Terminal actions — shared by the menu, the ⌃⇧` monitor, and the harness.
     NewItemHook.newFile = { [weak self] in self?.model.activeSession?.newUntitled() }
@@ -100,6 +124,94 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       for lang in TreeSitterHighlighter.availableLanguages {
         _ = TreeSitterHighlighter.forLanguage(lang)
       }
+    }
+  }
+
+  // MARK: - Window management
+
+  /// The key window's `MainWindowController` (for routing global hooks like ⌘P / ⌃`).
+  private var keyWindowController: MainWindowController? {
+    guard let keyWindow = NSApp.keyWindow else { return nil }
+    return windowControllers.values.first { $0.window === keyWindow }
+  }
+
+  /// Wire global hooks (⌘P, ⌘⇧P, ⌃`, line-jump, DiffNavigator, FileNavigator, etc.) to the KEY
+  /// window's controller — set once, and resolved live each time so they always target the window
+  /// the user is in, not a stale one. `UnsavedGuard.saveTab` searches ALL windows (quit saves tabs
+  /// across every session).
+  private func installGlobalHooks() {
+    CommandPaletteHook.toggle = { [weak self] in self?.keyWindowController?.togglePalette() }
+    CommandPaletteHook.command = { [weak self] in self?.keyWindowController?.toggleCommandPalette() }
+    CommandPaletteHook.lineJump = { [weak self] in self?.keyWindowController?.presentLineJump() }
+    QuickTerminalHook.toggle = { [weak self] in self?.keyWindowController?.toggleQuickTerminal() }
+
+    // CenterViewController-level hooks: route to the key window's center VC (tracked live via
+    // CenterViewController.current, which each CenterVC updates on windowDidBecomeKey).
+    DiffNavigator.revealDiff = { path, commitHash in
+      CenterViewController.current?.revealDiff(path: path, commitHash: commitHash)
+    }
+    FileNavigator.openAt = { rel, line in
+      CenterViewController.current?.openFileAt(rel: rel, line: line)
+    }
+    LiveFileText.current = { absolutePath in
+      CenterViewController.current?.liveFileText(absolutePath: absolutePath)
+    }
+    TerminalLifecycle.rebuild = { tabID in
+      CenterViewController.current?.rebuildTerminal(tabID)
+    }
+    FormatterInstall.run = { _ in
+      CenterViewController.current?.addInstallTerminal()
+    }
+    // Save a tab by id — search ALL windows' center VCs (quit aggregates dirty tabs from every
+    // session, so the tab may live in a non-key window).
+    UnsavedGuard.saveTab = { [weak self] id in
+      guard let self else { return true }
+      for wc in self.windowControllers.values {
+        if let center = wc.centerViewController, !center.saveTab(id: id) {
+          return false
+        }
+      }
+      return true
+    }
+  }
+
+  /// The welcome window (no session), shown when no sessions are open. Internal so the
+  /// File > New Window menu item (in AppMenu.swift) can call it.
+  func showWelcomeWindow() {
+    guard windowControllers[nil] == nil else { return }
+    let wc = MainWindowController(model: model, session: nil)
+    wc.onClosed = { [weak self] id in self?.windowDidClose(sessionID: id) }
+    windowControllers[nil] = wc
+    wc.showWindow(nil)
+    wc.window?.makeKeyAndOrderFront(nil)
+  }
+
+  /// Create or focus the window for a session. Closes the welcome window if present (a real
+  /// session window replaces it).
+  private func showWindow(for session: Session) {
+    if let existing = windowControllers[session.id] {
+      existing.window?.makeKeyAndOrderFront(nil)
+      NSApp.activate(ignoringOtherApps: true)
+      return
+    }
+    // Close the welcome window — a session window takes over.
+    if let welcome = windowControllers.removeValue(forKey: nil) {
+      welcome.close()
+    }
+    let wc = MainWindowController(model: model, session: session)
+    wc.onClosed = { [weak self] id in self?.windowDidClose(sessionID: id) }
+    windowControllers[session.id] = wc
+    wc.showWindow(nil)
+    wc.window?.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  /// Called by `MainWindowController.windowShouldClose` after the session is removed from the model.
+  /// Drops the window controller from the map and shows the welcome window if no windows remain.
+  private func windowDidClose(sessionID: String?) {
+    windowControllers.removeValue(forKey: sessionID)
+    if windowControllers.isEmpty {
+      showWelcomeWindow()
     }
   }
 
@@ -178,15 +290,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   /// macOS calls this when the app is launched (or re-activated) via a dock "Open Recent" item or
-  /// via Finder → Open With. Opens the folder as a new session, just like File → Open Folder.
+  /// via Finder → Open With. Opens the folder as a new session (or focuses its window if already
+  /// open), just like File → Open Folder.
   func application(_ sender: NSApplication, openFile filename: String) -> Bool {
     var isDir: ObjCBool = false
     guard FileManager.default.fileExists(atPath: filename, isDirectory: &isDir), isDir.boolValue
     else { return false }
-    if let windowController {
-      model.openRepo(filename)
-      windowController.showWindow(nil)
-      NSApp.activate(ignoringOtherApps: true)
+    if !windowControllers.isEmpty {
+      model.openRepo(filename)  // onSessionOpened → focus/create window
     } else {
       pendingOpenPaths.append(filename)
     }

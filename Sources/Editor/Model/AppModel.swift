@@ -8,6 +8,10 @@ final class AppModel: ObservableObject {
   @Published var activeSessionID: String? = nil
   @Published var showSettings: Bool = false
 
+  /// Called whenever a session is opened (new or focused-existing). AppDelegate sinks this to
+  /// create a window for a new session, or focus the existing window for an already-open repo.
+  var onSessionOpened: ((Session) -> Void)?
+
   let settings = Settings()
 
   private var cancellables = Set<AnyCancellable>()
@@ -39,12 +43,14 @@ final class AppModel: ObservableObject {
     Persistence.noteRecentProject(resolved)
     if let existing = sessions.first(where: { $0.url == resolved }) {
       activeSessionID = existing.id
+      onSessionOpened?(existing)
       return existing
     }
     let session = Session(url: resolved)
     observe(session)
     sessions.append(session)
     activeSessionID = session.id
+    onSessionOpened?(session)
     return session
   }
 
@@ -98,7 +104,18 @@ final class AppModel: ObservableObject {
 
   private func restore() {
     guard settings.restoreOnLaunch, let state = Persistence.load() else { return }
-    for ps in state.sessions {
+    // Multi-window: only restore the LAST-ACTIVE session as a window on launch. The rest are
+    // available via File > Open Recent (their entries are already in the recent-projects list).
+    // This avoids every previously-open project bursting open as its own window on the first
+    // launch after the multi-window change (and keeps launch light going forward).
+    let activeIndex = state.activeSessionIndex
+    let toRestore: [PersistedSession] = {
+      if let i = activeIndex, state.sessions.indices.contains(i) {
+        return [state.sessions[i]]
+      }
+      return state.sessions.isEmpty ? [] : [state.sessions[0]]
+    }()
+    for ps in toRestore {
       guard FileManager.default.fileExists(atPath: ps.url) else { continue }  // repo gone → drop
       let tabs = ps.tabs.compactMap { pt -> Tab? in
         guard let kind = TabKind(rawValue: pt.kind) else { return nil }
@@ -109,10 +126,6 @@ final class AppModel: ObservableObject {
       observe(session)
       sessions.append(session)
     }
-    if let i = state.activeSessionIndex, sessions.indices.contains(i) {
-      activeSessionID = sessions[i].id
-    } else {
-      activeSessionID = sessions.first?.id
-    }
+    activeSessionID = sessions.first?.id
   }
 }

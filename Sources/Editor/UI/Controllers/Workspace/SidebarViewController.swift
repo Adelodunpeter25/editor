@@ -6,8 +6,10 @@ import Defaults
 /// content pane (file tree, git changes list, or search panel).
 final class SidebarViewController: NSViewController {
   private let model: AppModel
+  /// The session this sidebar is bound to. Nil = welcome window (no folder open → empty sidebar).
+  private let session: Session?
   private var cancellables = Set<AnyCancellable>()
-  private var sessionRevealObservers: [String: AnyCancellable] = [:]  // per-session reveal refresh
+  private var sessionRevealObserver: AnyCancellable?  // bound-session reveal refresh
   private let filesContainer = NSView()
   private var treeVC: FileTreeViewController?
   private var changesVC: ChangesViewController?
@@ -46,8 +48,9 @@ final class SidebarViewController: NSViewController {
   private var fileActionsBar: NSStackView?  // new file / new folder / collapse-all (Files mode only)
   private var sidebarEmptyView: NSView?  // "Open Folder" prompt when no project is open
 
-  init(model: AppModel) {
+  init(model: AppModel, session: Session?) {
     self.model = model
+    self.session = session
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -61,10 +64,10 @@ final class SidebarViewController: NSViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
     SidebarSearchHook.reveal = { [weak self] in self?.revealSearch() }
-    model.objectWillChange
+    // Re-render on bound-session changes (tab switch, file open, etc.).
+    sessionRevealObserver = session?.objectWillChange
       .receive(on: RunLoop.main)
-      .sink { [weak self] in self?.refresh() }
-      .store(in: &cancellables)
+      .sink { [weak self] in self?.revealActiveFile() }
     // Pause git polling while the app is in the background.
     let nc = NotificationCenter.default
     nc.addObserver(
@@ -73,11 +76,12 @@ final class SidebarViewController: NSViewController {
     nc.addObserver(
       self, selector: #selector(appBecameActive), name: NSApplication.didBecomeActiveNotification,
       object: nil)
-    refresh()
+    syncFileTree()
+    revealActiveFile()
   }
 
   @objc private func appResignedActive() { store?.stop() }
-  @objc private func appBecameActive() { if model.activeSession != nil { showSidebarContent() } }
+  @objc private func appBecameActive() { if session != nil { showSidebarContent() } }
 
   override func viewDidLayout() {
     super.viewDidLayout()
@@ -88,17 +92,11 @@ final class SidebarViewController: NSViewController {
     }
   }
 
-  private func refresh() {
-    syncFileTree()
-    observeSessionReveal()
-    revealActiveFile()
-  }
-
   /// Auto-reveal the active file in the tree (VS Code-style): when the active tab is a file, expand to
   /// it, select it, scroll it in. Files mode only; deduped so we don't fight manual scrolling.
   private func revealActiveFile() {
     guard sidebarMode == .files, let treeVC else { return }
-    guard let session = model.activeSession, let tab = session.activeTab,
+    guard let session, let tab = session.activeTab,
       tab.kind == .file, let abs = tab.path
     else {
       lastRevealedPath = nil
@@ -111,19 +109,6 @@ final class SidebarViewController: NSViewController {
     guard rel != lastRevealedPath else { return }
     lastRevealedPath = rel
     treeVC.reveal(rel)
-  }
-
-  /// Re-observe each session so that when the active tab changes we auto-reveal the file in the tree.
-  private func observeSessionReveal() {
-    sessionRevealObservers = Dictionary(
-      uniqueKeysWithValues: model.sessions.map { session in
-        (
-          session.id,
-          session.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] in self?.revealActiveFile() }
-        )
-      })
   }
 
   // MARK: - Layout
@@ -196,9 +181,9 @@ final class SidebarViewController: NSViewController {
       let previousMode = UserDefaults.standard[AppDefaults.sidebarMode]
       filesModeSeg.selectedSegment = previousMode
 
-      // Add a new search tab
+      // Add a new search tab to the bound session
       let title = "Search"
-      model.activeSession?.addTab(Tab(kind: .search, title: title))
+      session?.addTab(Tab(kind: .search, title: title))
       return
     }
 
@@ -206,9 +191,9 @@ final class SidebarViewController: NSViewController {
     showSidebarContent()
   }
 
-  /// Rebuild the tree + changes VCs when the active session changes, then show the one for the mode.
+  /// Rebuild the tree + changes VCs for the bound session, then show the one for the mode.
   private func syncFileTree() {
-    guard let session = model.activeSession else {
+    guard let session else {
       teardownSidebarVCs()
       currentRepo = nil
       showSidebarEmpty()
@@ -222,32 +207,32 @@ final class SidebarViewController: NSViewController {
       let store = RepoStore(repo: session.url, settings: model.settings)
       let tree = FileTreeViewController(
         store: store, settings: model.settings,
-        onOpen: { [weak self] path in self?.model.activeSession?.openFile(path) },
+        onOpen: { [weak self] path in self?.session?.openFile(path) },
         onRename: { [weak self] old, new in
-          self?.model.activeSession?.fileRenamed(from: old, to: new)
+          self?.session?.fileRenamed(from: old, to: new)
         },
-        onDelete: { [weak self] rel in self?.model.activeSession?.fileDeleted(rel) })
+        onDelete: { [weak self] rel in self?.session?.fileDeleted(rel) })
       let changes = ChangesViewController(
         store: store,
         onOpenDiff: { [weak self] path in
           if let reveal = DiffNavigator.revealDiff {
             reveal(path, nil)
           } else {
-            self?.model.activeSession?.openDiff(path)
+            self?.session?.openDiff(path)
           }
         },
-        onOpenFile: { [weak self] path in self?.model.activeSession?.openFile(path) })
+        onOpenFile: { [weak self] path in self?.session?.openFile(path) })
       let history = GitHistoryViewController(
         store: store,
         onOpenDiff: { [weak self] path, commitHash in
           if let reveal = DiffNavigator.revealDiff {
             reveal(path, commitHash)
           } else {
-            self?.model.activeSession?.openDiff(path, commitHash: commitHash)
+            self?.session?.openDiff(path, commitHash: commitHash)
           }
         },
         onOpenCommitSummary: { [weak self] hash in
-          self?.model.activeSession?.openCommitSummary(hash)
+          self?.session?.openCommitSummary(hash)
         })
       let search = SearchViewController(
         repo: session.url, fff: session.fff,
@@ -255,7 +240,7 @@ final class SidebarViewController: NSViewController {
       search.onOpenAsTab = { [weak self] query, options in
         SearchSeed.pending = (query, options)
         let title = query.isEmpty ? "Search" : "Search: \(query)"
-        self?.model.activeSession?.addTab(Tab(kind: .search, title: title))
+        self?.session?.addTab(Tab(kind: .search, title: title))
       }
       addChild(tree)
       addChild(changes)

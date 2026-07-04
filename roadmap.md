@@ -4,9 +4,8 @@ Features are grouped by theme and tagged with rough sizing (S/M/L) and a priorit
 
 ## Platform Integration
 
-- **CLI `ed .` to open current directory** [S, P1] — Still missing. Ship a tiny launcher binary that resolves the current directory and asks the app to open it, ideally reusing the same open-repo path as Finder / Dock / "Open Folder…".
 - **macOS "open with" registration** [S, P1] — Partially done for folders already; extend the app bundle to register the file types we care about (`.db`, `.sqlite`, `.sqlite3`) so Finder offers Editor in "Open With" for those files too.
-- **Multi-window / multi-project support** [L, P1] — Still a real architecture change. Needs a decision early because `ed .` and broader project workflow are much cleaner if the app can open multiple independent windows instead of one shared workspace.
+- **Multi-window / multi-project support** [L, P1] — Done. One window per session (repo). File > New Window opens a fresh welcome window; File > Open Recent offers new-window vs current-window. Only the last-active session restores on launch.
 
 ## Editor Capabilities
 

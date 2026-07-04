@@ -5,14 +5,14 @@ import Defaults
 /// on the right. A *plain* NSSplitView (not NSSplitViewController) so the divider drags reliably.
 final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
   private let model: AppModel
-  private let centerVC: CenterViewController
+  let centerVC: CenterViewController
   private let sidebarVC: SidebarViewController
   private var didSizeOnce = false
 
-  init(model: AppModel) {
+  init(model: AppModel, session: Session?) {
     self.model = model
-    self.centerVC = CenterViewController(model: model)
-    self.sidebarVC = SidebarViewController(model: model)
+    self.centerVC = CenterViewController(model: model, session: session)
+    self.sidebarVC = SidebarViewController(model: model, session: session)
     super.init(nibName: nil, bundle: nil)
   }
 

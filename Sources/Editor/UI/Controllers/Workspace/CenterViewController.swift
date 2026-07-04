@@ -14,10 +14,13 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   static weak var current: CenterViewController?  // for the quick-terminal bottom dock
 
   private let model: AppModel
+  /// The session this window is bound to. Nil = the welcome/empty window (no folder open yet).
+  /// Set once at init; a new session opens a fresh window rather than rebinding this one.
+  private let session: Session?
   private var cancellables = Set<AnyCancellable>()
-  private var activeSessionObserver: AnyCancellable?
+  private var sessionObserver: AnyCancellable?
 
-  private lazy var tabBar = TabBarController(model: model)
+  private lazy var tabBar: TabBarController? = session.map { TabBarController(session: $0) }
   private let contentArea = NSView()
   /// Vertical split hosting the content area, with the quick terminal docked below it in "bottom" mode.
   private let centerSplit = NSSplitView()
@@ -35,9 +38,10 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
 
   private let statusBar: StatusBarView
 
-  init(model: AppModel) {
+  init(model: AppModel, session: Session?) {
     self.model = model
-    self.statusBar = StatusBarView(model: model)
+    self.session = session
+    self.statusBar = StatusBarView(model: model, session: session)
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -53,7 +57,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     root.wantsLayer = true
     root.layer?.backgroundColor = NSColor(white: 0.11, alpha: 1).cgColor
 
-    tabBar.view.translatesAutoresizingMaskIntoConstraints = false
+    tabBar?.view.translatesAutoresizingMaskIntoConstraints = false
     contentArea.translatesAutoresizingMaskIntoConstraints = false
     contentArea.wantsLayer = true
     contentArea.layer?.backgroundColor = NSColor(white: 0.11, alpha: 1).cgColor
@@ -71,7 +75,13 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     // overlap — manual top/bottom constraints were collapsing the bar to zero height. The status bar
     // sits at the bottom of the *center* pane only (so it doesn't span the sidebar).
     statusBar.translatesAutoresizingMaskIntoConstraints = false
-    let vstack = NSStackView(views: [tabBar.view, centerSplit, statusBar])
+    // The tab bar is absent on the welcome window (no session → no tabs). Use a zero-height filler
+    // so the stack layout is identical either way.
+    let tabBarContainer = tabBar?.view ?? NSView()
+    if tabBar == nil {
+      tabBarContainer.translatesAutoresizingMaskIntoConstraints = false
+    }
+    let vstack = NSStackView(views: [tabBarContainer, centerSplit, statusBar])
     vstack.orientation = .vertical
     vstack.spacing = 0
     vstack.distribution = .fill
@@ -121,8 +131,8 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
       vstack.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       vstack.bottomAnchor.constraint(equalTo: root.bottomAnchor),
 
-      tabBar.view.heightAnchor.constraint(equalToConstant: 34),
-      tabBar.view.widthAnchor.constraint(equalTo: vstack.widthAnchor),
+      tabBarContainer.heightAnchor.constraint(equalToConstant: tabBar == nil ? 0 : 34),
+      tabBarContainer.widthAnchor.constraint(equalTo: vstack.widthAnchor),
       centerSplit.widthAnchor.constraint(equalTo: vstack.widthAnchor),  // contentArea fills the split
       statusBar.widthAnchor.constraint(equalTo: vstack.widthAnchor),  // height = StatusBarView intrinsic (font-driven)
 
@@ -146,74 +156,86 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   override func viewDidLoad() {
     super.viewDidLoad()
     CenterViewController.current = self
-    TerminalLifecycle.rebuild = { [weak self] tabID in self?.rebuildTerminal(tabID) }
-    // Let the unsaved-changes guard save any (already-mounted) editor tab by id, without it needing
-    // to know about view controllers. A dirty tab has always been viewed, so its editor exists here.
-    UnsavedGuard.saveTab = { [weak self] id in
-      (self?.contentVCs[id] as? SourceEditing)?.sourceEditor?.saveImmediately() ?? true
+    // Track the key window's center VC so global hooks (DiffNavigator, FileNavigator, etc.) —
+    // routed via `CenterViewController.current` from AppDelegate — always target the window the
+    // user is in. Each CenterVC updates `current` when its own window becomes key.
+    NotificationCenter.default.addObserver(
+      forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
+    ) { [weak self] notification in
+      guard let self, let window = notification.object as? NSWindow,
+        self.view.window === window
+      else { return }
+      CenterViewController.current = self
     }
-    // "Install formatter" → open a Terminal tab that runs the command (then drops to an interactive shell).
-    FormatterInstall.run = { [weak self] command in
-      self?.model.activeSession?.addTab(Tab(kind: .terminal, title: "Install"))
-    }
-    // A project-search hit (sidebar / search tab) → open the file in the active session and jump to the line.
-    FileNavigator.openAt = { [weak self] rel, line in
-      guard let self, let session = self.model.activeSession else { return }
-      let before = session.activeTabID
-      session.openFile(rel)
-      let id = session.activeTabID
-      if id == before, let editor = (self.contentVCs[id] as? SourceEditing)?.sourceEditor {
-        editor.goToLine(line)  // already the active editor → jump now (no render to ride)
-      } else {
-        self.pendingReveal[id] = line  // otherwise consumed in render() once its editor is built & active
-      }
-    }
-    LiveFileText.current = { [weak self] absolutePath in
-      guard let self else { return nil }
-      for vc in self.contentVCs.values {
-        if let host = vc as? SourceEditing, let editor = host.sourceEditor,
-          editor.path == absolutePath
-        {
-          return editor.text
-        }
-      }
-      return nil
-    }
-    // Click on a git status change or history file -> open the diff in the active session and scroll to first change.
-    DiffNavigator.revealDiff = { [weak self] path, commitHash in
-      guard let self, let session = self.model.activeSession else { return }
-      let existingTab = session.tabs.first(where: {
-        $0.kind == .diff && $0.path == path && $0.commitHash == commitHash
-      })
-      session.openDiff(path, commitHash: commitHash)
-      if let tab = existingTab {
-        DispatchQueue.main.async { [weak self] in
-          if let diffVC = self?.contentVCs[tab.id] as? DiffViewController {
-            diffVC.forceScrollToFirstChange()
-          }
-        }
-      }
-    }
-    model.objectWillChange
-      .receive(on: RunLoop.main)
-      .sink { [weak self] in self?.refresh() }
-      .store(in: &cancellables)
-    refresh()
-  }
-
-  private func refresh() {
-    activeSessionObserver = model.activeSession?.objectWillChange
+    // Re-render when the bound session changes (tab open/close/switch/dirty). The welcome window
+    // (no session) only needs to react to model-level changes (session opened → handled by AppDelegate
+    // creating a new window, so no observer there).
+    sessionObserver = session?.objectWillChange
       .receive(on: RunLoop.main)
       .sink { [weak self] in self?.render() }
     render()
   }
 
+  // MARK: - Global hook targets (called via CenterViewController.current from AppDelegate)
+
+  /// Double-click in a commit summary / git change / history → open the diff in this session.
+  func revealDiff(path: String, commitHash: String?) {
+    guard let session else { return }
+    let existingTab = session.tabs.first(where: {
+      $0.kind == .diff && $0.path == path && $0.commitHash == commitHash
+    })
+    session.openDiff(path, commitHash: commitHash)
+    if let tab = existingTab {
+      DispatchQueue.main.async { [weak self] in
+        if let diffVC = self?.contentVCs[tab.id] as? DiffViewController {
+          diffVC.forceScrollToFirstChange()
+        }
+      }
+    }
+  }
+
+  /// A project-search hit (sidebar / search tab) → open the file in the bound session and jump to the line.
+  func openFileAt(rel: String, line: Int) {
+    guard let session else { return }
+    let before = session.activeTabID
+    session.openFile(rel)
+    let id = session.activeTabID
+    if id == before, let editor = (contentVCs[id] as? SourceEditing)?.sourceEditor {
+      editor.goToLine(line)  // already the active editor → jump now (no render to ride)
+    } else {
+      pendingReveal[id] = line  // otherwise consumed in render() once its editor is built & active
+    }
+  }
+
+  /// Live text of an open editor (used by the diff view to show unsaved edits). Nil if not open here.
+  func liveFileText(absolutePath: String) -> String? {
+    for vc in contentVCs.values {
+      if let host = vc as? SourceEditing, let editor = host.sourceEditor,
+        editor.path == absolutePath
+      {
+        return editor.text
+      }
+    }
+    return nil
+  }
+
+  /// Save a tab's editor to disk by id (for the unsaved-changes guard). `true` if not an editor
+  /// or the write succeeded; `false` if a blank "New File" tab's save panel was cancelled.
+  func saveTab(id: String) -> Bool {
+    (contentVCs[id] as? SourceEditing)?.sourceEditor?.saveImmediately() ?? true
+  }
+
+  /// "Install formatter" → open a Terminal tab that runs the command (then drops to an interactive shell).
+  func addInstallTerminal() {
+    session?.addTab(Tab(kind: .terminal, title: "Install"))
+  }
+
   private func render() {
     pruneOrphanContent()
 
-    // No session at all → the open-a-folder empty state (no tab bar).
-    guard let session = model.activeSession else {
-      tabBar.view.isHidden = true
+    // No session bound → the welcome/empty window (no tab bar, just the open-folder prompt).
+    guard let session else {
+      tabBar?.view.isHidden = true
       emptyStack?.isHidden = false
       emptyLabel.stringValue = "Open a folder to start  (⌘O)"
       openButton.isHidden = false
@@ -225,7 +247,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
 
     // A session is open → the tab bar stays visible (so you can always start a new tab), even
     // when every tab is closed.
-    tabBar.render()
+    tabBar?.render()
 
     guard let tab = session.activeTab else {
       emptyStack?.isHidden = false
@@ -313,7 +335,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   /// Kill a tab's dead terminal view and drop its cache so `render()` respawns it fresh (Restart /
   /// convert-to-terminal). A dead SwiftTerm view can't be restarted in place — `startProcess` on it
   /// spawns a process that immediately dies — so we rebuild from scratch.
-  private func rebuildTerminal(_ tabID: String) {
+  func rebuildTerminal(_ tabID: String) {
     TerminalStore.shared.close(tabID)  // terminate the old PTY + remove the old view
     contentViews[tabID]?.removeFromSuperview()
     contentViews[tabID] = nil
@@ -415,10 +437,10 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
     ])
   }
 
-  /// Drop content views for tabs that no longer exist in any session (terminal process is killed
-  /// by Session.closeTab/AppModel.closeSession via TerminalStore).
+  /// Drop content views for tabs that no longer exist in the bound session (terminal process is
+  /// killed by Session.closeTab/AppModel.closeSession via TerminalStore).
   private func pruneOrphanContent() {
-    let live = Set(model.sessions.flatMap { $0.tabs.map(\.id) })
+    let live = Set(session?.tabs.map(\.id) ?? [])
     for id in contentViews.keys where !live.contains(id) {
       contentViews[id]?.removeFromSuperview()
       contentViews[id] = nil
@@ -463,7 +485,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   /// quick terminal closes so focus returns to your session/file. The focus change also flushes any
   /// pending layout, settling the content back to full size.
   func focusActiveContent() {
-    guard let session = model.activeSession, let tab = session.activeTab else { return }
+    guard let session, let tab = session.activeTab else { return }
     switch tab.kind {
     case .terminal:
       TerminalStore.shared.focus(tab.id)
