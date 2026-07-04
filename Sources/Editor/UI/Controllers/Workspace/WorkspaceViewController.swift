@@ -5,7 +5,7 @@ import Defaults
 /// on the right. A *plain* NSSplitView (not NSSplitViewController) so the divider drags reliably.
 final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
   private let model: AppModel
-  private let centerVC: CenterViewController
+  let centerVC: CenterViewController
   private let sidebarVC: SidebarViewController
   private var didSizeOnce = false
 

@@ -5,7 +5,7 @@ Features are grouped by theme and tagged with rough sizing (S/M/L) and a priorit
 ## Platform Integration
 
 - **macOS "open with" registration** [S, P1] — Partially done for folders already; extend the app bundle to register the file types we care about (`.db`, `.sqlite`, `.sqlite3`) so Finder offers Editor in "Open With" for those files too.
-- **Multi-window / multi-project support** [L, P1] — In progress on the `multi-window-support` branch; see `MULTI_WINDOW_PLAN.md` for the phased plan. One window per session.
+- **Multi-window / multi-project support** [L, P1] — Done. One window per session (repo). File > New Window opens a fresh welcome window; File > Open Recent offers new-window vs current-window. Only the last-active session restores on launch.
 
 ## Editor Capabilities
 

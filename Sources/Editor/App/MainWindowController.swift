@@ -78,6 +78,13 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
   func presentLineJump() { palette.presentLineJump() }
   func toggleQuickTerminal() { quickTerm.toggle() }
 
+  /// This window's center view controller (for routing global hooks like DiffNavigator).
+  var centerViewController: CenterViewController? {
+    let container = contentViewController
+    let workspace = container?.children.first { $0 is WorkspaceViewController } as? WorkspaceViewController
+    return workspace?.centerVC
+  }
+
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) not used") }
 

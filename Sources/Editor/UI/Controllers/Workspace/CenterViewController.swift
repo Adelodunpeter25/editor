@@ -156,53 +156,16 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   override func viewDidLoad() {
     super.viewDidLoad()
     CenterViewController.current = self
-    TerminalLifecycle.rebuild = { [weak self] tabID in self?.rebuildTerminal(tabID) }
-    // Let the unsaved-changes guard save any (already-mounted) editor tab by id, without it needing
-    // to know about view controllers. A dirty tab has always been viewed, so its editor exists here.
-    UnsavedGuard.saveTab = { [weak self] id in
-      (self?.contentVCs[id] as? SourceEditing)?.sourceEditor?.saveImmediately() ?? true
-    }
-    // "Install formatter" → open a Terminal tab that runs the command (then drops to an interactive shell).
-    FormatterInstall.run = { [weak self] command in
-      self?.session?.addTab(Tab(kind: .terminal, title: "Install"))
-    }
-    // A project-search hit (sidebar / search tab) → open the file in the bound session and jump to the line.
-    FileNavigator.openAt = { [weak self] rel, line in
-      guard let self, let session = self.session else { return }
-      let before = session.activeTabID
-      session.openFile(rel)
-      let id = session.activeTabID
-      if id == before, let editor = (self.contentVCs[id] as? SourceEditing)?.sourceEditor {
-        editor.goToLine(line)  // already the active editor → jump now (no render to ride)
-      } else {
-        self.pendingReveal[id] = line  // otherwise consumed in render() once its editor is built & active
-      }
-    }
-    LiveFileText.current = { [weak self] absolutePath in
-      guard let self else { return nil }
-      for vc in self.contentVCs.values {
-        if let host = vc as? SourceEditing, let editor = host.sourceEditor,
-          editor.path == absolutePath
-        {
-          return editor.text
-        }
-      }
-      return nil
-    }
-    // Click on a git status change or history file -> open the diff in the bound session and scroll to first change.
-    DiffNavigator.revealDiff = { [weak self] path, commitHash in
-      guard let self, let session = self.session else { return }
-      let existingTab = session.tabs.first(where: {
-        $0.kind == .diff && $0.path == path && $0.commitHash == commitHash
-      })
-      session.openDiff(path, commitHash: commitHash)
-      if let tab = existingTab {
-        DispatchQueue.main.async { [weak self] in
-          if let diffVC = self?.contentVCs[tab.id] as? DiffViewController {
-            diffVC.forceScrollToFirstChange()
-          }
-        }
-      }
+    // Track the key window's center VC so global hooks (DiffNavigator, FileNavigator, etc.) —
+    // routed via `CenterViewController.current` from AppDelegate — always target the window the
+    // user is in. Each CenterVC updates `current` when its own window becomes key.
+    NotificationCenter.default.addObserver(
+      forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main
+    ) { [weak self] notification in
+      guard let self, let window = notification.object as? NSWindow,
+        self.view.window === window
+      else { return }
+      CenterViewController.current = self
     }
     // Re-render when the bound session changes (tab open/close/switch/dirty). The welcome window
     // (no session) only needs to react to model-level changes (session opened → handled by AppDelegate
@@ -211,6 +174,60 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
       .receive(on: RunLoop.main)
       .sink { [weak self] in self?.render() }
     render()
+  }
+
+  // MARK: - Global hook targets (called via CenterViewController.current from AppDelegate)
+
+  /// Double-click in a commit summary / git change / history → open the diff in this session.
+  func revealDiff(path: String, commitHash: String?) {
+    guard let session else { return }
+    let existingTab = session.tabs.first(where: {
+      $0.kind == .diff && $0.path == path && $0.commitHash == commitHash
+    })
+    session.openDiff(path, commitHash: commitHash)
+    if let tab = existingTab {
+      DispatchQueue.main.async { [weak self] in
+        if let diffVC = self?.contentVCs[tab.id] as? DiffViewController {
+          diffVC.forceScrollToFirstChange()
+        }
+      }
+    }
+  }
+
+  /// A project-search hit (sidebar / search tab) → open the file in the bound session and jump to the line.
+  func openFileAt(rel: String, line: Int) {
+    guard let session else { return }
+    let before = session.activeTabID
+    session.openFile(rel)
+    let id = session.activeTabID
+    if id == before, let editor = (contentVCs[id] as? SourceEditing)?.sourceEditor {
+      editor.goToLine(line)  // already the active editor → jump now (no render to ride)
+    } else {
+      pendingReveal[id] = line  // otherwise consumed in render() once its editor is built & active
+    }
+  }
+
+  /// Live text of an open editor (used by the diff view to show unsaved edits). Nil if not open here.
+  func liveFileText(absolutePath: String) -> String? {
+    for vc in contentVCs.values {
+      if let host = vc as? SourceEditing, let editor = host.sourceEditor,
+        editor.path == absolutePath
+      {
+        return editor.text
+      }
+    }
+    return nil
+  }
+
+  /// Save a tab's editor to disk by id (for the unsaved-changes guard). `true` if not an editor
+  /// or the write succeeded; `false` if a blank "New File" tab's save panel was cancelled.
+  func saveTab(id: String) -> Bool {
+    (contentVCs[id] as? SourceEditing)?.sourceEditor?.saveImmediately() ?? true
+  }
+
+  /// "Install formatter" → open a Terminal tab that runs the command (then drops to an interactive shell).
+  func addInstallTerminal() {
+    session?.addTab(Tab(kind: .terminal, title: "Install"))
   }
 
   private func render() {
@@ -318,7 +335,7 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   /// Kill a tab's dead terminal view and drop its cache so `render()` respawns it fresh (Restart /
   /// convert-to-terminal). A dead SwiftTerm view can't be restarted in place — `startProcess` on it
   /// spawns a process that immediately dies — so we rebuild from scratch.
-  private func rebuildTerminal(_ tabID: String) {
+  func rebuildTerminal(_ tabID: String) {
     TerminalStore.shared.close(tabID)  // terminate the old PTY + remove the old view
     contentViews[tabID]?.removeFromSuperview()
     contentViews[tabID] = nil

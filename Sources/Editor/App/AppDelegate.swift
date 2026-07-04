@@ -135,13 +135,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     return windowControllers.values.first { $0.window === keyWindow }
   }
 
-  /// Wire global hooks (⌘P, ⌘⇧P, ⌃`, line-jump) to the KEY window's controller — set once, and
-  /// resolved live each time so they always target the window the user is in, not a stale one.
+  /// Wire global hooks (⌘P, ⌘⇧P, ⌃`, line-jump, DiffNavigator, FileNavigator, etc.) to the KEY
+  /// window's controller — set once, and resolved live each time so they always target the window
+  /// the user is in, not a stale one. `UnsavedGuard.saveTab` searches ALL windows (quit saves tabs
+  /// across every session).
   private func installGlobalHooks() {
     CommandPaletteHook.toggle = { [weak self] in self?.keyWindowController?.togglePalette() }
     CommandPaletteHook.command = { [weak self] in self?.keyWindowController?.toggleCommandPalette() }
     CommandPaletteHook.lineJump = { [weak self] in self?.keyWindowController?.presentLineJump() }
     QuickTerminalHook.toggle = { [weak self] in self?.keyWindowController?.toggleQuickTerminal() }
+
+    // CenterViewController-level hooks: route to the key window's center VC (tracked live via
+    // CenterViewController.current, which each CenterVC updates on windowDidBecomeKey).
+    DiffNavigator.revealDiff = { path, commitHash in
+      CenterViewController.current?.revealDiff(path: path, commitHash: commitHash)
+    }
+    FileNavigator.openAt = { rel, line in
+      CenterViewController.current?.openFileAt(rel: rel, line: line)
+    }
+    LiveFileText.current = { absolutePath in
+      CenterViewController.current?.liveFileText(absolutePath: absolutePath)
+    }
+    TerminalLifecycle.rebuild = { tabID in
+      CenterViewController.current?.rebuildTerminal(tabID)
+    }
+    FormatterInstall.run = { _ in
+      CenterViewController.current?.addInstallTerminal()
+    }
+    // Save a tab by id — search ALL windows' center VCs (quit aggregates dirty tabs from every
+    // session, so the tab may live in a non-key window).
+    UnsavedGuard.saveTab = { [weak self] id in
+      guard let self else { return true }
+      for wc in self.windowControllers.values {
+        if let center = wc.centerViewController, !center.saveTab(id: id) {
+          return false
+        }
+      }
+      return true
+    }
   }
 
   /// The welcome window (no session), shown when no sessions are open. Internal so the
