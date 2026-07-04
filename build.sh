@@ -8,6 +8,9 @@ CONFIG="${1:-debug}"
 VER="${EDITOR_VERSION:-0.1.0}"
 ED_PREFIX="${ED_INSTALL_PREFIX:-$HOME/.local}"
 ED_BIN_DIR="$ED_PREFIX/bin"
+# Optional arch override (e.g. ED_ARCH=x86_64 on an arm64 CI host). Defaults to host arch.
+ARCH_FLAGS=""
+if [ -n "$ED_ARCH" ]; then ARCH_FLAGS="--arch $ED_ARCH"; fi
 
 if [ "$CONFIG" = "debug" ]; then
   APP="Editor Dev.app"; NAME="Editor Dev"; BID="com.adelodunpeter.editor.dev"; ICNS="AppIconDev.icns"
@@ -16,11 +19,12 @@ else
 fi
 [ -f "$ICNS" ] || ICNS="AppIcon.icns"
 
-echo "==> swift build ($CONFIG)"
-swift build -c "$CONFIG"
+echo "==> swift build ($CONFIG) ${ARCH_FLAGS}"
+swift build -c "$CONFIG" $ARCH_FLAGS
 
-BIN=".build/$CONFIG/Editor"
-ED_BIN=".build/$CONFIG/ed"
+# Resolve the actual build output dir (swift build --arch puts it under a triple-named dir).
+BIN="$(swift build -c "$CONFIG" $ARCH_FLAGS --show-bin-path)/Editor"
+ED_BIN="$(swift build -c "$CONFIG" $ARCH_FLAGS --show-bin-path)/ed"
 
 echo "==> installing ed launcher to $ED_BIN_DIR/ed"
 mkdir -p "$ED_BIN_DIR"
@@ -34,7 +38,8 @@ cp "$BIN" "$APP/Contents/MacOS/Editor"
 
 # Copy SwiftPM resource bundles (e.g. Editor_Editor.bundle with the TextMate grammars) into
 # Contents/Resources so they stay inside the code signature; GrammarBundle resolves them from there.
-for b in ".build/$CONFIG"/*.bundle; do
+BUILD_DIR="$(swift build -c "$CONFIG" $ARCH_FLAGS --show-bin-path)"
+for b in "$BUILD_DIR"/*.bundle; do
   [ -e "$b" ] && cp -R -X "$b" "$APP/Contents/Resources/"
 done
 

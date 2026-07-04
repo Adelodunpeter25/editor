@@ -68,6 +68,7 @@ jobs:
         env:
           EDITOR_VERSION: ${{ steps.version.outputs.version }}
           ED_INSTALL_PREFIX: /tmp/ed-install  # don't install ed launcher in CI
+          ED_ARCH: x86_64  # libfff_c.a is x86_64-only; force cross-compile on arm64 runners
         run: |
           ./build.sh release
 
