@@ -176,10 +176,14 @@ final class LineNumberRuler: NSRulerView {
       let tc = textView.textContainer
     else { return }
 
-    // Ensure layout is complete for the visible region before reading fragment rects.
+    // Force layout (glyph generation included) for the visible region *before* asking which
+    // glyphs live in it — `glyphRange(forBoundingRect:in:)` only reports already-laid-out
+    // glyphs and does not itself trigger layout, so calling it first (as this used to) could
+    // return a range that excludes lines newly scrolled into view, leaving them without a
+    // drawn number until a later redraw (further scrolling, or a selection change) caught up.
     let visible = textView.visibleRect
+    lm.ensureLayout(forBoundingRect: visible, in: tc)
     let glyphRange = lm.glyphRange(forBoundingRect: visible, in: tc)
-    lm.ensureLayout(forGlyphRange: glyphRange)
 
     TreeSitterTheme.background.setFill()
     bounds.fill()

@@ -50,8 +50,18 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     // and the Files/Changes toggle behind it.
     window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
     window.minSize = NSSize(width: 900, height: 600)
-    // Per-session autosave name so each window remembers its own frame across launches.
-    let autosaveName = sessionID.map { "EditorWindow-\($0)" } ?? "EditorMainWindow"
+    // Per-repo autosave name so each window remembers its own frame across launches. Keyed by the
+    // repo URL (not `session.id`): restored sessions get a freshly-generated random id on every
+    // launch (see Persistence.swift), so keying on `id` would never match a previously saved frame
+    // after a relaunch — the frame would only "stick" within a single running session.
+    // NB: don't use `String.hashValue` here — Swift randomizes its seed per process, so it isn't
+    // stable across launches either. Use the (sanitized) URL text itself instead.
+    let autosaveName: String
+    if let url = session?.url {
+      autosaveName = "EditorWindow-" + url.replacingOccurrences(of: "/", with: "_")
+    } else {
+      autosaveName = "EditorMainWindow"
+    }
     window.setFrameAutosaveName(autosaveName)
     let restored = window.setFrameUsingName(autosaveName)
     if !restored {
