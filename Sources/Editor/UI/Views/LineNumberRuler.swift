@@ -101,7 +101,7 @@ final class LineNumberRuler: NSRulerView {
   // MARK: Line-start index (lazily built from LineCounter; rebuilt only on text change)
 
   /// Rebuild the `lineCounter` if the text changed, then ensure `lineStarts` covers at least up to
-  /// the last visible character. LineCounter parses line endings lazily — only the range we ask for
+  /// the requested character. LineCounter parses line endings lazily — only the range we ask for
   /// — and caches what it has already parsed, so a deep scroll only costs the newly-entered region.
   private func ensureLineStarts(upTo charIndex: Int) {
     if lineStartsDirty {
@@ -112,10 +112,8 @@ final class LineNumberRuler: NSRulerView {
       lineStartsParsedUpTo = 0
       lineEndingsProcessed = 0  // reset so we re-walk from the beginning on next append
     }
-    guard let counter = lineCounter else { return }
-    // Buffer 10,000 characters (approx. 150–200 lines) ahead of the visible area so
-    // line numbers are pre-generated before they scroll into the viewport.
-    let target = min(charIndex + 10000, max(0, counter.length - 1))
+    guard let counter = lineCounter, counter.length > 0 else { return }
+    let target = min(max(0, charIndex), counter.length - 1)
     if target < lineStartsParsedUpTo { return }
 
     // Force the lazy parser to cover the entire line containing target.
@@ -129,6 +127,33 @@ final class LineNumberRuler: NSRulerView {
     }
     lineEndingsProcessed = endings.count
     lineStartsParsedUpTo = target + 1
+  }
+  
+  /// Ensure the line-start cache covers every logical line that intersects the visible viewport.
+  /// We walk forward from the last visible character until the cached line starts reach past the
+  /// viewport bottom, avoiding the fixed-character prefetch that could under-run on long lines.
+  private func ensureVisibleLineCoverage(visibleRect: NSRect, layoutManager lm: NSLayoutManager, textContainer tc: NSTextContainer) {
+    let charRange = lm.characterRange(forGlyphRange: lm.glyphRange(forBoundingRect: visibleRect, in: tc), actualGlyphRange: nil)
+    ensureLineStarts(upTo: charRange.upperBound)
+    
+    guard let textView else { return }
+    let ns = textView.string as NSString
+    let inset = textView.textContainerInset.height
+    var line = max(0, lineNumber(for: charRange.location) - 1)
+    
+    while line < lineStarts.count {
+      let fragRect = fragmentRect(forLine: line, lm: lm, ns: ns)
+      let y = inset + fragRect.minY - visibleRect.minY
+      if y > visibleRect.height { break }
+      if line + 1 < lineStarts.count {
+        line += 1
+        continue
+      }
+      guard let counter = lineCounter, lineStartsParsedUpTo < counter.length else { break }
+      ensureLineStarts(upTo: min(counter.length - 1, lineStartsParsedUpTo + 10000))
+      if line + 1 >= lineStarts.count { break }
+      line += 1
+    }
   }
 
   /// 1-based (line, column) for a character index — for the status bar. Reuses the cached line index.
@@ -183,7 +208,7 @@ final class LineNumberRuler: NSRulerView {
     // drawn number until a later redraw (further scrolling, or a selection change) caught up.
     let visible = textView.visibleRect
     lm.ensureLayout(forBoundingRect: visible, in: tc)
-    let glyphRange = lm.glyphRange(forBoundingRect: visible, in: tc)
+    _ = lm.glyphRange(forBoundingRect: visible, in: tc)
 
     TreeSitterTheme.background.setFill()
     bounds.fill()
@@ -191,10 +216,9 @@ final class LineNumberRuler: NSRulerView {
     let ns = textView.string as NSString
     let inset = textView.textContainerInset.height
 
-    // Ensure line starts are parsed up to the last visible character — only the visible region,
-    // not the whole document.
-    let charRange = lm.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-    ensureLineStarts(upTo: charRange.upperBound)
+    // Ensure the line-start cache covers all logical lines intersecting the visible viewport,
+    // not just the last visible character.
+    ensureVisibleLineCoverage(visibleRect: visible, layoutManager: lm, textContainer: tc)
 
     // Find the first visible line by asking the layout manager directly which glyph is at the
     // top of the viewport, then mapping that glyph back to a character index and line number.
