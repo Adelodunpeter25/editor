@@ -37,11 +37,13 @@ final class CenterViewController: NSViewController, NSSplitViewDelegate {
   private var pendingReveal: [String: Int] = [:]  // tabID → line to jump to once its editor is built (search hit)
 
   private let statusBar: StatusBarView
+  private let statusBarController: StatusBarController
 
   init(model: AppModel, session: Session?) {
     self.model = model
     self.session = session
-    self.statusBar = StatusBarView(model: model, session: session)
+    self.statusBarController = StatusBarController(model: model, session: session)
+    self.statusBar = StatusBarView(controller: statusBarController)
     super.init(nibName: nil, bundle: nil)
   }
 
