@@ -107,7 +107,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     tv.isRichText = false
     tv.allowsUndo = true
     tv.backgroundColor = TreeSitterTheme.background
-    tv.insertionPointColor = .white
     tv.isAutomaticQuoteSubstitutionEnabled = false
     tv.isAutomaticDashSubstitutionEnabled = false
     tv.isAutomaticSpellingCorrectionEnabled = false
@@ -134,6 +133,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     indentStyle = EditorViewController.detectIndent(content)
     tv.onSave = { [weak self] in self?.save() }
     tv.onFormat = { [weak self] in self?.formatDocument() }
+    tv.onModeChange = { _ in
+      EditorStatus.onChange?()  // refresh status bar mode indicator
+    }
     requestHighlight(debounced: false)  // colours apply off-main; first paint shows plain text instantly
 
     let scroll = NSScrollView()
