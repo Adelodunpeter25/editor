@@ -130,43 +130,33 @@ final class LineNumberRuler: NSRulerView {
       let tc = textView.textContainer
     else { return }
 
-    // Force layout (glyph generation included) for the visible region *before* asking which
-    // glyphs live in it.
     let visible = textView.visibleRect
-    lm.ensureLayout(forBoundingRect: visible, in: tc)
-
+    
     TreeSitterTheme.background.setFill()
     rect.fill() // Fill only the dirty rect, not bounds
 
-    let ns = textView.string as NSString
-    let inset = textView.textContainerInset.height
-
-    // Find the first visible line by asking the layout manager directly which glyph is at the
-    // top of the viewport, then mapping that glyph back to a character index and line number.
-    let viewTop = visible.minY
-    let topPoint = NSPoint(x: 0, y: viewTop)
-    let topGlyphIndex = lm.glyphIndex(for: topPoint, in: tc)
-    
-    let startLine: Int
-    if topGlyphIndex == NSNotFound {
-      startLine = 0
-    } else {
-      let topCharIndex = lm.characterIndexForGlyph(at: topGlyphIndex)
-      startLine = max(0, lineNumber(for: topCharIndex) - 1)
-    }
+    // Get the range of glyphs currently visible on screen
+    let textRange = lm.glyphRange(forBoundingRect: visible, in: tc)
+    var glyphIndex = textRange.location
+    let maxGlyphIndex = NSMaxRange(textRange)
 
     let curLine = lineNumber(for: textView.selectedRange().location)
 
-    // Walk forward from the first visible line, drawing each line's number at its fragment rect.
-    // Stop when we pass the bottom of the viewport.
-    var line = startLine
-    while line < lineStarts.count {
-      let fragRect = fragmentRect(forLine: line, lm: lm, ns: ns)
-      let y = inset + fragRect.minY - visible.minY
-      if y > visible.height { break }  // below the viewport bottom — done
-      if y + fragRect.height >= 0 {  // intersects the viewport — draw it
-        let n = line + 1
+    // Step fragment-by-fragment through only the visible text
+    while glyphIndex < maxGlyphIndex {
+      var lineRange = NSRange()
+      let fragRect = lm.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
+      
+      let characterIndex = lm.characterIndexForGlyph(at: glyphIndex)
+      let lineNum = lineNumber(for: characterIndex)
+
+      // Only draw the number if this fragment is the start of a logical line (skips wrapped lines)
+      if characterIndex == lineStarts[lineNum - 1] {
+        let y = textView.textContainerInset.height + fragRect.minY - visible.minY
+        let n = lineNum
+        
         drawGitMarker(for: n, y: y, height: fragRect.height)
+        
         let attrs: [NSAttributedString.Key: Any] = [
           .font: font,
           .foregroundColor: n == curLine ? Self.currentColor : Self.numberColor,
@@ -177,7 +167,9 @@ final class LineNumberRuler: NSRulerView {
         let drawY = y + (fragRect.height - size.height) / 2
         s.draw(at: NSPoint(x: drawX, y: drawY), withAttributes: attrs)
       }
-      line += 1
+      
+      // Jump directly to the next line fragment
+      glyphIndex = NSMaxRange(lineRange)
     }
   }
 
@@ -201,13 +193,5 @@ final class LineNumberRuler: NSRulerView {
       path.close()
       path.fill()
     }
-  }
-
-  /// Layout rect of a logical line's first visual row (or the extra fragment for an empty trailing line).
-  private func fragmentRect(forLine i: Int, lm: NSLayoutManager, ns: NSString) -> NSRect {
-    let startChar = lineStarts[i]
-    guard startChar < ns.length else { return lm.extraLineFragmentRect }
-    return lm.lineFragmentRect(
-      forGlyphAt: lm.glyphIndexForCharacter(at: startChar), effectiveRange: nil)
   }
 }
