@@ -58,7 +58,7 @@ extension EditorViewController {
     let f = mono(size)
     textView.font = f
     textView.typingAttributes[.font] = f
-    lineRuler.font = f  // gutter tracks the editor font size
+    textView.rebuildLineStarts()  // recalculate gutter width with the new font size
     // Resize runs in place — DON'T re-tokenize. Only swap each run's font to the new size,
     // preserving bold/italic via the font manager.
     textStorage.beginEditing()

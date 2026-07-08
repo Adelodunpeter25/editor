@@ -45,7 +45,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   var textView: CodeTextView!
   var scrollView: NSScrollView!
   var textStorage: NSTextStorage!
-  var lineRuler: LineNumberRuler!
   var gitGutter: GitGutterRuler?
   var highlighter: TreeSitterHighlighter?
   var saved = ""
@@ -137,6 +136,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     tv.onModeChange = { _ in
       EditorStatus.onChange?()  // refresh status bar mode indicator
     }
+    tv.rebuildLineStarts()
     requestHighlight(debounced: false)  // colours apply off-main; first paint shows plain text instantly
 
     let scroll = NSScrollView()
@@ -151,22 +151,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     scroll.backgroundColor = TreeSitterTheme.background
     scroll.documentView = tv
 
-    // Line-number gutter (VS Code-style), drawn as the scroll view's vertical ruler.
-    let ruler = LineNumberRuler(scrollView: scroll, textView: tv)
-    ruler.font = mono(fontSize)
-    scroll.verticalRulerView = ruler
-    scroll.hasVerticalRuler = true
-    scroll.rulersVisible = true
-    ruler.reload()  // build the line index for the just-loaded content
-    self.lineRuler = ruler
-
-    // Git gutter (colored bars for added/modified/deleted lines), drawn inside the line-number ruler.
+    // Git gutter (colored bars for added/modified/deleted lines)
     if !path.isEmpty {  // skip for untitled files
       let gutter = GitGutterRuler(scrollView: scroll, textView: tv, filePath: path)
-      gutter.onChange = { [weak ruler] diff in
-        ruler?.gitAddedLines = diff.addedLines
-        ruler?.gitModifiedLines = diff.modifiedLines
-        ruler?.gitDeletedLines = diff.deletedLines
+      gutter.onChange = { [weak tv] diff in
+        tv?.gitAddedLines = diff.addedLines
+        tv?.gitModifiedLines = diff.modifiedLines
+        tv?.gitDeletedLines = diff.deletedLines
       }
       gutter.reload()
       self.gitGutter = gutter
@@ -241,7 +232,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   func cursorLineColumn() -> (line: Int, column: Int) {
     guard let tv = textView else { return (1, 1) }
     let loc = min(tv.selectedRange().location, (tv.string as NSString).length)
-    return lineRuler.lineColumn(at: loc)
+    return tv.lineColumn(at: loc)
   }
 
   /// Convert the document's line endings (status-bar LF/CRLF click). One undoable edit; marks dirty so
@@ -508,7 +499,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
         length: 0))
     lineEnding = LineEnding.detect(in: content) ?? .lf
     indentStyle = EditorViewController.detectIndent(content)
-    lineRuler.reload()
+    textView.rebuildLineStarts()
     gitGutter?.reload()
     onDirty(false)
     requestHighlight(debounced: false)
