@@ -135,41 +135,32 @@ final class LineNumberRuler: NSRulerView {
     TreeSitterTheme.background.setFill()
     rect.fill() // Fill only the dirty rect, not bounds
 
-    // Get the range of glyphs currently visible on screen
     let textRange = lm.glyphRange(forBoundingRect: visible, in: tc)
-    var glyphIndex = textRange.location
-    let maxGlyphIndex = NSMaxRange(textRange)
-
     let curLine = lineNumber(for: textView.selectedRange().location)
+    let inset = textView.textContainerInset.height
 
-    // Step fragment-by-fragment through only the visible text
-    while glyphIndex < maxGlyphIndex {
-      var lineRange = NSRange()
-      let fragRect = lm.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
-      
-      let characterIndex = lm.characterIndexForGlyph(at: glyphIndex)
-      let lineNum = lineNumber(for: characterIndex)
+    lm.enumerateLineFragments(forGlyphRange: textRange) { [weak self] fragRect, _, _, range, _ in
+      guard let self else { return }
+      let characterIndex = lm.characterIndexForGlyph(at: range.location)
+      let lineNum = self.lineNumber(for: characterIndex)
 
       // Only draw the number if this fragment is the start of a logical line (skips wrapped lines)
-      if characterIndex == lineStarts[lineNum - 1] {
-        let y = textView.textContainerInset.height + fragRect.minY - visible.minY
+      if characterIndex == self.lineStarts[lineNum - 1] {
+        let y = inset + fragRect.minY - visible.minY
         let n = lineNum
         
-        drawGitMarker(for: n, y: y, height: fragRect.height)
+        self.drawGitMarker(for: n, y: y, height: fragRect.height)
         
         let attrs: [NSAttributedString.Key: Any] = [
-          .font: font,
+          .font: self.font,
           .foregroundColor: n == curLine ? Self.currentColor : Self.numberColor,
         ]
         let s = String(n) as NSString
         let size = s.size(withAttributes: attrs)
-        let drawX = ruleThickness - size.width - rightPadding
+        let drawX = self.ruleThickness - size.width - self.rightPadding
         let drawY = y + (fragRect.height - size.height) / 2
         s.draw(at: NSPoint(x: drawX, y: drawY), withAttributes: attrs)
       }
-      
-      // Jump directly to the next line fragment
-      glyphIndex = NSMaxRange(lineRange)
     }
   }
 
