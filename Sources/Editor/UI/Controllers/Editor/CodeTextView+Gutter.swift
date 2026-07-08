@@ -152,6 +152,7 @@ extension CodeTextView {
       width: tc.containerSize.width,
       height: visibleRect.height
     )
+    lm.ensureLayout(forBoundingRect: containerVisibleRect, in: tc)
     let textRange = lm.glyphRange(forBoundingRect: containerVisibleRect, in: tc)
     guard textRange.length > 0 else { return }
 
