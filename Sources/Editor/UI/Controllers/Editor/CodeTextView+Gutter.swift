@@ -144,12 +144,17 @@ extension CodeTextView {
 
     guard let lm = layoutManager, let tc = textContainer else { return }
 
-    // Map the visible rect from view coordinates into text-container coordinates.
-    // textContainerOrigin returns (_cachedGutterWidth, inset.height) — pure stored values.
-    let tcX = _cachedGutterWidth
+    // Convert the visible rect from view coordinates into text-container
+    // coordinates.  Clamp to non-negative values because
+    // glyphRange(forBoundingRect:in:) returns an empty range for negative rects.
     let tcY = textContainerInset.height
-    let tcVisibleRect = visibleRect.offsetBy(dx: -tcX, dy: -tcY)
-    let textRange = lm.glyphRange(forBoundingRect: tcVisibleRect, in: tc)
+    let containerVisibleRect = NSRect(
+      x: 0,
+      y: max(0, visibleRect.minY - tcY),
+      width: tc.containerSize.width,
+      height: visibleRect.height
+    )
+    let textRange = lm.glyphRange(forBoundingRect: containerVisibleRect, in: tc)
     guard textRange.length > 0 else { return }
 
     let curLine = lineNumber(for: selectedRange().location)
