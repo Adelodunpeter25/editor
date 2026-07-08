@@ -62,6 +62,20 @@ final class CodeTextView: NSTextView {
     needsDisplay = true
   }
 
+  override func setNeedsDisplay(_ invalidRect: NSRect) {
+    var rect = invalidRect
+    rect.origin.x = 0
+    rect.size.width = bounds.width
+    super.setNeedsDisplay(rect)
+  }
+
+  override func setNeedsDisplay(_ invalidRect: NSRect, avoidAdditionalLayout flag: Bool) {
+    var rect = invalidRect
+    rect.origin.x = 0
+    rect.size.width = bounds.width
+    super.setNeedsDisplay(rect, avoidAdditionalLayout: flag)
+  }
+
   override func draw(_ dirtyRect: NSRect) {
     super.draw(dirtyRect)
     drawGutter(in: dirtyRect)

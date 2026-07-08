@@ -56,9 +56,7 @@ extension CodeTextView {
   func rebuildLineStarts() {
     let s = self.string
     let counter = LineCounter(string: s)
-    if s.utf16.count > 0 {
-      _ = counter.lineNumber(at: s.utf16.count - 1)
-    }
+    _ = counter.lineRange(at: s.utf16.count)
     var starts = [0]
     starts.reserveCapacity(counter.lineEndings.count + 1)
     for ending in counter.lineEndings {
