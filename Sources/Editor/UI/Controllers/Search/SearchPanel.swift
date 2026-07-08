@@ -239,7 +239,12 @@ final class SearchViewController: NSViewController, NSSearchFieldDelegate {
   }
 
   /// Focus the field — called when the sidebar reveals the Search segment.
-  func focusField() { view.window?.makeFirstResponder(field) }
+  func focusField() {
+    view.window?.makeFirstResponder(field)
+    // NSSearchField selects all text on first responder by default (URL bar behavior).
+    // Deselect so the user can type immediately without overwriting.
+    field.currentEditor()?.selectedRange = NSRange(location: field.stringValue.count, length: 0)
+  }
 
   private func configToggle(_ b: NSButton, _ title: String, _ tip: String) {
     b.title = title
