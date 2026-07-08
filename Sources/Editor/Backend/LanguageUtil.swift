@@ -1,4 +1,5 @@
 import Foundation
+import Defaults
 
 enum LanguageUtil {
   private static let extToLanguage: [String: String] = [
@@ -128,7 +129,7 @@ enum LanguageUtil {
   ]
 
   /// Map a file path to a bundled grammar key. Filename is checked first (Dockerfile, Makefile),
-  /// then the extension.
+  /// then the extension (with user overrides taking precedence over the hardcoded map).
   static func language(forPath path: String) -> String? {
     let name = (path as NSString).lastPathComponent.lowercased()
     switch name {
@@ -137,7 +138,12 @@ enum LanguageUtil {
     case ".gitignore", ".gitattributes", ".gitconfig": return "ini"
     default: break
     }
-    return extToLanguage[(path as NSString).pathExtension.lowercased()]
+    let ext = (path as NSString).pathExtension.lowercased()
+    // Check user overrides first (e.g., .qss → css), then fall back to the hardcoded map.
+    if let override = Settings.languageOverride(forExtension: ext) {
+      return override
+    }
+    return extToLanguage[ext]
   }
 
   /// Resolve alias/fence name to target grammar key.

@@ -312,6 +312,18 @@ final class StatusBarController {
   @objc private func langPicked(_ item: NSMenuItem) {
     let key = item.representedObject as? String
     ActiveEditor.current?.setLanguageOverride((key?.isEmpty ?? true) ? nil : key)
+    // Persist the extension → language mapping so it applies to all files with that extension.
+    if let editor = ActiveEditor.current {
+      let ext = (editor.path as NSString).pathExtension
+      if !ext.isEmpty {
+        if let langKey = key, !langKey.isEmpty {
+          Settings.setLanguageOverride(forExtension: ext, language: langKey)
+        } else {
+          // "Auto-detect" selected → remove the override for this extension.
+          Settings.removeLanguageOverride(forExtension: ext)
+        }
+      }
+    }
     onEditorStatusChange?()
   }
   

@@ -80,5 +80,25 @@ final class Settings: ObservableObject {
     static let findMatchCase = DefaultKey<Bool>("findMatchCase")
     static let findWholeWord = DefaultKey<Bool>("findWholeWord")
     static let findRegex = DefaultKey<Bool>("findRegex")
+    static let languageOverrides = DefaultKey<[String: String]>("languageOverrides")
+  }
+
+  /// Get the language override for a file extension (e.g., "qss" → "css"). Returns nil if no override.
+  static func languageOverride(forExtension ext: String) -> String? {
+    UserDefaults.standard[Keys.languageOverrides]?[ext.lowercased()]
+  }
+
+  /// Set a language override for a file extension (e.g., "qss" → "css").
+  static func setLanguageOverride(forExtension ext: String, language: String) {
+    var overrides = UserDefaults.standard[Keys.languageOverrides] ?? [:]
+    overrides[ext.lowercased()] = language
+    UserDefaults.standard[Keys.languageOverrides] = overrides
+  }
+
+  /// Remove a language override for a file extension (revert to auto-detection).
+  static func removeLanguageOverride(forExtension ext: String) {
+    var overrides = UserDefaults.standard[Keys.languageOverrides] ?? [:]
+    overrides.removeValue(forKey: ext.lowercased())
+    UserDefaults.standard[Keys.languageOverrides] = overrides
   }
 }
