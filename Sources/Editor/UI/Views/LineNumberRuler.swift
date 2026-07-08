@@ -4,23 +4,13 @@ import LineEnding
 /// A VS Code-style line-number gutter for the editor, drawn as the scroll view's vertical `NSRulerView`.
 ///
 /// Performance: only the lines intersecting the visible rect are drawn on each pass (not the whole
-/// file). Line endings are tracked via `LineCounter` (from EditorCore), which lazily parses only up
-/// to the visible region and caches the rest — so scrolling a 100k-line file stays cheap without
-/// scanning the entire document on every text change. Wrapped logical lines show their number once
-/// (on the first visual row), matching VS Code; a trailing empty line (file ends in a newline) gets
-/// its own number too.
+/// file). Line endings are tracked via `LineCounter` (from EditorCore) which is pre-computed on load/edit.
+/// This ensures scrolling a large file is extremely fast and smooth, with zero delay or popping-in
+/// of line numbers since layout manager status does not block line-start detection.
 final class LineNumberRuler: NSRulerView {
   private weak var textView: NSTextView?
   private var lineCounter: LineCounter?
   private var lineStarts: [Int] = [0]  // char offset of each logical line start; always begins with 0
-  private var lineStartsDirty = true
-  /// The character index up to which `lineStarts` has been populated from `lineCounter`.
-  private var lineStartsParsedUpTo = 0
-  /// How many entries of `lineCounter.lineEndings` we have already appended to `lineStarts`.
-  /// Lets the accumulation loop skip previously-seen endings instead of re-walking the whole array.
-  private var lineEndingsProcessed: Int = 0
-  /// Last known total line count — updated by `textDidChange` (fast scan) and `reload` (full parse).
-  /// Used by `recomputeThickness` so the gutter width never forces a full LineCounter parse.
   private var cachedLineCount: Int = 1
 
   private static let numberColor = Theme.gutterNumber
@@ -70,103 +60,42 @@ final class LineNumberRuler: NSRulerView {
   @objc private func viewDidScroll() { needsDisplay = true }
   @objc private func selectionDidChange() { needsDisplay = true }
   @objc private func textDidChange() {
-    lineStartsDirty = true
-    // Fast O(n) newline scan — no LineCounter parse, no allocations.
-    // Keeps the gutter width accurate on every edit without the full-document
-    // parse that the old `totalLineCount` triggered on every keypress.
-    if let s = textView?.string {
-      var count = 1
-      for c in s.utf16 where c == 10 { count += 1 }  // 10 == '\n'
-      if count != cachedLineCount {
-        cachedLineCount = count
-        recomputeThickness()
-      }
-    }
+    rebuildLineStarts()
     needsDisplay = true
   }
 
   /// Called when the document is replaced wholesale (initial load, retarget) without a text edit.
   func reload() {
-    lineStartsDirty = true
-    // Full newline scan is fine here — reload is called on load/file-switch, not on keypress.
-    if let s = textView?.string {
-      var count = 1
-      for c in s.utf16 where c == 10 { count += 1 }
-      cachedLineCount = max(1, count)
-    }
-    recomputeThickness()
+    rebuildLineStarts()
     needsDisplay = true
   }
 
-  // MARK: Line-start index (lazily built from LineCounter; rebuilt only on text change)
+  // MARK: - Line-start index pre-computation
 
-  /// Rebuild the `lineCounter` if the text changed, then ensure `lineStarts` covers at least up to
-  /// the requested character. LineCounter parses line endings lazily — only the range we ask for
-  /// — and caches what it has already parsed, so a deep scroll only costs the newly-entered region.
-  private func ensureLineStarts(upTo charIndex: Int) {
-    if lineStartsDirty {
-      lineStartsDirty = false
-      let s = textView?.string ?? ""
-      lineCounter = LineCounter(string: s)
-      lineStarts = [0]
-      lineStartsParsedUpTo = 0
-      lineEndingsProcessed = 0  // reset so we re-walk from the beginning on next append
+  private func rebuildLineStarts() {
+    let s = textView?.string ?? ""
+    let counter = LineCounter(string: s)
+    // Force a complete parse of the entire string by checking the line number at the last character index.
+    if s.utf16.count > 0 {
+      _ = counter.lineNumber(at: s.utf16.count - 1)
     }
-    guard let counter = lineCounter, counter.length > 0 else { return }
-    let target = min(max(0, charIndex), counter.length - 1)
-    if target < lineStartsParsedUpTo { return }
+    self.lineCounter = counter
 
-    // Force the lazy parser to cover the entire line containing target.
-    _ = counter.lineRange(at: target)
-
-    // Only iterate endings we haven't seen yet — counter.lineEndings grows monotonically
-    // as more of the document is parsed. Skipping already-processed entries keeps this O(new) per call.
-    let endings = counter.lineEndings
-    for le in endings[lineEndingsProcessed...] {
-      lineStarts.append(le.upperBound)
+    var starts = [0]
+    starts.reserveCapacity(counter.lineEndings.count + 1)
+    for ending in counter.lineEndings {
+      starts.append(ending.upperBound)
     }
-    lineEndingsProcessed = endings.count
-    lineStartsParsedUpTo = target + 1
-  }
-  
-  /// Ensure the line-start cache covers every logical line that intersects the visible viewport.
-  /// We walk forward from the last visible character until the cached line starts reach past the
-  /// viewport bottom, avoiding the fixed-character prefetch that could under-run on long lines.
-  private func ensureVisibleLineCoverage(visibleRect: NSRect, layoutManager lm: NSLayoutManager, textContainer tc: NSTextContainer) {
-    let charRange = lm.characterRange(forGlyphRange: lm.glyphRange(forBoundingRect: visibleRect, in: tc), actualGlyphRange: nil)
-    ensureLineStarts(upTo: charRange.upperBound)
-    
-    guard let textView else { return }
-    let ns = textView.string as NSString
-    let inset = textView.textContainerInset.height
-    var line = max(0, lineNumber(for: charRange.location) - 1)
-    
-    while line < lineStarts.count {
-      let fragRect = fragmentRect(forLine: line, lm: lm, ns: ns)
-      let y = inset + fragRect.minY - visibleRect.minY
-      if y > visibleRect.height { break }
-      if line + 1 < lineStarts.count {
-        line += 1
-        continue
-      }
-      guard let counter = lineCounter, lineStartsParsedUpTo < counter.length else { break }
-      ensureLineStarts(upTo: min(counter.length - 1, lineStartsParsedUpTo + 10000))
-      if line + 1 >= lineStarts.count { break }
-      line += 1
-    }
+    self.lineStarts = starts
+    self.cachedLineCount = starts.count
+    recomputeThickness()
   }
 
-  /// 1-based (line, column) for a character index — for the status bar. Reuses the cached line index.
-  /// Note: both `charIndex` and `lineStarts` use UTF-16 code-unit offsets (NSRange semantics), so the
-  /// column value counts UTF-16 units, not grapheme clusters. This matches VS Code's behaviour.
+  /// 1-based (line, column) for a character index — for the status bar.
   func lineColumn(at charIndex: Int) -> (line: Int, column: Int) {
-    ensureLineStarts(upTo: charIndex)
     let line = lineNumber(for: charIndex)
     return (line, charIndex - lineStarts[line - 1] + 1)
   }
-
-  // totalLineCount removed — it forced a full LineCounter parse on every keypress.
-  // Gutter width is now driven by cachedLineCount (updated via fast utf16 scan in textDidChange/reload).
 
   /// 1-based line number containing `charIndex` (binary search for the greatest start ≤ charIndex).
   private func lineNumber(for charIndex: Int) -> Int {
@@ -202,34 +131,22 @@ final class LineNumberRuler: NSRulerView {
     else { return }
 
     // Force layout (glyph generation included) for the visible region *before* asking which
-    // glyphs live in it — `glyphRange(forBoundingRect:in:)` only reports already-laid-out
-    // glyphs and does not itself trigger layout, so calling it first (as this used to) could
-    // return a range that excludes lines newly scrolled into view, leaving them without a
-    // drawn number until a later redraw (further scrolling, or a selection change) caught up.
+    // glyphs live in it.
     let visible = textView.visibleRect
     lm.ensureLayout(forBoundingRect: visible, in: tc)
-    _ = lm.glyphRange(forBoundingRect: visible, in: tc)
 
     TreeSitterTheme.background.setFill()
-    bounds.fill()
+    rect.fill() // Fill only the dirty rect, not bounds
 
     let ns = textView.string as NSString
     let inset = textView.textContainerInset.height
 
-    // Ensure the line-start cache covers all logical lines intersecting the visible viewport,
-    // not just the last visible character.
-    ensureVisibleLineCoverage(visibleRect: visible, layoutManager: lm, textContainer: tc)
-
     // Find the first visible line by asking the layout manager directly which glyph is at the
     // top of the viewport, then mapping that glyph back to a character index and line number.
-    // This avoids the old binary search over fragmentRects which could probe lines outside the
-    // laid-out range and return bogus rects (causing the first few line numbers to be skipped
-    // when scrolling up from the bottom of a large file).
     let viewTop = visible.minY
     let topPoint = NSPoint(x: 0, y: viewTop)
     let topGlyphIndex = lm.glyphIndex(for: topPoint, in: tc)
-    // glyphIndex(for:in:) returns NSNotFound when the point is outside the laid-out range.
-    // Passing NSNotFound to characterIndexForGlyph is undefined behaviour and can crash.
+    
     let startLine: Int
     if topGlyphIndex == NSNotFound {
       startLine = 0
@@ -261,13 +178,6 @@ final class LineNumberRuler: NSRulerView {
         s.draw(at: NSPoint(x: drawX, y: drawY), withAttributes: attrs)
       }
       line += 1
-    }
-
-    // After each draw pass, expand cachedLineCount if we've parsed more lines than we knew about.
-    // This self-corrects the gutter width without a separate full parse.
-    if lineStarts.count > cachedLineCount {
-      cachedLineCount = lineStarts.count
-      recomputeThickness()
     }
   }
 
