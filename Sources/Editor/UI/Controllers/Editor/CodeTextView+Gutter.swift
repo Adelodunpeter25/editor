@@ -100,13 +100,15 @@ extension CodeTextView {
 
     guard let lm = layoutManager, let tc = textContainer else { return }
 
-    // Map visible rect in text view coordinates to text container coordinates
-    let containerOrigin = textContainerOrigin
-    let textContainerVisibleRect = visibleRect.offsetBy(dx: -containerOrigin.x, dy: -containerOrigin.y)
+    // Map visible rect from text view coordinates to text container coordinates.
+    // The text container is offset by (gutterWidth, textContainerInset.height).
+    let tcOriginX = gutterWidth
+    let tcOriginY = textContainerInset.height
+    let textContainerVisibleRect = visibleRect.offsetBy(dx: -tcOriginX, dy: -tcOriginY)
     let textRange = lm.glyphRange(forBoundingRect: textContainerVisibleRect, in: tc)
 
     let curLine = lineNumber(for: selectedRange().location)
-    let inset = textContainerInset.height
+    let inset = tcOriginY
 
     let rightPadding: CGFloat = 8
     let font = self.font ?? .systemFont(ofSize: 12)

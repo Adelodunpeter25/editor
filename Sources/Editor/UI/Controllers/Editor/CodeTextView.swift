@@ -30,8 +30,11 @@ final class CodeTextView: NSTextView {
   var gitDeletedLines: Set<Int> = [] { didSet { needsDisplay = true } }
 
   override var textContainerOrigin: NSPoint {
-    let origin = super.textContainerOrigin
-    return NSPoint(x: gutterWidth, y: origin.y)
+    // IMPORTANT: Do NOT call super here. The default implementation calls
+    // usedRectForTextContainer which triggers layout → setFrameSize → constraints
+    // → setNeedsLayout, which crashes if called during a display cycle (e.g. hitTest).
+    // We compute the origin directly from the stored textContainerInset instead.
+    return NSPoint(x: gutterWidth, y: textContainerInset.height)
   }
 
   override func layout() {
