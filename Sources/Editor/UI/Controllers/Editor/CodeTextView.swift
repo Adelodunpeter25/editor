@@ -9,7 +9,7 @@ enum EditMode {
 /// NSTextView subclass that intercepts Cmd+S to save and adds "Format Document" to the right-click menu.
 /// Also implements a simplified vim mode: starts in normal mode (read-only), press 'i' to enter insert mode,
 /// press Escape to return to normal mode. Prevents accidental edits while allowing navigation/selection.
-/// Now also draws the line-number gutter directly inside the view to guarantee smooth GPU-accelerated scrolling.
+/// Line-number gutter is drawn directly inside this view (see CodeTextView+Gutter.swift).
 final class CodeTextView: NSTextView {
   var onSave: (() -> Void)?
   var onFormat: (() -> Void)?
@@ -23,24 +23,29 @@ final class CodeTextView: NSTextView {
   }
 
   // MARK: - Gutter State & Properties
+
+  /// Pre-computed line-start character offsets (0-based). Index 0 is always 0.
   var lineStarts: [Int] = [0]
+  /// Cached line count (== lineStarts.count).
   var cachedLineCount: Int = 1
+  /// Cached gutter width — only updated when line count or font changes.
+  var _cachedGutterWidth: CGFloat = 40
+
   var gitAddedLines: Set<Int> = [] { didSet { needsDisplay = true } }
   var gitModifiedLines: Set<Int> = [] { didSet { needsDisplay = true } }
   var gitDeletedLines: Set<Int> = [] { didSet { needsDisplay = true } }
 
+  // MARK: - Text Container Origin
+
   override var textContainerOrigin: NSPoint {
     // IMPORTANT: Do NOT call super here. The default implementation calls
-    // usedRectForTextContainer which triggers layout → setFrameSize → constraints
-    // → setNeedsLayout, which crashes if called during a display cycle (e.g. hitTest).
-    // We compute the origin directly from the stored textContainerInset instead.
-    return NSPoint(x: gutterWidth, y: textContainerInset.height)
+    // usedRectForTextContainer which triggers a full layout pass and can
+    // crash during display-cycle callbacks (hitTest, cursor tracking, etc.).
+    // We return stored values only — no layout side-effects.
+    return NSPoint(x: _cachedGutterWidth, y: textContainerInset.height)
   }
 
-  override func layout() {
-    super.layout()
-    adjustTextContainerWidth()
-  }
+  // MARK: - Cursor & Drawing Overrides
 
   override func resetCursorRects() {
     super.resetCursorRects()
@@ -62,6 +67,8 @@ final class CodeTextView: NSTextView {
     drawGutter(in: dirtyRect)
   }
 
+  // MARK: - Menu
+
   override func menu(for event: NSEvent) -> NSMenu? {
     let menu = super.menu(for: event) ?? NSMenu()
     let item = NSMenuItem(
@@ -72,6 +79,8 @@ final class CodeTextView: NSTextView {
     return menu
   }
   @objc private func formatFromMenu() { onFormat?() }
+
+  // MARK: - Key Handling
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     if event.modifierFlags.contains(.command),
@@ -128,6 +137,8 @@ final class CodeTextView: NSTextView {
     super.keyDown(with: event)
   }
   
+  // MARK: - Cursor Appearance
+
   private func updateCursor() {
     insertionPointColor = .white
     // Force redraw of the insertion point

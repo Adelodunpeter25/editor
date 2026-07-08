@@ -116,7 +116,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     tv.maxSize = NSSize(
       width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
     tv.autoresizingMask = NSView.AutoresizingMask.width
-    tv.textContainerInset = NSSize(width: 6, height: 8)
     tv.font = mono(fontSize)
     tv.typingAttributes = [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base]
     tv.delegate = self
