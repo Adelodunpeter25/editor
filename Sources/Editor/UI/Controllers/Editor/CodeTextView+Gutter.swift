@@ -122,20 +122,25 @@ extension CodeTextView {
   // MARK: - Gutter drawing
 
   /// Paints the gutter background, line numbers, and git markers for the
-  /// visible portion of `dirtyRect`.  Called from `draw(_:)` after super.
+  /// visible portion of the view.  Called from `draw(_:)` after super.
+  ///
+  /// NOTE: We use `visibleRect` rather than `dirtyRect` for the gutter area
+  /// because NSTextView often only invalidates the text container region
+  /// (starting at textContainerOrigin.x), which excludes the gutter margin.
   func drawGutter(in dirtyRect: NSRect) {
     let gw = _cachedGutterWidth
-    let gutterRect = NSRect(x: 0, y: 0, width: gw, height: bounds.height)
-    guard dirtyRect.intersects(gutterRect) else { return }
-    let currentGutterRect = dirtyRect.intersection(gutterRect)
+    guard gw > 0 else { return }
+
+    // Always draw the full visible height of the gutter.
+    let gutterDrawRect = NSRect(x: 0, y: visibleRect.minY, width: gw, height: visibleRect.height)
 
     // Gutter background
     NSColor(white: 0.09, alpha: 1).setFill()
-    currentGutterRect.fill()
+    gutterDrawRect.fill()
 
     // Border on the right of the gutter
     NSColor(white: 0.18, alpha: 1).setFill()
-    NSRect(x: gw - 1, y: currentGutterRect.minY, width: 1, height: currentGutterRect.height).fill()
+    NSRect(x: gw - 1, y: gutterDrawRect.minY, width: 1, height: gutterDrawRect.height).fill()
 
     guard let lm = layoutManager, let tc = textContainer else { return }
 
