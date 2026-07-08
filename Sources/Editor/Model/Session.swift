@@ -59,6 +59,7 @@ final class Session: ObservableObject, Identifiable {
 
   func closeTab(_ id: String) {
     guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+    guard !tabs[idx].pinned else { return }  // pinned tabs cannot be closed
     TerminalStore.shared.close(id)  // kill the PTY if this tab had one
     tabs.remove(at: idx)
     if activeTabID == id {

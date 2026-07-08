@@ -237,6 +237,7 @@ extension AppDelegate {
 
   @objc private func closeActiveTab() {
     guard let s = model.activeSession, let tab = s.activeTab else { return }
+    if tab.pinned { return }  // pinned tabs cannot be closed via ⌘W
     if UnsavedGuard.confirmClose(tab) { s.closeTab(tab.id) }
   }
 

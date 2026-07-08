@@ -27,6 +27,7 @@ final class TabBarController {
       guard let self,
         let tab = session.tabs.first(where: { $0.id == id })
       else { return }
+      if tab.pinned { return }  // pinned tabs cannot be closed
       if UnsavedGuard.confirmClose(tab) { session.closeTab(id) }
     }
 

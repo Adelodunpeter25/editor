@@ -197,6 +197,7 @@ final class PaletteSearchEngine {
     if let s = model.activeSession, let t = s.activeTab {
       c.append(
         PaletteCommand(title: "Close Tab", keepsOpen: false) {
+          if t.pinned { return }  // pinned tabs cannot be closed
           if UnsavedGuard.confirmClose(t) { s.closeTab(t.id) }
         })
     }
