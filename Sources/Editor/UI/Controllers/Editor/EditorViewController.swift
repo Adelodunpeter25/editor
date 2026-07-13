@@ -97,7 +97,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     self.textStorage = storage
 
     let layoutManager = NSLayoutManager()
-    layoutManager.allowsNonContiguousLayout = true
+    layoutManager.allowsNonContiguousLayout = false
     storage.addLayoutManager(layoutManager)
     let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
     container.widthTracksTextView = true

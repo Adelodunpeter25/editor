@@ -141,20 +141,12 @@ extension CodeTextView {
     NSRect(x: gw - 1, y: gutterDrawRect.minY, width: 1, height: gutterDrawRect.height).fill()
 
     guard let lm = layoutManager, let tc = textContainer else { return }
+    let length = lm.numberOfGlyphs
+    guard length > 0 else { return }
 
-    // Convert the visible rect from view coordinates into text-container
-    // coordinates.  Clamp to non-negative values because
-    // glyphRange(forBoundingRect:in:) returns an empty range for negative rects.
     let tcY = textContainerInset.height
-    let containerVisibleRect = NSRect(
-      x: 0,
-      y: max(0, visibleRect.minY - tcY),
-      width: tc.containerSize.width,
-      height: visibleRect.height
-    )
-    lm.ensureLayout(forBoundingRect: containerVisibleRect, in: tc)
-    let textRange = lm.glyphRange(forBoundingRect: containerVisibleRect, in: tc)
-    guard textRange.length > 0 else { return }
+    let visMinY = visibleRect.minY
+    let visMaxY = visibleRect.maxY
 
     let curLine = lineNumber(for: selectedRange().location)
 
@@ -163,13 +155,24 @@ extension CodeTextView {
     let numberColor = NSColor(white: 0.42, alpha: 1)
     let currentColor = NSColor(white: 0.78, alpha: 1)
 
-    lm.enumerateLineFragments(forGlyphRange: textRange) { fragRect, _, _, range, _ in
+    // Enumerate all line fragments; skip those outside the visible rect.
+    let fullRange = NSRange(location: 0, length: length)
+    lm.enumerateLineFragments(forGlyphRange: fullRange) { fragRect, _, _, range, stop in
+      let y = tcY + fragRect.minY
+
+      // Past the bottom of the visible area — stop early.
+      if y > visMaxY {
+        stop.pointee = true
+        return
+      }
+      // Above the visible area — skip.
+      if y + fragRect.height < visMinY { return }
+
       let characterIndex = lm.characterIndexForGlyph(at: range.location)
       let lineNum = self.lineNumber(for: characterIndex)
 
       // Only draw the number for the first fragment of each logical line.
       if characterIndex == self.lineStarts[lineNum - 1] {
-        let y = tcY + fragRect.minY
         let n = lineNum
 
         self.drawGitMarker(for: n, y: y, height: fragRect.height)

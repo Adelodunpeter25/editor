@@ -77,7 +77,12 @@ final class CodeTextView: NSTextView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
+    // Save the graphics state before super.draw(), which clips the context
+    // to the text container region (starting at textContainerOrigin.x).
+    // Without this, gutter drawing at x < _cachedGutterWidth is clipped away.
+    NSGraphicsContext.saveGraphicsState()
     super.draw(dirtyRect)
+    NSGraphicsContext.restoreGraphicsState()
     drawGutter(in: dirtyRect)
   }
 
