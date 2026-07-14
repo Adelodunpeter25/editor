@@ -50,10 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       showWelcomeWindow()
     } else {
       for session in model.sessions {
-        let wc = MainWindowController(model: model, session: session)
-        wc.onClosed = { [weak self] id in self?.windowDidClose(sessionID: id) }
-        windowControllers[session.id] = wc
-        wc.showWindow(nil)
+        if windowControllers[session.id] == nil {
+          let wc = MainWindowController(model: model, session: session)
+          wc.onClosed = { [weak self] id in self?.windowDidClose(sessionID: id) }
+          windowControllers[session.id] = wc
+          wc.showWindow(nil)
+        }
       }
       // Make the active session's window key.
       if let activeID = model.activeSessionID,
