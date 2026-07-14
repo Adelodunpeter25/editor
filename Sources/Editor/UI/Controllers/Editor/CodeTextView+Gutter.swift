@@ -144,9 +144,17 @@ extension CodeTextView {
     let length = lm.numberOfGlyphs
     guard length > 0 else { return }
 
+    // Ensure layout is fully computed for the visible area to guarantee we get line fragments.
     let tcY = textContainerInset.height
     let visMinY = visibleRect.minY
     let visMaxY = visibleRect.maxY
+    let containerVisibleRect = NSRect(
+      x: 0,
+      y: max(0, visMinY - tcY),
+      width: tc.containerSize.width,
+      height: visibleRect.height
+    )
+    lm.ensureLayout(forBoundingRect: containerVisibleRect, in: tc)
 
     let curLine = lineNumber(for: selectedRange().location)
 
