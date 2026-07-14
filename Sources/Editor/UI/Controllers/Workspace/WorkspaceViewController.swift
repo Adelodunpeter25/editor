@@ -6,7 +6,7 @@ import Defaults
 final class WorkspaceViewController: NSViewController, NSSplitViewDelegate {
   private let model: AppModel
   let centerVC: CenterViewController
-  private let sidebarVC: SidebarViewController
+  let sidebarVC: SidebarViewController
   private var didSizeOnce = false
 
   init(model: AppModel, session: Session?) {

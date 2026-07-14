@@ -146,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     CommandPaletteHook.command = { [weak self] in self?.keyWindowController?.toggleCommandPalette() }
     CommandPaletteHook.lineJump = { [weak self] in self?.keyWindowController?.presentLineJump() }
     QuickTerminalHook.toggle = { [weak self] in self?.keyWindowController?.toggleQuickTerminal() }
+    SidebarSearchHook.reveal = { [weak self] in self?.keyWindowController?.revealSearch() }
 
     // CenterViewController-level hooks: route to the key window's center VC (tracked live via
     // CenterViewController.current, which each CenterVC updates on windowDidBecomeKey).

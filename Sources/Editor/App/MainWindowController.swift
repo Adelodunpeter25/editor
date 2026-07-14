@@ -87,6 +87,10 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
   func toggleCommandPalette() { palette.toggleCommand() }
   func presentLineJump() { palette.presentLineJump() }
   func toggleQuickTerminal() { quickTerm.toggle() }
+  func revealSearch() {
+    let workspace = contentViewController?.children.first { $0 is WorkspaceViewController } as? WorkspaceViewController
+    workspace?.sidebarVC.revealSearch()
+  }
 
   /// This window's center view controller (for routing global hooks like DiffNavigator).
   var centerViewController: CenterViewController? {

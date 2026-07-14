@@ -63,7 +63,6 @@ final class SidebarViewController: NSViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    SidebarSearchHook.reveal = { [weak self] in self?.revealSearch() }
     // Re-render on bound-session changes (tab switch, file open, etc.).
     sessionRevealObserver = session?.objectWillChange
       .receive(on: RunLoop.main)
