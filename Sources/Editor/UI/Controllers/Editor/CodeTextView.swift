@@ -165,7 +165,7 @@ final class CodeTextView: NSTextView {
   }
   
   override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn: Bool) {
-    if turnedOn {
+    if editMode == .normal && turnedOn {
       let blockColor = color.withAlphaComponent(0.5)
       blockColor.setFill()
       
