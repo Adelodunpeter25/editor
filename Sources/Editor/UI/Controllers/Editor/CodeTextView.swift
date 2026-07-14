@@ -180,4 +180,29 @@ final class CodeTextView: NSTextView {
     
     super.drawInsertionPoint(in: rect, color: color, turnedOn: turnedOn)
   }
+
+  override func viewDidMoveToSuperview() {
+    super.viewDidMoveToSuperview()
+    
+    // Remove old observers to avoid duplicates.
+    NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
+    
+    if let scrollView = enclosingScrollView {
+      scrollView.contentView.postsBoundsChangedNotifications = true
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(scrollViewDidScroll(_:)),
+        name: NSView.boundsDidChangeNotification,
+        object: scrollView.contentView
+      )
+    }
+  }
+
+  @objc private func scrollViewDidScroll(_ notification: Notification) {
+    self.needsDisplay = true
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
 }

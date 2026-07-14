@@ -141,20 +141,20 @@ extension CodeTextView {
     NSRect(x: gw - 1, y: gutterDrawRect.minY, width: 1, height: gutterDrawRect.height).fill()
 
     guard let lm = layoutManager, let tc = textContainer else { return }
-    let length = lm.numberOfGlyphs
-    guard length > 0 else { return }
 
-    // Ensure layout is fully computed for the visible area to guarantee we get line fragments.
+    let tcOrigin = self.textContainerOrigin
+    let tcVisibleRect = visibleRect.offsetBy(dx: -tcOrigin.x, dy: -tcOrigin.y)
+    
+    // Get visible glyphs, ensuring layout is calculated.
+    lm.ensureLayout(forBoundingRect: tcVisibleRect, in: tc)
+    let glyphRange = lm.glyphRange(forBoundingRect: tcVisibleRect, in: tc)
+    guard glyphRange.length > 0 else { return }
+    let charRange = lm.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+    guard charRange.length > 0 else { return }
+
     let tcY = textContainerInset.height
     let visMinY = visibleRect.minY
     let visMaxY = visibleRect.maxY
-    let containerVisibleRect = NSRect(
-      x: 0,
-      y: max(0, visMinY - tcY),
-      width: tc.containerSize.width,
-      height: visibleRect.height
-    )
-    lm.ensureLayout(forBoundingRect: containerVisibleRect, in: tc)
 
     let curLine = lineNumber(for: selectedRange().location)
 
@@ -163,26 +163,25 @@ extension CodeTextView {
     let numberColor = NSColor(white: 0.42, alpha: 1)
     let currentColor = NSColor(white: 0.78, alpha: 1)
 
-    // Enumerate all line fragments; skip those outside the visible rect.
-    let fullRange = NSRange(location: 0, length: length)
-    lm.enumerateLineFragments(forGlyphRange: fullRange) { fragRect, _, _, range, stop in
+    var index = charRange.lowerBound
+    var lineNum = self.lineNumber(for: index)
+    let stringLength = (self.string as NSString).length
+
+    while index < charRange.upperBound {
+      guard lineNum <= self.lineStarts.count else { break }
+      let lineStart = self.lineStarts[lineNum - 1]
+      let lineEnd = lineNum < self.lineStarts.count ? self.lineStarts[lineNum] : stringLength
+      
+      let lineGlyphIndex = lm.glyphIndexForCharacter(at: lineStart)
+      let fragRect = lm.lineFragmentRect(forGlyphAt: lineGlyphIndex, effectiveRange: nil)
       let y = tcY + fragRect.minY
 
-      // Past the bottom of the visible area — stop early.
       if y > visMaxY {
-        stop.pointee = true
-        return
+        break
       }
-      // Above the visible area — skip.
-      if y + fragRect.height < visMinY { return }
-
-      let characterIndex = lm.characterIndexForGlyph(at: range.location)
-      let lineNum = self.lineNumber(for: characterIndex)
-
-      // Only draw the number for the first fragment of each logical line.
-      if characterIndex == self.lineStarts[lineNum - 1] {
+      
+      if y + fragRect.height >= visMinY {
         let n = lineNum
-
         self.drawGitMarker(for: n, y: y, height: fragRect.height)
 
         let attrs: [NSAttributedString.Key: Any] = [
@@ -195,6 +194,9 @@ extension CodeTextView {
         let drawY = y + (fragRect.height - size.height) / 2
         s.draw(at: NSPoint(x: drawX, y: drawY), withAttributes: attrs)
       }
+
+      index = lineEnd
+      lineNum += 1
     }
   }
 }
