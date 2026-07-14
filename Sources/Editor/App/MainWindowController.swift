@@ -62,14 +62,11 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     } else {
       autosaveName = "EditorMainWindow"
     }
-    window.setFrameAutosaveName(autosaveName)
-    let restored = window.setFrameUsingName(autosaveName)
-    if !restored {
-      window.setContentSize(NSSize(width: 1100, height: 720))
-      window.center()
-    }
+    window.setContentSize(NSSize(width: 1100, height: 720))
+    window.center()
     super.init(window: window)
     window.delegate = self
+    self.windowFrameAutosaveName = autosaveName
 
     // ⌘P quick-open overlays the whole content area (above the banner + workspace).
     palette.attach(to: root)
