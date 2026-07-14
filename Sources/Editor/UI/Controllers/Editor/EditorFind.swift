@@ -209,7 +209,7 @@ extension EditorViewController {
   func findStep(_ delta: Int) {
     guard !findMatches.isEmpty else { return }
     findCurrent = (findCurrent + delta + findMatches.count) % findMatches.count
-    focusCurrentMatch()
+    focusCurrentMatch(selectAndScroll: true)
   }
 
   func recomputeMatches() {
@@ -258,12 +258,12 @@ extension EditorViewController {
     } else {
       let caret = textView.selectedRange().location
       findCurrent = findMatches.firstIndex { $0.location >= caret } ?? 0
-      focusCurrentMatch()
+      focusCurrentMatch(selectAndScroll: false)
     }
   }
 
   /// Repaint every match (yellow) + the current one (orange), select & center it, update the counter.
-  func focusCurrentMatch() {
+  func focusCurrentMatch(selectAndScroll: Bool) {
     guard let lm = textView.layoutManager, let bar = findBar,
       findMatches.indices.contains(findCurrent)
     else { return }
@@ -275,12 +275,14 @@ extension EditorViewController {
     }
     let r = findMatches[findCurrent]
     lm.addTemporaryAttribute(.backgroundColor, value: Self.findHLCurrent, forCharacterRange: r)
-    textView.setSelectedRange(r)
-    centerSelection()
+    if selectAndScroll {
+      textView.setSelectedRange(r)
+      centerSelection()
+    }
     bar.setCount(current: findCurrent + 1, total: findMatches.count)
-    // setSelectedRange makes the text view first responder, stealing focus from the find bar's
+    // If we changed selection, it made the text view first responder, stealing focus from the find bar's
     // search field. Restore focus so the user can keep typing their query.
-    if findVisible, let panel = findPanel {
+    if selectAndScroll, findVisible, let panel = findPanel {
       panel.makeKeyAndOrderFront(nil)
       panel.makeFirstResponder(bar.field)
     }
