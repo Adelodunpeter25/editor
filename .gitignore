@@ -2,3 +2,7 @@
 *.app
 .DS_Store
 *.log
+.swiftpm/
+.conductor/
+*.dmg
+*.zip
