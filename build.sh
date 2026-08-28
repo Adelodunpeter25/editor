@@ -37,10 +37,17 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Editor"
 
 # Copy SwiftPM resource bundles (e.g. Editor_Editor.bundle with the TextMate grammars) into
-# Contents/Resources so they stay inside the code signature; GrammarBundle resolves them from there.
+# Contents/Resources so they stay inside the code signature; GrammarBundle and
+# LanguageRegistry resolve them from there. Also copy to the .app root
+# (`Bundle.main.bundleURL`) for third-party SPM bundles (e.g. SwiftTerm) whose
+# generated `Bundle.module` only checks the app root + baked build path and would
+# otherwise `fatalError` in a distributed app (see LanguageRegistry crash fix).
 BUILD_DIR="$(swift build -c "$CONFIG" $ARCH_FLAGS --show-bin-path)"
 for b in "$BUILD_DIR"/*.bundle; do
   [ -e "$b" ] && cp -R -X "$b" "$APP/Contents/Resources/"
+done
+for b in "$BUILD_DIR"/*.bundle; do
+  [ -e "$b" ] && cp -R -X "$b" "$APP/"
 done
 
 # Icon
