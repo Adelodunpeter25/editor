@@ -1,7 +1,8 @@
 import AppKit
 
 /// Viewer/editor for Markdown files (routed here by extension from a `.file` tab). Shows the
-/// editable source by default with a **Source / Preview** toggle; Preview renders the Markdown
+/// rendered preview by default with a **Source / Preview** toggle; Source remains available for editing.
+/// Preview renders the Markdown
 /// (tables, images, fenced code highlighting). Switching to Preview re-renders live from the
 /// editor's current text, so edits show immediately — saved or not. The preview text view uses
 /// an explicit TextKit 1 stack so `NSTextTable` (tables) and image attachments lay out correctly.
@@ -50,12 +51,13 @@ final class MarkdownViewController: NSViewController, SourceEditing {
     previewScroll = makePreview(MarkdownRenderer.render(source, baseURL: baseURL))
     addChild(editor)
     sourceScroll = editor.view  // the editor IS the editable source pane
-    previewScroll.isHidden = true  // source is visible by default
+    previewScroll.isHidden = false  // preview is visible by default
+    sourceScroll.isHidden = true
 
     toggle = PointerSegmentedControl(
       labels: ["Source", "Preview"], trackingMode: .selectOne,
       target: self, action: #selector(modeChanged))
-    toggle.selectedSegment = 0  // Source
+    toggle.selectedSegment = 1  // Preview
     toggle.controlSize = .small
     toggle.segmentStyle = .rounded
 
