@@ -69,9 +69,32 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
+  <!-- Register common source, markup, config, script, and data files for Finder's Open With menu. -->
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
+      <key>CFBundleTypeName</key><string>Source Code and Text</string>
+      <key>CFBundleTypeRole</key><string>Editor</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>md</string><string>markdown</string><string>txt</string><string>text</string>
+        <string>swift</string><string>m</string><string>mm</string><string>h</string><string>c</string><string>cc</string><string>cpp</string><string>cxx</string><string>hpp</string><string>rs</string><string>go</string><string>java</string><string>kt</string><string>kts</string>
+        <string>js</string><string>jsx</string><string>ts</string><string>tsx</string><string>mjs</string><string>cjs</string><string>vue</string><string>svelte</string>
+        <string>py</string><string>rb</string><string>php</string><string>pl</string><string>lua</string><string>sh</string><string>bash</string><string>zsh</string><string>fish</string><string>sql</string>
+        <string>html</string><string>htm</string><string>css</string><string>scss</string><string>sass</string><string>less</string><string>xml</string><string>yaml</string><string>yml</string><string>json</string><string>toml</string><string>ini</string><string>conf</string><string>env</string><string>gitignore</string>
+        <string>db</string><string>sqlite</string><string>sqlite3</string>
+      </array>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.plain-text</string>
+        <string>public.source-code</string>
+        <string>public.shell-script</string>
+        <string>public.data</string>
+      </array>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key><string>Folder</string>
       <key>CFBundleTypeRole</key><string>Editor</string>
       <key>LSHandlerRank</key><string>Alternate</string>
       <key>LSItemContentTypes</key>

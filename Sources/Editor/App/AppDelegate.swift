@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var settingsWC: SettingsWindowController?
   private let resourceMonitor = ResourceMonitor()
   private var pendingOpenPaths: [String] = []
+  private var pendingOpenFiles: [String] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Snappier tooltips (default is ~2s). Registered so it doesn't clobber a user override.
@@ -44,6 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.openRepo(path)
       }
       pendingOpenPaths.removeAll()
+    }
+    if !pendingOpenFiles.isEmpty {
+      openFiles(pendingOpenFiles)
+      pendingOpenFiles.removeAll()
     }
 
     if model.sessions.isEmpty {
@@ -292,19 +297,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Reserved for future use (e.g. clearing badge counts when the app becomes active).
   }
 
-  /// macOS calls this when the app is launched (or re-activated) via a dock "Open Recent" item or
-  /// via Finder → Open With. Opens the folder as a new session (or focuses its window if already
-  /// open), just like File → Open Folder.
+  /// macOS calls this when the app is launched (or re-activated) through Finder / Open With.
+  /// Folders open as repository sessions; files open as tabs in the active session.
   func application(_ sender: NSApplication, openFile filename: String) -> Bool {
     var isDir: ObjCBool = false
-    guard FileManager.default.fileExists(atPath: filename, isDirectory: &isDir), isDir.boolValue
-    else { return false }
-    if !windowControllers.isEmpty {
-      model.openRepo(filename)  // onSessionOpened → focus/create window
+    guard FileManager.default.fileExists(atPath: filename, isDirectory: &isDir) else { return false }
+    if isDir.boolValue {
+      if !windowControllers.isEmpty {
+        model.openRepo(filename)
+      } else {
+        pendingOpenPaths.append(filename)
+      }
     } else {
-      pendingOpenPaths.append(filename)
+      openFiles([filename])
     }
     return true
+  }
+
+  /// Supports Finder sending multiple selected files to the application at once.
+  func application(_ sender: NSApplication, openFiles filenames: [String]) {
+    openFiles(filenames)
+    sender.reply(toOpenOrPrint: .success)
+  }
+
+  private func openFiles(_ filenames: [String]) {
+    guard !filenames.isEmpty else { return }
+    guard !windowControllers.isEmpty else {
+      pendingOpenFiles.append(contentsOf: filenames)
+      return
+    }
+    let session: Session
+    if let active = model.activeSession {
+      session = active
+    } else {
+      let parent = URL(fileURLWithPath: filenames[0]).deletingLastPathComponent().path
+      session = model.openRepo(parent)
+    }
+    for filename in filenames {
+      session.openFile(filename, replaceCurrent: false)
+    }
   }
 
   func applicationWillTerminate(_ notification: Notification) {
