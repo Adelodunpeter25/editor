@@ -1,4 +1,5 @@
 import AppKit
+import STTextView
 import TextFind
 
 extension EditorViewController {
@@ -34,9 +35,9 @@ extension EditorViewController {
     guard let panel = findPanel else { return }
     if panel.parent == nil { win.addChildWindow(panel, ordered: .above) }
     positionFindPanel()
-    let sel = textView.selectedRange()
+    let sel = textView.textSelection
     if sel.length > 0 {
-      let s = (textView.string as NSString).substring(with: sel)
+      let s = ((textView.text ?? "") as NSString).substring(with: sel)
       if !s.contains("\n") { findBar?.setQuery(s) }
     }
     panel.makeKeyAndOrderFront(nil)
@@ -54,7 +55,7 @@ extension EditorViewController {
     clearFindHighlights()
     findMatches = []
     findCurrent = -1
-    textView.setSelectedRange(NSRange(location: 0, length: 0))  // clear selection
+    textView.textSelection = NSRange(location: 0, length: 0)  // clear selection
     view.window?.makeKeyAndOrderFront(nil)  // return key to the main window
     view.window?.makeFirstResponder(textView)
   }
@@ -120,24 +121,18 @@ extension EditorViewController {
 
     do {
       let textFind = try TextFind(
-        for: textView.string,
+        for: textView.text ?? "",
         findString: bar.query,
         mode: mode,
         inSelection: false,
         selectedRanges: [r]
       )
       if let replacement = textFind.replace(with: bar.replaceText) {
-        if textView.shouldChangeText(in: replacement.range, replacementString: replacement.value) {
-          textView.textStorage?.replaceCharacters(in: replacement.range, with: replacement.value)
-          textView.didChangeText()
-        }
+        textView.replaceCharacters(inRange: replacement.range, with: replacement.value)
       }
     } catch {
       // Fallback to literal replacement
-      if textView.shouldChangeText(in: r, replacementString: bar.replaceText) {
-        textView.textStorage?.replaceCharacters(in: r, with: bar.replaceText)
-        textView.didChangeText()
-      }
+      textView.replaceCharacters(inRange: r, with: bar.replaceText)
     }
   }
 
@@ -158,42 +153,35 @@ extension EditorViewController {
 
     do {
       let textFind = try TextFind(
-        for: textView.string,
+        for: textView.text ?? "",
         findString: bar.query,
         mode: mode,
         inSelection: false,
-        selectedRanges: [NSRange(location: 0, length: (textView.string as NSString).length)]
+        selectedRanges: [textView.fullRange]
       )
       let (replacementItems, _) = textFind.replaceAll(with: bar.replaceText) { _, _, _ in }
 
       // Apply replacements in reverse order to keep ranges valid
       for item in replacementItems.reversed() {
-        if textView.shouldChangeText(in: item.range, replacementString: item.value) {
-          textView.textStorage?.replaceCharacters(in: item.range, with: item.value)
-          textView.didChangeText()
-        }
+        textView.replaceCharacters(inRange: item.range, with: item.value)
       }
     } catch {
       // Fallback to manual replacement
-      let ns = textView.string as NSString
+      let ns = (textView.text ?? "") as NSString
       let result = NSMutableString(string: ns)
       for r in findMatches.reversed() {
         result.replaceCharacters(in: r, with: bar.replaceText)
       }
-      let full = NSRange(location: 0, length: ns.length)
-      if textView.shouldChangeText(in: full, replacementString: result as String) {
-        textView.textStorage?.replaceCharacters(in: full, with: result as String)
-        textView.didChangeText()
-      }
+      textView.replaceCharacters(inRange: textView.fullRange, with: result as String)
     }
   }
 
   /// ⌘E — search for the current selection.
   func useSelectionForFind() {
     showFind()
-    let sel = textView.selectedRange()
+    let sel = textView.textSelection
     if sel.length > 0 {
-      findBar?.setQuery((textView.string as NSString).substring(with: sel))
+      findBar?.setQuery(((textView.text ?? "") as NSString).substring(with: sel))
       findChanged()
     }
   }
@@ -217,7 +205,7 @@ extension EditorViewController {
     clearFindHighlights()
     findMatches = []
     bar.setInvalid(false)
-    let full = textView.string
+    let full = textView.text ?? ""
     let q = bar.query
     guard !q.isEmpty else {
       findCurrent = -1
@@ -256,27 +244,31 @@ extension EditorViewController {
       findCurrent = -1
       bar.setCount(current: 0, total: 0)
     } else {
-      let caret = textView.selectedRange().location
+      let caret = textView.textSelection.location
       findCurrent = findMatches.firstIndex { $0.location >= caret } ?? 0
       focusCurrentMatch(selectAndScroll: false)
     }
   }
 
   /// Repaint every match (yellow) + the current one (orange), select & center it, update the counter.
+  ///
+  /// MIGRATION NOTE (STTextView): the old code used `NSLayoutManager`'s *temporary* attributes
+  /// (background highlight that doesn't touch the undo-relevant text storage). STTextView doesn't
+  /// expose a temporary-attribute API, so this now uses `setAttributes` for the highlight colour and
+  /// restores the base foreground colour afterwards. Because this only ever touches `.backgroundColor`
+  /// (added, not replacing existing attributes) it should not disturb syntax-highlighting foreground
+  /// colours or trigger undo — but this is the highest-risk spot to verify visually after migration,
+  /// since a background-color add is not guaranteed cheap/non-invasive on every STTextView version.
   func focusCurrentMatch(selectAndScroll: Bool) {
-    guard let lm = textView.layoutManager, let bar = findBar,
-      findMatches.indices.contains(findCurrent)
-    else { return }
-    lm.removeTemporaryAttribute(
-      .backgroundColor,
-      forCharacterRange: NSRange(location: 0, length: (textView.string as NSString).length))
+    guard let bar = findBar, findMatches.indices.contains(findCurrent) else { return }
+    clearFindHighlights()
     for r in findMatches {
-      lm.addTemporaryAttribute(.backgroundColor, value: Self.findHL, forCharacterRange: r)
+      textView.addAttributes([.backgroundColor: Self.findHL], range: r)
     }
     let r = findMatches[findCurrent]
-    lm.addTemporaryAttribute(.backgroundColor, value: Self.findHLCurrent, forCharacterRange: r)
+    textView.addAttributes([.backgroundColor: Self.findHLCurrent], range: r)
     if selectAndScroll {
-      textView.setSelectedRange(r)
+      textView.textSelection = r
       centerSelection()
     }
     bar.setCount(current: findCurrent + 1, total: findMatches.count)
@@ -289,9 +281,7 @@ extension EditorViewController {
   }
 
   func clearFindHighlights() {
-    guard let lm = textView?.layoutManager else { return }
-    lm.removeTemporaryAttribute(
-      .backgroundColor,
-      forCharacterRange: NSRange(location: 0, length: (textView.string as NSString).length))
+    guard textView != nil else { return }
+    textView.removeAttribute(.backgroundColor, range: textView.fullRange)
   }
 }

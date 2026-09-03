@@ -1,60 +1,32 @@
 import AppKit
+import STTextView
 import LineEnding
 
-/// All line-number gutter logic for CodeTextView, extracted into its own file.
-/// The gutter is drawn directly inside the text view's `draw(_:)` pass so it
-/// scrolls in lock-step with the text on the GPU — no separate ruler view.
+/// Line-index bookkeeping for CodeTextView, extracted into its own file.
+///
+/// MIGRATION NOTE (STTextView): line-number rendering and the gutter separator are now native
+/// (`showsLineNumbers` on the text view — see EditorViewController.loadView). What remains here is:
+///  - `lineStarts`/`lineNumber(for:)`/`lineColumn(at:)`: still used by the status bar (Ln/Col) and by
+///    `centerSelection`, so kept as a lightweight character-offset index maintained on every edit.
+///  - Git added/modified/deleted markers: STTextView's gutter doesn't expose a raw per-line draw hook
+///    the way the old TextKit 1 `draw(_:)` override did, so they're painted by a small overlay view
+///    (`GitGutterOverlayView`) docked to the left edge of `gutterView`.
 extension CodeTextView {
 
-  // MARK: - Gutter width
+  /// Pre-computed line-start character offsets (0-based). Index 0 is always 0.
+  private static var lineStartsKey: UInt8 = 0
+  private static var cachedLineCountKey: UInt8 = 0
 
-  /// Computes the ideal gutter width from the current line count and font.
-  func computeGutterWidth() -> CGFloat {
-    let digits = max(2, String(cachedLineCount).count)
-    let digitWidth = ("8" as NSString).size(withAttributes: [.font: font ?? .systemFont(ofSize: 12)]).width
-    let gitPadding: CGFloat = 9  // 2 (leading) + 3 (bar) + 4 (gap)
-    return ceil(digitWidth * CGFloat(digits)) + 12 + gitPadding
+  var lineStarts: [Int] {
+    get { (objc_getAssociatedObject(self, &Self.lineStartsKey) as? [Int]) ?? [0] }
+    set { objc_setAssociatedObject(self, &Self.lineStartsKey, newValue, .OBJC_ASSOCIATION_RETAIN) }
   }
 
-  /// Recalculates `_cachedGutterWidth` and updates the text container inset
-  /// if the width actually changed.  Called from `rebuildLineStarts()` and
-  /// `applyFont`.
-  func updateGutterWidthIfNeeded() {
-    let newWidth = computeGutterWidth()
-    guard newWidth != _cachedGutterWidth else { return }
-    _cachedGutterWidth = newWidth
-    applyGutterInset()
-  }
+  var cachedLineCount: Int { lineStarts.count }
 
-  /// Pushes the text container to the right by setting `textContainerInset`
-  /// so that the gutter area is left empty for us to draw into.
-  /// The right-side inset is kept at a small constant so text isn't glued
-  /// to the trailing edge.
-  func applyGutterInset() {
-    // textContainerInset.width is applied symmetrically by AppKit's default
-    // textContainerOrigin, but we override textContainerOrigin to use
-    // _cachedGutterWidth on the left.  We still set the inset so AppKit's
-    // automatic container-width calculation (widthTracksTextView) subtracts
-    // the right amount:  containerWidth = viewWidth - 2 * inset.width.
-    // Keeping a modest inset gives us a small right margin too.
-    let insetW = _cachedGutterWidth / 2  // half, because AppKit doubles it
-    textContainerInset = NSSize(width: insetW, height: 8)
-    needsDisplay = true
-  }
-
-  // MARK: - Cursor rect
-
-  func resetGutterCursorRect() {
-    let gutterRect = NSRect(x: 0, y: 0, width: _cachedGutterWidth, height: bounds.height)
-    addCursorRect(gutterRect, cursor: .arrow)
-  }
-
-  // MARK: - Line index
-
-  /// Rebuilds the `lineStarts` array from scratch.
-  /// Called after every text change and on initial load.
+  /// Rebuilds the `lineStarts` array from scratch. Called after every text change and on initial load.
   func rebuildLineStarts() {
-    let s = self.string
+    let s = self.string ?? ""
     let counter = LineCounter(string: s)
     _ = counter.lineRange(at: s.utf16.count)
     var starts = [0]
@@ -63,19 +35,18 @@ extension CodeTextView {
       starts.append(ending.upperBound)
     }
     self.lineStarts = starts
-    self.cachedLineCount = starts.count
-    updateGutterWidthIfNeeded()
-    needsDisplay = true
+    gutterOverlay?.needsDisplay = true
   }
 
   /// Binary-search for the 1-based line number that contains `charIndex`.
   func lineNumber(for charIndex: Int) -> Int {
+    let starts = lineStarts
     var lo = 0
-    var hi = lineStarts.count - 1
+    var hi = starts.count - 1
     var ans = 0
     while lo <= hi {
       let mid = (lo + hi) / 2
-      if lineStarts[mid] <= charIndex {
+      if starts[mid] <= charIndex {
         ans = mid
         lo = mid + 1
       } else {
@@ -90,113 +61,61 @@ extension CodeTextView {
     let line = lineNumber(for: charIndex)
     return (line, charIndex - lineStarts[line - 1] + 1)
   }
+}
 
-  // MARK: - Git markers
+/// Thin strip docked to the leading edge of STTextView's native gutter, painting the added/
+/// modified/deleted bars that the old TextKit 1 gutter drew inline. Reads git line sets straight off
+/// the owning `CodeTextView` and repaints when they, or the text layout, change.
+final class GitGutterOverlayView: NSView {
+  private weak var textView: CodeTextView?
 
-  func drawGitMarker(for line: Int, y: CGFloat, height: CGFloat) {
-    let gitBarLeading: CGFloat = 2
-    let gitBarWidth: CGFloat = 3
-    if gitAddedLines.contains(line) {
-      Theme.gitNew.setFill()
-      NSBezierPath(rect: NSRect(x: gitBarLeading, y: y, width: gitBarWidth, height: height)).fill()
-      return
-    }
-    if gitModifiedLines.contains(line) {
-      Theme.gitModified.setFill()
-      NSBezierPath(rect: NSRect(x: gitBarLeading, y: y, width: gitBarWidth, height: height)).fill()
-      return
-    }
-    if gitDeletedLines.contains(line) {
-      Theme.gitDeleted.setFill()
-      let path = NSBezierPath()
-      path.move(to: NSPoint(x: gitBarLeading, y: y))
-      path.line(to: NSPoint(x: gitBarLeading + gitBarWidth, y: y + 3))
-      path.line(to: NSPoint(x: gitBarLeading, y: y + 6))
-      path.close()
-      path.fill()
-    }
+  init(textView: CodeTextView) {
+    self.textView = textView
+    super.init(frame: .zero)
   }
 
-  // MARK: - Gutter drawing
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError() }
 
-  /// Paints the gutter background, line numbers, and git markers for the
-  /// visible portion of the view.  Called from `draw(_:)` after super.
-  ///
-  /// NOTE: We use `visibleRect` rather than `dirtyRect` for the gutter area
-  /// because NSTextView often only invalidates the text container region
-  /// (starting at textContainerOrigin.x), which excludes the gutter margin.
-  func drawGutter(in dirtyRect: NSRect) {
-    let gw = _cachedGutterWidth
-    guard gw > 0 else { return }
+  override func draw(_ dirtyRect: NSRect) {
+    guard let tv = textView, let gutter = tv.gutterView else { return }
+    let barLeading: CGFloat = 1
+    let barWidth: CGFloat = 3
 
-    // Always draw the full visible height of the gutter.
-    let gutterDrawRect = NSRect(x: 0, y: visibleRect.minY, width: gw, height: visibleRect.height)
-
-    // Gutter background
-    NSColor(white: 0.09, alpha: 1).setFill()
-    gutterDrawRect.fill()
-
-    // Border on the right of the gutter
-    NSColor(white: 0.18, alpha: 1).setFill()
-    NSRect(x: gw - 1, y: gutterDrawRect.minY, width: 1, height: gutterDrawRect.height).fill()
-
-    guard let lm = layoutManager, let tc = textContainer else { return }
-
-    let tcOrigin = self.textContainerOrigin
-    let tcVisibleRect = visibleRect.offsetBy(dx: -tcOrigin.x, dy: -tcOrigin.y)
-    
-    // Get visible glyphs, ensuring layout is calculated.
-    lm.ensureLayout(forBoundingRect: tcVisibleRect, in: tc)
-    let glyphRange = lm.glyphRange(forBoundingRect: tcVisibleRect, in: tc)
-    guard glyphRange.length > 0 else { return }
-    let charRange = lm.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-    guard charRange.length > 0 else { return }
-
-    let tcY = textContainerInset.height
-    let visMinY = visibleRect.minY
-    let visMaxY = visibleRect.maxY
-
-    let curLine = lineNumber(for: selectedRange().location)
-
-    let rightPadding: CGFloat = 8
-    let font = self.font ?? .systemFont(ofSize: 12)
-    let numberColor = NSColor(white: 0.42, alpha: 1)
-    let currentColor = NSColor(white: 0.78, alpha: 1)
-
-    var index = charRange.lowerBound
-    var lineNum = self.lineNumber(for: index)
-    let stringLength = (self.string as NSString).length
-
-    while index < charRange.upperBound {
-      guard lineNum <= self.lineStarts.count else { break }
-      let lineStart = self.lineStarts[lineNum - 1]
-      let lineEnd = lineNum < self.lineStarts.count ? self.lineStarts[lineNum] : stringLength
-      
-      let lineGlyphIndex = lm.glyphIndexForCharacter(at: lineStart)
-      let fragRect = lm.lineFragmentRect(forGlyphAt: lineGlyphIndex, effectiveRange: nil)
-      let y = tcY + fragRect.minY
-
-      if y > visMaxY {
-        break
-      }
-      
-      if y + fragRect.height >= visMinY {
-        let n = lineNum
-        self.drawGitMarker(for: n, y: y, height: fragRect.height)
-
-        let attrs: [NSAttributedString.Key: Any] = [
-          .font: font,
-          .foregroundColor: n == curLine ? currentColor : numberColor,
-        ]
-        let s = String(n) as NSString
-        let size = s.size(withAttributes: attrs)
-        let drawX = gw - size.width - rightPadding
-        let drawY = y + (fragRect.height - size.height) / 2
-        s.draw(at: NSPoint(x: drawX, y: drawY), withAttributes: attrs)
+    // Ask the gutter for the visible line fragments it already computed — reuse its layout pass
+    // rather than re-querying the text layout manager, since STGutterView draws per visible line.
+    tv.textLayoutManager.enumerateTextLayoutFragments(
+      from: tv.textLayoutManager.documentRange.location, options: [.ensuresLayout]
+    ) { fragment in
+      let fragFrameInTextView = fragment.layoutFragmentFrame
+      let fragFrameInGutter = self.convert(fragFrameInTextView, from: tv)
+      guard fragFrameInGutter.maxY >= self.visibleRect.minY,
+        fragFrameInGutter.minY <= self.visibleRect.maxY
+      else {
+        return fragFrameInGutter.minY <= self.visibleRect.maxY
       }
 
-      index = lineEnd
-      lineNum += 1
+      let charRange = NSRange(fragment.rangeInElement, in: tv.textContentManager)
+      let line = tv.lineNumber(for: charRange.location)
+      let y = fragFrameInGutter.minY
+      let h = fragFrameInGutter.height
+
+      if tv.gitAddedLines.contains(line) {
+        Theme.gitNew.setFill()
+        NSBezierPath(rect: NSRect(x: barLeading, y: y, width: barWidth, height: h)).fill()
+      } else if tv.gitModifiedLines.contains(line) {
+        Theme.gitModified.setFill()
+        NSBezierPath(rect: NSRect(x: barLeading, y: y, width: barWidth, height: h)).fill()
+      } else if tv.gitDeletedLines.contains(line) {
+        Theme.gitDeleted.setFill()
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: barLeading, y: y))
+        path.line(to: NSPoint(x: barLeading + barWidth, y: y + 3))
+        path.line(to: NSPoint(x: barLeading, y: y + 6))
+        path.close()
+        path.fill()
+      }
+      return true
     }
   }
 }

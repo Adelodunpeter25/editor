@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import STTextView
 import LineEnding
 import TextEditing
 
@@ -16,14 +17,21 @@ protocol SourceEditing: AnyObject {
   func retarget(to path: String)
 }
 
-/// A syntax-highlighted file editor: a plain `NSTextView`/`NSTextStorage` coloured by our native
-/// TextMate highlighter (no JavaScript engine). Cmd+S saves; edits flag the tab dirty and trigger a
-/// debounced re-highlight that only repaints colours (text, cursor and undo are untouched). Font size
-/// tracks Settings live; resizing swaps each run's font in place (no re-tokenize).
-final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEditing {
+/// A syntax-highlighted file editor: an `STTextView` (TextKit 2) coloured by our native TextMate
+/// highlighter (no JavaScript engine). Cmd+S saves; edits flag the tab dirty and trigger a debounced
+/// re-highlight that only repaints colours (text, cursor and undo are untouched). Font size tracks
+/// Settings live; resizing swaps each run's font in place (no re-tokenize).
+///
+/// MIGRATION NOTE (STTextView): this replaces the previous `NSTextStorage`/`NSLayoutManager`/
+/// `NSTextContainer` (TextKit 1) stack. STTextView owns its own `textLayoutManager`/`textContentManager`
+/// internally, so there's no longer an externally-managed `NSTextStorage` — attribute mutation goes
+/// through `addAttributes(_:range:)` / `setAttributes(_:range:)` (still `NSRange`-based) instead of
+/// reaching into `.textStorage`. See STTextViewRangeUtil.swift for the `NSRange` <-> `NSTextRange` bridge
+/// used by edits (find/replace, line-ending/indent conversion, formatting).
+final class EditorViewController: NSViewController, STTextViewDelegate, SourceEditing {
   var sourceEditor: EditorViewController? { self }
   /// Current editor text (live, including unsaved edits) — used by preview re-render on toggle.
-  var text: String { textView?.string ?? "" }
+  var text: String { textView?.text ?? "" }
 
   /// Config for an unsaved "New File" tab: where to default the save panel, the suggested name, and a
   /// callback to run once it's saved (so the session/tab adopts the chosen path). Nil for real files.
@@ -44,7 +52,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   var textView: CodeTextView!
   var scrollView: NSScrollView!
-  var textStorage: NSTextStorage!
   var gitGutter: GitGutterRuler?
   var highlighter: TreeSitterHighlighter?
   var saved = ""
@@ -93,17 +100,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   override func loadView() {
     let fontSize = settings.fontSize
-    let storage = NSTextStorage()
-    self.textStorage = storage
 
-    let layoutManager = NSLayoutManager()
-    layoutManager.allowsNonContiguousLayout = false
-    storage.addLayoutManager(layoutManager)
-    let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
-    container.widthTracksTextView = true
-    layoutManager.addTextContainer(container)
-
-    let tv = CodeTextView(frame: .zero, textContainer: container)
+    // scrollableTextView() wires up the STTextView + NSScrollView pair the way STTextView expects
+    // (documentView assigned before configuration) — see STTextView's Getting Started docs.
+    let scroll = CodeTextView.scrollableTextView()
+    guard let tv = scroll.documentView as? CodeTextView else {
+      fatalError("CodeTextView.scrollableTextView() did not return a CodeTextView document view")
+    }
     tv.isRichText = false
     tv.allowsUndo = true
     tv.backgroundColor = TreeSitterTheme.background
@@ -111,23 +114,21 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     tv.isAutomaticDashSubstitutionEnabled = false
     tv.isAutomaticSpellingCorrectionEnabled = false
     tv.isVerticallyResizable = true
-    tv.isHorizontallyResizable = false
-    tv.minSize = NSSize(width: 0, height: 0)
-    tv.maxSize = NSSize(
-      width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-    tv.autoresizingMask = NSView.AutoresizingMask.width
+    tv.isHorizontallyResizable = false  // wrap lines — matches the old widthTracksTextView behaviour
+    // Line numbers + separator are now drawn natively by STTextView's gutter.
+    tv.showsLineNumbers = true
+    tv.highlightSelectedLine = false  // the app doesn't do current-line highlighting today
     tv.font = mono(fontSize)
     tv.typingAttributes = [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base]
-    tv.delegate = self
+    tv.textDelegate = self
     self.textView = tv
 
     let content = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
-    textStorage.setAttributedString(
-      NSAttributedString(
-        string: content,
-        attributes: [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base]))
+    tv.attributedText = NSAttributedString(
+      string: content,
+      attributes: [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base])
     saved = content
-    tv.setSelectedRange(NSRange(location: 0, length: 0))  // caret at the top on open (setAttributedString parks it at the end)
+    tv.textSelection = NSRange(location: 0, length: 0)  // caret at the top on open
     lineEnding = LineEnding.detect(in: content) ?? .lf  // status bar (detected once on load)
     indentStyle = EditorViewController.detectIndent(content)
     tv.onSave = { [weak self] in self?.save() }
@@ -136,10 +137,9 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
       EditorStatus.onChange?()  // refresh status bar mode indicator
     }
     tv.rebuildLineStarts()
+    tv.installGitGutterOverlay()
     requestHighlight(debounced: false)  // colours apply off-main; first paint shows plain text instantly
 
-    let scroll = NSScrollView()
-    scroll.hasVerticalScroller = true
     // Legacy (always-visible) scroller, not the overlay one: the bar stays put instead of
     // appearing only mid-scroll, and it gets its own gutter so the text view's I-beam no longer
     // bleeds under it (the scroller area shows the normal arrow cursor).
@@ -148,7 +148,6 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     scroll.borderType = .noBorder
     scroll.drawsBackground = true
     scroll.backgroundColor = TreeSitterTheme.background
-    scroll.documentView = tv
 
     // Git gutter (colored bars for added/modified/deleted lines)
     if !path.isEmpty {  // skip for untitled files
@@ -211,12 +210,15 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     if findVisible { positionFindPanel() }  // keep the floating bar pinned through sidebar/split resizes
   }
 
+  // MARK: - STTextViewDelegate
+
   func textDidChange(_ notification: Notification) {
     guard !suppressTextChangeCallbacks else { return }
-    onDirty(textView.string != saved)
+    onDirty(textView.text != saved)
     NotificationCenter.default.post(
       name: .editorFileTextDidChange, object: self,
-      userInfo: ["path": path, "text": textView.string])
+      userInfo: ["path": path, "text": textView.text ?? ""])
+    textView.rebuildLineStarts()
     requestHighlight(debounced: true)
     if findBar?.isHidden == false { recomputeMatches() }  // keep find matches/highlights in sync with edits
   }
@@ -230,7 +232,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   /// 1-based caret line + column (reuses the gutter's cached line index).
   func cursorLineColumn() -> (line: Int, column: Int) {
     guard let tv = textView else { return (1, 1) }
-    let loc = min(tv.selectedRange().location, (tv.string as NSString).length)
+    let loc = min(tv.textSelection.location, (tv.text as NSString?)?.length ?? 0)
     return tv.lineColumn(at: loc)
   }
 
@@ -238,12 +240,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   /// it persists on save. Normalizes to LF first, then to CRLF if requested.
   func convertLineEndings(to eol: LineEnding) {
     guard let tv = textView, eol != lineEnding else { return }
-    let converted = tv.string.convertingLineEndings(to: eol)
-    let full = NSRange(location: 0, length: (tv.string as NSString).length)
-    if tv.shouldChangeText(in: full, replacementString: converted) {
-      tv.textStorage?.replaceCharacters(in: full, with: converted)
-      tv.didChangeText()
-    }
+    let converted = tv.text?.convertingLineEndings(to: eol) ?? ""
+    guard tv.replaceCharacters(inRange: tv.fullRange, with: converted) else { return }
     lineEnding = eol
   }
 
@@ -254,9 +252,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     highlighter =
       key.map { TreeSitterHighlighter.forLanguage($0) } ?? TreeSitterHighlighter.forPath(path)
     if highlighter == nil {
-      textStorage.addAttribute(
-        .foregroundColor, value: TreeSitterTheme.base,
-        range: NSRange(location: 0, length: textStorage.length))
+      textView.addAttributes(
+        [.foregroundColor: TreeSitterTheme.base], range: textView.fullRange)
     } else {
       requestHighlight(debounced: false)
     }
@@ -279,7 +276,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     let toWidth = Int(target.replacingOccurrences(of: "Spaces: ", with: "")) ?? 4
     let srcTabs = indentStyle == "Tabs"
     let srcWidth = max(1, Int(indentStyle.replacingOccurrences(of: "Spaces: ", with: "")) ?? 4)
-    let converted = (tv.string as NSString).components(separatedBy: "\n").map { line -> String in
+    let converted = ((tv.text ?? "") as NSString).components(separatedBy: "\n").map {
+      line -> String in
       let ws = line.prefix { $0 == " " || $0 == "\t" }
       guard !ws.isEmpty else { return line }
       let level =
@@ -289,11 +287,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
         ? String(repeating: "\t", count: level) : String(repeating: " ", count: level * toWidth)
       return newWS + line.dropFirst(ws.count)
     }.joined(separator: "\n")
-    let full = NSRange(location: 0, length: (tv.string as NSString).length)
-    if tv.shouldChangeText(in: full, replacementString: converted) {
-      tv.textStorage?.replaceCharacters(in: full, with: converted)
-      tv.didChangeText()
-    }
+    guard tv.replaceCharacters(inRange: tv.fullRange, with: converted) else { return }
     indentStyle = target
   }
 
@@ -332,13 +326,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     if settings.formatOnSave, let spec = Formatter.spec(forPath: path),
       settings.formatterEnabled(spec.id)
     {
-      let text = textView.string
+      let text = textView.text ?? ""
       let p = path
       EditorViewController.formatQueue.async {
         let outcome = Formatter.format(text: text, path: p)
         DispatchQueue.main.async { [weak self] in
           guard let self else { return }
-          if case .formatted(let newText) = outcome, self.textView.string == text {
+          if case .formatted(let newText) = outcome, self.textView.text == text {
             self.replacePreservingCursor(with: newText)
           }
           self.writeToDisk()
@@ -350,7 +344,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   }
 
   func writeToDisk() {
-    let content = textView.string
+    let content = textView.text ?? ""
     try? content.write(toFile: path, atomically: true, encoding: .utf8)
     saved = content
     onDirty(false)
@@ -378,8 +372,8 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     }
     let panel = NSSavePanel()
     panel.canCreateDirectories = true
-    panel.directoryURL = URL(fileURLWithPath: cfg.directory)
     panel.nameFieldStringValue = cfg.suggestedName
+    panel.directoryURL = URL(fileURLWithPath: cfg.directory, isDirectory: true)
     guard panel.runModal() == .OK, let url = panel.url else { return false }
     performSaveAs(to: url)
     return true
@@ -405,7 +399,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
   /// `:123` line jump. Clamps to the valid range; no-op on an empty editor.
   func goToLine(_ line: Int) {
     guard let tv = textView else { return }
-    let ns = tv.string as NSString
+    let ns = (tv.text ?? "") as NSString
     guard ns.length > 0 else { return }
     var idx = 0
     var current = 1
@@ -417,7 +411,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     }
     let nl = ns.range(of: "\n", range: NSRange(location: idx, length: ns.length - idx))
     let end = nl.location == NSNotFound ? ns.length : nl.location
-    tv.setSelectedRange(NSRange(location: idx, length: end - idx))
+    tv.textSelection = NSRange(location: idx, length: end - idx)
     tv.window?.makeFirstResponder(tv)
     centerSelection()
     // Re-center next runloop: a just-opened (or just-focused) editor may not have completed layout /
@@ -425,20 +419,19 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     DispatchQueue.main.async { [weak self] in self?.centerSelection() }
   }
 
-  /// Scroll so the current selection sits vertically centered. Uses `scrollToVisible` with a
-  /// viewport-tall rect centered on the line — `NSView` handles the clip's (non-standard, ruler-offset)
-  /// coordinate space, which manual `clip.scroll(to:)` got wrong (sending the view past the text).
-  /// Forces layout up to the selection first, since `NSLayoutManager` is lazy and an un-laid-out range
-  /// mis-measures.
+  /// Scroll so the current selection sits vertically centered.
+  ///
+  /// MIGRATION NOTE (STTextView): the old implementation measured the selection's bounding rect via
+  /// `NSLayoutManager.boundingRect(forGlyphRange:in:)`. STTextView's TextKit 2 equivalent is
+  /// `NSTextLayoutManager.textSegmentFrame(in:type:)`, which returns view-relative frames directly (no
+  /// manual `textContainerOrigin` offset needed).
   func centerSelection() {
-    guard let tv = textView, let lm = tv.layoutManager, let tc = tv.textContainer,
-      let clip = scrollView?.contentView
+    guard let tv = textView, let clip = scrollView?.contentView else { return }
+    guard let range = NSTextRange(tv.textSelection, in: tv.textContentManager) else { return }
+    guard
+      let rect = tv.textLayoutManager.textSegmentFrame(
+        in: range, type: .standard)
     else { return }
-    let range = tv.selectedRange()
-    lm.ensureLayout(forCharacterRange: NSRange(location: 0, length: NSMaxRange(range)))
-    let glyphs = lm.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-    var rect = lm.boundingRect(forGlyphRange: glyphs, in: tc)
-    rect.origin.y += tv.textContainerOrigin.y
     let h = clip.bounds.height
     tv.scrollToVisible(NSRect(x: 0, y: rect.midY - h / 2, width: 1, height: h))
   }
@@ -455,9 +448,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
     if highlighter == nil {
       // New extension has no grammar — clear stale colours from the old type (requestHighlight
       // early-returns when there's no highlighter, so it won't reset them itself).
-      textStorage.addAttribute(
-        .foregroundColor, value: TreeSitterTheme.base,
-        range: NSRange(location: 0, length: textStorage.length))
+      textView.addAttributes([.foregroundColor: TreeSitterTheme.base], range: textView.fullRange)
     } else {
       requestHighlight(debounced: false)
     }
@@ -480,22 +471,19 @@ final class EditorViewController: NSViewController, NSTextViewDelegate, SourceEd
 
   /// Pull in a clean on-disk change. Dirty editors keep their local buffer and ignore outside writes.
   private func reloadFromDiskIfNeeded() {
-    guard !path.isEmpty, textView?.string == saved else { return }
+    guard !path.isEmpty, textView?.text == saved else { return }
     guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return }
-    guard content != textView.string else { return }
+    guard content != textView.text else { return }
 
-    let selection = textView.selectedRange()
+    let selection = textView.textSelection
     suppressTextChangeCallbacks = true
     defer { suppressTextChangeCallbacks = false }
-    textStorage.setAttributedString(
-      NSAttributedString(
-        string: content,
-        attributes: [.font: mono(lastFontSize), .foregroundColor: TreeSitterTheme.base]))
+    textView.attributedText = NSAttributedString(
+      string: content,
+      attributes: [.font: mono(lastFontSize), .foregroundColor: TreeSitterTheme.base])
     saved = content
-    textView.setSelectedRange(
-      NSRange(
-        location: min(selection.location, (content as NSString).length),
-        length: 0))
+    textView.textSelection = NSRange(
+      location: min(selection.location, (content as NSString).length), length: 0)
     lineEnding = LineEnding.detect(in: content) ?? .lf
     indentStyle = EditorViewController.detectIndent(content)
     textView.rebuildLineStarts()

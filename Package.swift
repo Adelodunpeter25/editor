@@ -3,12 +3,16 @@ import PackageDescription
 
 let package = Package(
     name: "Editor",
-    platforms: [.macOS(.v13)],
+    // STTextView (TextKit 2 editor component) requires macOS 14+.
+    platforms: [.macOS(.v14)],
     products: [
         .executable(name: "ed", targets: ["ed"]),
     ],
     dependencies: [
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.2.0"),
+        // Source editor component (TextKit 2). GPLv3 — see LICENSE-STTextView.md re: the
+        // commercial-license option if this app is ever distributed closed-source.
+        .package(url: "https://github.com/krzyzanowskim/STTextView", from: "2.3.0"),
         .package(name: "EditorCore", path: "Packages/EditorCore"),
         .package(name: "Syntax", path: "Packages/Syntax"),
     ],
@@ -22,6 +26,7 @@ let package = Package(
             name: "Editor",
             dependencies: [
                 .product(name: "SwiftTerm", package: "SwiftTerm"),
+                .product(name: "STTextView", package: "STTextView"),
                 .product(name: "LineEnding", package: "EditorCore"),
                 .product(name: "TextFind", package: "EditorCore"),
                 .product(name: "ValueRange", package: "EditorCore"),
