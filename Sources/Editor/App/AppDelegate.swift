@@ -330,18 +330,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func openFiles(_ filenames: [String]) {
     guard !filenames.isEmpty else { return }
+    // No windows yet (cold launch before didFinishLaunching) — queue for later.
+    // Partition dirs vs files so a directory queued via `openFiles` (e.g. `open`
+    // sometimes delivers a single dir through this path) isn't later opened as
+    // a file tab. This was the `ed .` bug: a dir was added as a file tab in
+    // the existing window instead of opening/focusing its repo.
     guard !windowControllers.isEmpty else {
-      pendingOpenFiles.append(contentsOf: filenames)
+      for path in filenames {
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
+          pendingOpenPaths.append(path)
+        } else {
+          pendingOpenFiles.append(path)
+        }
+      }
       return
     }
+    // Warm path — windows already exist. Open any directories as repos
+    // (new window / focus existing) and the remaining files as tabs.
+    var filePaths: [String] = []
+    for path in filenames {
+      var isDir: ObjCBool = false
+      if FileManager.default.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue {
+        model.openRepo(path)
+      } else {
+        filePaths.append(path)
+      }
+    }
+    guard !filePaths.isEmpty else { return }
     let session: Session
     if let active = model.activeSession {
       session = active
     } else {
-      let parent = URL(fileURLWithPath: filenames[0]).deletingLastPathComponent().path
+      let parent = URL(fileURLWithPath: filePaths[0]).deletingLastPathComponent().path
       session = model.openRepo(parent)
     }
-    for filename in filenames {
+    for filename in filePaths {
       session.openFile(filename, replaceCurrent: false)
     }
   }
