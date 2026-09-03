@@ -46,10 +46,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       pendingOpenPaths.removeAll()
     }
-    if !pendingOpenFiles.isEmpty {
-      openFiles(pendingOpenFiles)
-      pendingOpenFiles.removeAll()
-    }
 
     if model.sessions.isEmpty {
       showWelcomeWindow()
@@ -70,6 +66,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       } else {
         windowControllers.values.first?.window?.makeKeyAndOrderFront(nil)
       }
+    }
+
+    // Drain pending files *after* windows/sessions exist. Previously this ran
+    // before the window map was populated (windowControllers empty), so
+    // openFiles() re-queued the files and the subsequent removeAll() dropped
+    // them — breaking cold-launch `ed file` and Finder Open With for files.
+    // `ed {dir}` still worked because pendingOpenPaths was handled directly
+    // via openRepo without the windowControllers guard.
+    if !pendingOpenFiles.isEmpty {
+      let files = pendingOpenFiles
+      pendingOpenFiles.removeAll()
+      openFiles(files)
     }
 
     NSApp.activate(ignoringOtherApps: true)
