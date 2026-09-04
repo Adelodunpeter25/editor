@@ -26,7 +26,7 @@ extension CodeTextView {
 
   /// Rebuilds the `lineStarts` array from scratch. Called after every text change and on initial load.
   func rebuildLineStarts() {
-    let s = self.string ?? ""
+    let s = self.text ?? ""
     let counter = LineCounter(string: s)
     _ = counter.lineRange(at: s.utf16.count)
     var starts = [0]

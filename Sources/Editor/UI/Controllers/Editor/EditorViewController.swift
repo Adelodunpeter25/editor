@@ -107,11 +107,11 @@ final class EditorViewController: NSViewController, STTextViewDelegate, SourceEd
     guard let tv = scroll.documentView as? CodeTextView else {
       fatalError("CodeTextView.scrollableTextView() did not return a CodeTextView document view")
     }
-    tv.isRichText = false
+    // isRichText is a `let` on STTextView (always rich) — no assignment needed.
     tv.allowsUndo = true
     tv.backgroundColor = TreeSitterTheme.background
     tv.isAutomaticQuoteSubstitutionEnabled = false
-    tv.isAutomaticDashSubstitutionEnabled = false
+    tv.isAutomaticTextReplacementEnabled = false
     tv.isAutomaticSpellingCorrectionEnabled = false
     tv.isVerticallyResizable = true
     tv.isHorizontallyResizable = false  // wrap lines — matches the old widthTracksTextView behaviour
@@ -212,7 +212,7 @@ final class EditorViewController: NSViewController, STTextViewDelegate, SourceEd
 
   // MARK: - STTextViewDelegate
 
-  func textDidChange(_ notification: Notification) {
+  func textViewDidChangeText(_ notification: Notification) {
     guard !suppressTextChangeCallbacks else { return }
     onDirty(textView.text != saved)
     NotificationCenter.default.post(
