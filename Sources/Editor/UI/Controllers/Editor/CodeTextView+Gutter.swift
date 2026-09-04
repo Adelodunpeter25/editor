@@ -78,7 +78,7 @@ final class GitGutterOverlayView: NSView {
   required init?(coder: NSCoder) { fatalError() }
 
   override func draw(_ dirtyRect: NSRect) {
-    guard let tv = textView, let gutter = tv.gutterView else { return }
+    guard let tv = textView, tv.gutterView != nil else { return }
     let barLeading: CGFloat = 1
     let barWidth: CGFloat = 3
 
