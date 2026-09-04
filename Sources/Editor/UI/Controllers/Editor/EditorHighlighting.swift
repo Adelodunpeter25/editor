@@ -1,4 +1,5 @@
 import AppKit
+import STTextView
 
 extension EditorViewController {
 
@@ -19,7 +20,7 @@ extension EditorViewController {
     rehighlightWork?.cancel()
 
     // Snapshot text on main now (AppKit string is main-thread-only).
-    let content = textView.string
+    let content = textView.text ?? ""
 
     let work = DispatchWorkItem { [weak self] in
       guard let self, self.highlightSeq == seq else { return }
@@ -38,18 +39,18 @@ extension EditorViewController {
     EditorViewController.highlightQueue.asyncAfter(deadline: .now() + delay, execute: work)
   }
 
-  /// Recolour the storage from computed spans (text/selection/undo untouched). Skipped if the text
+  /// Recolour the text from computed spans (text/selection/undo untouched). Skipped if the text
   /// changed since these spans were computed — a newer pass is already queued to cover it.
+  ///
+  /// MIGRATION NOTE (STTextView): there's no externally-owned `NSTextStorage` to batch-edit anymore;
+  /// `addAttributes(_:range:)` is STTextView's direct equivalent (it does not touch text or undo).
   func applySpans(_ spans: [(NSRange, NSColor)], expecting content: String) {
-    let length = textStorage.length
+    let length = (textView.text as NSString?)?.length ?? 0
     guard (content as NSString).length == length else { return }
-    textStorage.beginEditing()
-    textStorage.addAttribute(
-      .foregroundColor, value: TreeSitterTheme.base, range: NSRange(location: 0, length: length))
+    textView.addAttributes([.foregroundColor: TreeSitterTheme.base], range: textView.fullRange)
     for (range, color) in spans where NSMaxRange(range) <= length {
-      textStorage.addAttribute(.foregroundColor, value: color, range: range)
+      textView.addAttributes([.foregroundColor: color], range: range)
     }
-    textStorage.endEditing()
   }
 
   func applyFont(_ size: Double) {
@@ -58,16 +59,16 @@ extension EditorViewController {
     let f = mono(size)
     textView.font = f
     textView.typingAttributes[.font] = f
-    textView.rebuildLineStarts()  // recalculate gutter width with the new font size
+    textView.rebuildLineStarts()  // recalculate line-index bookkeeping with the new font size
     // Resize runs in place — DON'T re-tokenize. Only swap each run's font to the new size,
     // preserving bold/italic via the font manager.
-    textStorage.beginEditing()
-    let full = NSRange(location: 0, length: textStorage.length)
-    textStorage.enumerateAttribute(.font, in: full) { value, range, _ in
+    let full = textView.fullRange
+    (textView.attributedText ?? NSAttributedString()).enumerateAttribute(
+      .font, in: full, options: []
+    ) { value, range, _ in
       let resized = (value as? NSFont).map { NSFontManager.shared.convert($0, toSize: size) } ?? f
-      textStorage.addAttribute(.font, value: resized, range: range)
+      textView.addAttributes([.font: resized], range: range)
     }
-    textStorage.endEditing()
   }
 
   func mono(_ s: Double) -> NSFont { AppFont.mono(size: s) }

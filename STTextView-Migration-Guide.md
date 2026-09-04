@@ -1,5 +1,15 @@
 # STTextView Migration Guide
 
+> **Status: migration attempted (untested).** `Package.swift` now depends on STTextView and targets
+> macOS 14, and `CodeTextView`/`EditorViewController`/the find/format/highlighting extensions have been
+> ported to STTextView's TextKit 2 API. This was written and reviewed in an environment with no macOS/
+> Xcode/Swift toolchain, so **none of it has been compiled or run**. Build it locally, work through the
+> Verification checklist below, and report back anything broken — see the inline `MIGRATION NOTE`
+> comments in `CodeTextView.swift`, `EditorViewController.swift`, `EditorFind.swift`, and
+> `STTextViewRangeUtil.swift` for the specific TextKit 1 → TextKit 2 API translations and their known
+> risk areas (block-cursor rendering, find/replace highlighting via `addAttributes` instead of temporary
+> attributes, and the git-gutter overlay repainting from `enumerateTextLayoutFragments`).
+
 ## Purpose
 
 This guide describes how to evaluate and, if appropriate, migrate the Editor application's custom text editor to [STTextView](https://github.com/krzyzanowskim/STTextView).

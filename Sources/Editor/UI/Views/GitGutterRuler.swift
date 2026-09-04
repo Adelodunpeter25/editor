@@ -1,8 +1,9 @@
 import AppKit
+import STTextView
 
-/// Computes editor git gutter data and pushes it into the line-number ruler.
+/// Computes editor git gutter data and pushes it into the line-number gutter overlay.
 final class GitGutterRuler: NSObject {
-  private weak var textView: NSTextView?
+  private weak var textView: STTextView?
   private var filePath: String
   private var diffDirty = true
   private var recomputeWork: DispatchWorkItem?
@@ -10,13 +11,15 @@ final class GitGutterRuler: NSObject {
   private var headContent: String?
   var onChange: ((GitGutterChangeSet) -> Void)?
 
-  init(scrollView: NSScrollView, textView: NSTextView, filePath: String) {
+  init(scrollView: NSScrollView, textView: STTextView, filePath: String) {
     self.textView = textView
     self.filePath = filePath
     super.init()
 
     scrollView.contentView.postsBoundsChangedNotifications = true
     let nc = NotificationCenter.default
+    // STTextView still posts the standard NSText.didChangeNotification (see
+    // STTextView.textDidChangeNotification) so this observer is unchanged.
     nc.addObserver(
       self, selector: #selector(textDidChange),
       name: NSText.didChangeNotification, object: textView)
@@ -60,7 +63,7 @@ final class GitGutterRuler: NSObject {
     diffDirty = false
 
     let path = filePath
-    let currentText = textView?.string ?? ""
+    let currentText = textView?.text ?? ""
     let cachedHead = headContent
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let head = cachedHead ?? Git.headText(forAbsolutePath: path)

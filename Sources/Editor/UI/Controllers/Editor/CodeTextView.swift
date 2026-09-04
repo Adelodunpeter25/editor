@@ -1,4 +1,5 @@
 import AppKit
+import STTextView
 import LineEnding
 
 enum EditMode {
@@ -6,84 +7,51 @@ enum EditMode {
   case insert
 }
 
-/// NSTextView subclass that intercepts Cmd+S to save and adds "Format Document" to the right-click menu.
-/// Also implements a simplified vim mode: starts in normal mode (read-only), press 'i' to enter insert mode,
-/// press Escape to return to normal mode. Prevents accidental edits while allowing navigation/selection.
-/// Line-number gutter is drawn directly inside this view (see CodeTextView+Gutter.swift).
-final class CodeTextView: NSTextView {
+/// STTextView (TextKit 2) subclass that intercepts Cmd+S to save and adds "Format Document" to the
+/// right-click menu. Also implements a simplified vim mode: starts in normal mode (read-only), press
+/// 'i' to enter insert mode, press Escape to return to normal mode. Prevents accidental edits while
+/// allowing navigation/selection.
+///
+/// MIGRATION NOTE (STTextView): line numbers and the separator are now drawn natively by
+/// `gutterView` (see `showsLineNumbers` set up in EditorViewController.loadView). Git added/modified/
+/// deleted markers are drawn by a small overlay view docked inside the gutter — see
+/// CodeTextView+Gutter.swift — because STTextView's gutter marker API is oriented around per-line
+/// annotations rather than a raw draw hook the way the old TextKit 1 `draw(_:)` override was.
+final class CodeTextView: STTextView {
   var onSave: (() -> Void)?
   var onFormat: (() -> Void)?
   var onModeChange: ((EditMode) -> Void)?
-  
+
   var editMode: EditMode = .normal {
     didSet {
-      updateCursor()
+      updateCursorAppearance()
       onModeChange?(editMode)
     }
   }
 
-  // MARK: - Gutter State & Properties
+  var gitAddedLines: Set<Int> = [] { didSet { gutterOverlay?.needsDisplay = true } }
+  var gitModifiedLines: Set<Int> = [] { didSet { gutterOverlay?.needsDisplay = true } }
+  var gitDeletedLines: Set<Int> = [] { didSet { gutterOverlay?.needsDisplay = true } }
 
-  /// Pre-computed line-start character offsets (0-based). Index 0 is always 0.
-  var lineStarts: [Int] = [0]
-  /// Cached line count (== lineStarts.count).
-  var cachedLineCount: Int = 1
-  /// Cached gutter width — only updated when line count or font changes.
-  var _cachedGutterWidth: CGFloat = 40
+  /// Installed once the gutter view exists (after the text view is added to a scroll view).
+  private(set) var gutterOverlay: GitGutterOverlayView?
 
-  var gitAddedLines: Set<Int> = [] { didSet { needsDisplay = true } }
-  var gitModifiedLines: Set<Int> = [] { didSet { needsDisplay = true } }
-  var gitDeletedLines: Set<Int> = [] { didSet { needsDisplay = true } }
+  // MARK: - Gutter overlay lifecycle
 
-  // MARK: - Text Container Origin
-
-  override var textContainerOrigin: NSPoint {
-    // IMPORTANT: Do NOT call super here. The default implementation calls
-    // usedRectForTextContainer which triggers a full layout pass and can
-    // crash during display-cycle callbacks (hitTest, cursor tracking, etc.).
-    // We return stored values only — no layout side-effects.
-    return NSPoint(x: _cachedGutterWidth, y: textContainerInset.height)
-  }
-
-  // MARK: - Cursor & Drawing Overrides
-
-  override func resetCursorRects() {
-    super.resetCursorRects()
-    resetGutterCursorRect()
-  }
-
-  override func didChangeText() {
-    super.didChangeText()
-    rebuildLineStarts()
-  }
-
-  override func setSelectedRanges(_ ranges: [NSValue], affinity: NSSelectionAffinity, stillSelecting stillSelectingFlag: Bool) {
-    super.setSelectedRanges(ranges, affinity: affinity, stillSelecting: stillSelectingFlag)
-    needsDisplay = true
-  }
-
-  override func setNeedsDisplay(_ invalidRect: NSRect) {
-    var rect = invalidRect
-    rect.origin.x = 0
-    rect.size.width = bounds.width
-    super.setNeedsDisplay(rect)
-  }
-
-  override func setNeedsDisplay(_ invalidRect: NSRect, avoidAdditionalLayout flag: Bool) {
-    var rect = invalidRect
-    rect.origin.x = 0
-    rect.size.width = bounds.width
-    super.setNeedsDisplay(rect, avoidAdditionalLayout: flag)
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    // Save the graphics state before super.draw(), which clips the context
-    // to the text container region (starting at textContainerOrigin.x).
-    // Without this, gutter drawing at x < _cachedGutterWidth is clipped away.
-    NSGraphicsContext.saveGraphicsState()
-    super.draw(dirtyRect)
-    NSGraphicsContext.restoreGraphicsState()
-    drawGutter(in: dirtyRect)
+  /// Called by EditorViewController right after `showsLineNumbers` is enabled and the text view is
+  /// in its scroll view, so `gutterView` is non-nil.
+  func installGitGutterOverlay() {
+    guard gutterOverlay == nil, let gutter = gutterView else { return }
+    let overlay = GitGutterOverlayView(textView: self)
+    overlay.translatesAutoresizingMaskIntoConstraints = false
+    gutter.addSubview(overlay)
+    NSLayoutConstraint.activate([
+      overlay.leadingAnchor.constraint(equalTo: gutter.leadingAnchor),
+      overlay.topAnchor.constraint(equalTo: gutter.topAnchor),
+      overlay.widthAnchor.constraint(equalToConstant: 5),
+      overlay.bottomAnchor.constraint(equalTo: gutter.bottomAnchor),
+    ])
+    gutterOverlay = overlay
   }
 
   // MARK: - Menu
@@ -110,99 +78,62 @@ final class CodeTextView: NSTextView {
     }
     return super.performKeyEquivalent(with: event)
   }
-  
+
   override func keyDown(with event: NSEvent) {
     // Handle mode switching
     if editMode == .normal {
       // 'i' enters insert mode
-      if event.charactersIgnoringModifiers?.lowercased() == "i" && 
-         event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
+      if event.charactersIgnoringModifiers?.lowercased() == "i"
+        && event.modifierFlags.intersection([.command, .control, .option]).isEmpty
+      {
         editMode = .insert
         return
       }
-      
+
       // Escape does nothing in normal mode (already there)
-      if event.keyCode == 53 { // Escape key
+      if event.keyCode == 53 {  // Escape key
         return
       }
-      
+
       // Allow navigation keys, selection, and standard editing shortcuts
-      let isNavigation = (event.keyCode >= 123 && event.keyCode <= 126) || // Arrow keys
-                         event.charactersIgnoringModifiers?.lowercased() == "h" ||
-                         event.charactersIgnoringModifiers?.lowercased() == "j" ||
-                         event.charactersIgnoringModifiers?.lowercased() == "k" ||
-                         event.charactersIgnoringModifiers?.lowercased() == "l"
-      
+      let isNavigation =
+        (event.keyCode >= 123 && event.keyCode <= 126)  // Arrow keys
+        || event.charactersIgnoringModifiers?.lowercased() == "h"
+        || event.charactersIgnoringModifiers?.lowercased() == "j"
+        || event.charactersIgnoringModifiers?.lowercased() == "k"
+        || event.charactersIgnoringModifiers?.lowercased() == "l"
+
       let isSelection = event.modifierFlags.contains(.shift)
-      let isStandardShortcut = event.modifierFlags.contains(.command) || 
-                               event.modifierFlags.contains(.control)
-      
+      let isStandardShortcut =
+        event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control)
+
       if isNavigation || isSelection || isStandardShortcut {
         super.keyDown(with: event)
         return
       }
-      
+
       // Block all other character input in normal mode
       return
     }
-    
+
     // In insert mode, handle Escape to return to normal mode
-    if event.keyCode == 53 { // Escape key
+    if event.keyCode == 53 {  // Escape key
       editMode = .normal
       return
     }
-    
+
     // Normal typing in insert mode
     super.keyDown(with: event)
   }
-  
+
   // MARK: - Cursor Appearance
 
-  private func updateCursor() {
-    insertionPointColor = .white
-    // Force redraw of the insertion point
-    setNeedsDisplay(visibleRect, avoidAdditionalLayout: false)
-  }
-  
-  override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn: Bool) {
-    if editMode == .normal && turnedOn {
-      let blockColor = color.withAlphaComponent(0.5)
-      blockColor.setFill()
-      
-      var blockRect = rect.integral
-      let cellWidth = max(2, ceil(font?.maximumAdvancement.width ?? 8))
-      let cellHeight = max(blockRect.height, ceil(layoutManager?.defaultLineHeight(for: font ?? .systemFont(ofSize: 12)) ?? 14))
-      blockRect.size.width = cellWidth + 2
-      blockRect.size.height = cellHeight
-      NSBezierPath(rect: blockRect).fill()
-      return
-    }
-    
-    super.drawInsertionPoint(in: rect, color: color, turnedOn: turnedOn)
-  }
-
-  override func viewDidMoveToSuperview() {
-    super.viewDidMoveToSuperview()
-    
-    // Remove old observers to avoid duplicates.
-    NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
-    
-    if let scrollView = enclosingScrollView {
-      scrollView.contentView.postsBoundsChangedNotifications = true
-      NotificationCenter.default.addObserver(
-        self,
-        selector: #selector(scrollViewDidScroll(_:)),
-        name: NSView.boundsDidChangeNotification,
-        object: scrollView.contentView
-      )
-    }
-  }
-
-  @objc private func scrollViewDidScroll(_ notification: Notification) {
-    self.needsDisplay = true
-  }
-
-  deinit {
-    NotificationCenter.default.removeObserver(self)
+  /// MIGRATION NOTE (STTextView): the old TextKit 1 editor drew a translucent block caret in normal
+  /// mode via `NSTextView.drawInsertionPoint`, which STTextView does not expose (insertion point
+  /// rendering is owned by its internal `STInsertionPointView`). As a first-pass approximation we only
+  /// tint the (thin) insertion point; a true block cursor would need a custom `STPlugin` or an
+  /// overlay view positioned at the caret — left as a follow-up once the basic integration is verified.
+  private func updateCursorAppearance() {
+    insertionPointColor = editMode == .normal ? .white.withAlphaComponent(0.5) : .white
   }
 }
