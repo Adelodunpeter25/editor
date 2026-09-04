@@ -20,7 +20,7 @@ let package = Package(
         .target(
             name: "Cfff",
             path: "Sources/Cfff",
-            exclude: ["libfff_c.a"]
+            exclude: ["libfff_c.dylib"]
         ),
         .executableTarget(
             name: "Editor",

@@ -35,6 +35,12 @@ echo "==> bundling $APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Editor"
+# Bundle the fff dylib next to the executable so @rpath/libfff_c.dylib resolves at runtime
+# (LC_ID is @rpath/libfff_c.dylib, LC_RPATH is @loader_path). Without this the .app dylds
+# at launch on arm64 because Sources/Cfff isn't inside the bundle.
+if [ -f "Sources/Cfff/libfff_c.dylib" ]; then
+  cp "Sources/Cfff/libfff_c.dylib" "$APP/Contents/MacOS/"
+fi
 
 # Copy SwiftPM resource bundles (e.g. Editor_Editor.bundle with the TextMate grammars) into
 # Contents/Resources so they stay inside the code signature; GrammarBundle and
