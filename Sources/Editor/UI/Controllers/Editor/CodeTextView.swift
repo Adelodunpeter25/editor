@@ -95,19 +95,37 @@ final class CodeTextView: STTextView {
         return
       }
 
-      // Allow navigation keys, selection, and standard editing shortcuts
-      let isNavigation =
-        (event.keyCode >= 123 && event.keyCode <= 126)  // Arrow keys
-        || event.charactersIgnoringModifiers?.lowercased() == "h"
-        || event.charactersIgnoringModifiers?.lowercased() == "j"
-        || event.charactersIgnoringModifiers?.lowercased() == "k"
-        || event.charactersIgnoringModifiers?.lowercased() == "l"
+      // h/j/k/l move the caret instead of inserting: passing them to super would run them
+      // through `interpretKeyEvents`, which has no binding for a bare "h" and inserts it as
+      // text (same for Shift+letter via the old shift passthrough). With Shift held they
+      // extend the selection, matching arrow-key behaviour.
+      if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+        let key = event.charactersIgnoringModifiers?.lowercased(),
+        key.count == 1, "hjkl".contains(key)
+      {
+        let selecting = event.modifierFlags.contains(.shift)
+        switch key {
+        case "h": selecting ? moveLeftAndModifySelection(self) : moveLeft(self)
+        case "l": selecting ? moveRightAndModifySelection(self) : moveRight(self)
+        case "j": selecting ? moveDownAndModifySelection(self) : moveDown(self)
+        case "k": selecting ? moveUpAndModifySelection(self) : moveUp(self)
+        default: break
+        }
+        return
+      }
 
-      let isSelection = event.modifierFlags.contains(.shift)
+      // Allow non-text navigation keys (arrows, Home/End, Page Up/Down — Shift variants
+      // extend the selection natively) and standard shortcuts (Cmd/Ctrl combos).
+      let keyCode = event.keyCode
+      let isNavigationKey =
+        (keyCode >= 123 && keyCode <= 126)  // Arrow keys
+        || keyCode == 115 || keyCode == 119  // Home / End
+        || keyCode == 116 || keyCode == 121  // Page Up / Page Down
+
       let isStandardShortcut =
         event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control)
 
-      if isNavigation || isSelection || isStandardShortcut {
+      if isNavigationKey || isStandardShortcut {
         super.keyDown(with: event)
         return
       }
@@ -124,6 +142,44 @@ final class CodeTextView: STTextView {
 
     // Normal typing in insert mode
     super.keyDown(with: event)
+  }
+
+  // MARK: - Normal-mode write protection (defense in depth behind keyDown)
+
+  // Normal mode is documented read-only, but several edit paths bypass keyDown: IME/dictation
+  // and drag-and-drop funnel through `insertText`, while Cmd+V arrives as the `paste:` action.
+  // Blocking them here keeps normal mode from editing. Programmatic edits (highlighting via
+  // `addAttributes`, format-on-save / find-replace via `replaceCharacters`) don't use these
+  // paths, so they keep working regardless of mode. `delete` degrades to a no-op in normal
+  // mode because STTextView implements it via `insertText`.
+  override func insertText(_ string: Any, replacementRange: NSRange) {
+    guard editMode == .insert else { return }
+    super.insertText(string, replacementRange: replacementRange)
+  }
+
+  override func insertText(_ insertString: Any) {
+    guard editMode == .insert else { return }
+    super.insertText(insertString)
+  }
+
+  override func paste(_ sender: Any?) {
+    guard editMode == .insert else { return }
+    super.paste(sender)
+  }
+
+  override func pasteAsPlainText(_ sender: Any?) {
+    guard editMode == .insert else { return }
+    super.pasteAsPlainText(sender)
+  }
+
+  override func pasteAsRichText(_ sender: Any?) {
+    guard editMode == .insert else { return }
+    super.pasteAsRichText(sender)
+  }
+
+  override func cut(_ sender: Any?) {
+    guard editMode == .insert else { return }
+    super.cut(sender)
   }
 
   // MARK: - Cursor Appearance

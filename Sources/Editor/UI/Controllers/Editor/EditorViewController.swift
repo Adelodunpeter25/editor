@@ -124,15 +124,22 @@ final class EditorViewController: NSViewController, STTextViewDelegate, SourceEd
     self.textView = tv
 
     let content = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+    // Assign `saved` first and suppress the delegate: setting `attributedText` synchronously
+    // fires `textViewDidChangeText` (STTextView routes it through replaceCharacters→didChangeText),
+    // which would otherwise compare against the stale `saved == ""` and mark every non-empty
+    // file dirty the moment it opens.
+    saved = content
+    suppressTextChangeCallbacks = true
     tv.attributedText = NSAttributedString(
       string: content,
       attributes: [.font: mono(fontSize), .foregroundColor: TreeSitterTheme.base])
-    saved = content
+    suppressTextChangeCallbacks = false
     tv.textSelection = NSRange(location: 0, length: 0)  // caret at the top on open
     lineEnding = LineEnding.detect(in: content) ?? .lf  // status bar (detected once on load)
     indentStyle = EditorViewController.detectIndent(content)
     tv.onSave = { [weak self] in self?.save() }
     tv.onFormat = { [weak self] in self?.formatDocument() }
+    tv.editMode = .normal  // re-assert: fires didSet so the normal-mode caret applies from open
     tv.onModeChange = { _ in
       EditorStatus.onChange?()  // refresh status bar mode indicator
     }
